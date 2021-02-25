@@ -143,7 +143,7 @@ AMIGA_VideoInit(_THIS)
 
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "ENV:gamecontrollerdb.txt");
-	
+
 	return 0;
 }
 
@@ -391,11 +391,11 @@ AMIGA_CreateDevice(int devindex)
 			device->HasClipboardText = AMIGA_HasClipboardText;
 
 			//device->ShowMessageBox = AMIGA_ShowMessageBox;
-			
+
 			device->SetWindowResizable = AMIGA_SetWindowResizable;
 			//device->GetWindowBordersSize = AMIGA_GetWindowBordersSize;
 			device->SetWindowOpacity = AMIGA_SetWindowOpacity;
-			
+
 			device->free = AMIGA_DeleteDevice;
 
 			return device;
@@ -408,7 +408,7 @@ AMIGA_CreateDevice(int devindex)
 	return NULL;
 }
 
-VideoBootStrap AMIGA_bootstrap = {
+VideoBootStrap MORPHOS_bootstrap = {
 	"amiga", "SDL Amiga video driver",
 	AMIGA_CreateDevice
 };
