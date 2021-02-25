@@ -59,6 +59,13 @@
 #include <setjmp.h>
 #endif
 
+#ifdef __MORPHOS__
+#include <stdlib.h>
+#include <exec/execbase.h>
+#include <exec/system.h>
+#include <proto/exec.h>
+#endif
+
 #if defined(__QNXNTO__)
 #include <sys/syspage.h>
 #endif
@@ -110,7 +117,7 @@
 #define CPU_HAS_AVX512F (1 << 12)
 #define CPU_HAS_ARM_SIMD (1 << 13)
 
-#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__
+#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__ && !__MORPHOS__
 /* This is the brute force way of detecting instruction sets...
    the idea is borrowed from the libmpeg2 library - thanks!
  */
@@ -327,6 +334,13 @@ CPU_haveAltiVec(void)
     int error = sysctl(selectors, 2, &hasVectorUnit, &length, NULL, 0);
     if (0 == error)
         altivec = (hasVectorUnit != 0);
+#elif defined(__MORPHOS__)
+    	ULONG has_altivec;
+	if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
+	{
+		if(has_altivec) 
+			altivec = 1;
+	}
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
     void (*handler) (int sig);
     handler = signal(SIGILL, illegal_instruction);
@@ -649,6 +663,9 @@ SDL_GetCPUCount(void)
                             &SDL_CPUCount, sizeof(SDL_CPUCount) );
         }
 #endif
+#ifdef __MORPHOS__
+	NewGetSystemAttrs(&SDL_CPUCount, sizeof(SDL_CPUCount), SYSTEMINFOTYPE_CPUCOUNT, TAG_DONE);
+#endif
 #endif
         /* There has to be at least 1, right? :) */
         if (SDL_CPUCount <= 0) {
@@ -807,8 +824,13 @@ SDL_GetCPUCacheLineSize(void)
         cpuid(0x80000005, a, b, c, d);
         return (c & 0xff);
     } else {
+#ifdef __MORPHOS__
+		extern u_int32_t DataL1LineSize;
+		return DataL1LineSize;
+#else
         /* Just make a guess here... */
         return SDL_CACHELINE_SIZE;
+#endif
     }
 }
 
@@ -1021,6 +1043,11 @@ SDL_GetSystemRAM(void)
             if (_kernel_swi(OS_Memory, &regs, &regs) == NULL) {
                 SDL_SystemRAM = (int)(regs.r[1] * regs.r[2] / (1024 * 1024));
             }
+        }
+#endif
+#ifdef __MORPHOS__
+        if (SDL_SystemRAM <= 0) {
+            SDL_SystemRAM = AvailMem(MEMF_TOTAL) / (1024 * 1024);
         }
 #endif
 #endif

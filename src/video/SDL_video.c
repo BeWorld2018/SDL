@@ -106,6 +106,9 @@ static VideoBootStrap *bootstrap[] = {
 #if SDL_VIDEO_DRIVER_EMSCRIPTEN
     &Emscripten_bootstrap,
 #endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+    &MORPHOS_bootstrap,
+#endif
 #if SDL_VIDEO_DRIVER_QNX
     &QNX_bootstrap,
 #endif
@@ -148,7 +151,12 @@ static SDL_VideoDevice *_this = NULL;
         return retval; \
     }
 
+#if defined(__AMIGAOS4__) || defined(__MORPHOS__)
+/* Let's have only one kind of full screen */
+#define FULLSCREEN_MASK (SDL_WINDOW_FULLSCREEN)
+#else
 #define FULLSCREEN_MASK (SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_FULLSCREEN)
+#endif
 
 #ifdef __MACOSX__
 /* Support for Mac OS X fullscreen spaces */
@@ -1151,6 +1159,10 @@ SDL_SetWindowDisplayMode(SDL_Window * window, const SDL_DisplayMode * mode)
         SDL_DisplayMode fullscreen_mode;
         if (SDL_GetWindowDisplayMode(window, &fullscreen_mode) == 0) {
             SDL_SetDisplayModeForDisplay(SDL_GetDisplayForWindow(window), &fullscreen_mode);
+#if defined(__AMIGAOS4__) || defined(__MORPHOS__)
+            // Force window on new screen
+            _this->SetWindowFullscreen(_this, window, SDL_GetDisplayForWindow(window), SDL_TRUE);
+#endif
         }
     }
     return 0;
@@ -3285,8 +3297,13 @@ SDL_GL_ResetAttributes()
     _this->gl_config.accelerated = -1;  /* accelerated or not, both are fine */
 
 #if SDL_VIDEO_OPENGL
+#ifdef __MORPHOS__
+    _this->gl_config.major_version = 1; /* TinyGL */
+    _this->gl_config.minor_version = 2;
+#else
     _this->gl_config.major_version = 2;
     _this->gl_config.minor_version = 1;
+#endif
     _this->gl_config.profile_mask = 0;
 #elif SDL_VIDEO_OPENGL_ES2
     _this->gl_config.major_version = 2;
@@ -4039,6 +4056,9 @@ SDL_IsScreenKeyboardShown(SDL_Window *window)
 #if SDL_VIDEO_DRIVER_X11
 #include "x11/SDL_x11messagebox.h"
 #endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+#include "morphos/SDL_amigamessagebox.h"
+#endif
 #if SDL_VIDEO_DRIVER_HAIKU
 #include "haiku/SDL_bmessagebox.h"
 #endif
@@ -4046,7 +4066,7 @@ SDL_IsScreenKeyboardShown(SDL_Window *window)
 #include "os2/SDL_os2messagebox.h"
 #endif
 
-#if SDL_VIDEO_DRIVER_WINDOWS || SDL_VIDEO_DRIVER_WINRT || SDL_VIDEO_DRIVER_COCOA || SDL_VIDEO_DRIVER_UIKIT || SDL_VIDEO_DRIVER_X11 || SDL_VIDEO_DRIVER_HAIKU || SDL_VIDEO_DRIVER_OS2
+#if SDL_VIDEO_DRIVER_WINDOWS || SDL_VIDEO_DRIVER_WINRT || SDL_VIDEO_DRIVER_COCOA || SDL_VIDEO_DRIVER_UIKIT || SDL_VIDEO_DRIVER_X11 || SDL_VIDEO_DRIVER_HAIKU || SDL_VIDEO_DRIVER_OS2 || SDL_VIDEO_DRIVER_MORPHOS
 static SDL_bool SDL_MessageboxValidForDriver(const SDL_MessageBoxData *messageboxdata, SDL_SYSWM_TYPE drivertype)
 {
     SDL_SysWMinfo info;
@@ -4142,6 +4162,13 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     if (retval == -1 &&
         SDL_MessageboxValidForDriver(messageboxdata, SDL_SYSWM_X11) &&
         X11_ShowMessageBox(messageboxdata, buttonid) == 0) {
+        retval = 0;
+    }
+#endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+    if (retval == -1 &&
+        SDL_MessageboxValidForDriver(messageboxdata, SDL_SYSWM_AMIGA) &&
+        AMIGA_ShowMessageBox(messageboxdata, buttonid) == 0) {
         retval = 0;
     }
 #endif
