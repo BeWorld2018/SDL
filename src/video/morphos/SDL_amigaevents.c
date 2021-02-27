@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,6 +30,7 @@
 #include "SDL_amigavideo.h"
 #include "SDL_amigawindow.h"
 #include "SDL_amigaopengl.h"
+#include "SDL_amigamouse.h"
 
 #include "SDL_timer.h"
 #include "SDL_syswm.h"
@@ -264,7 +265,6 @@ AMIGA_Joystick(struct Window *window)
 	char text2[254] = "";
 	int i;
     int controller_count = 0;
-    int controller_index = 0;
     char guid[64];
 	
 	SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
@@ -516,11 +516,24 @@ AMIGA_PumpEvents(_THIS)
 			if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2)
 			{
 				wdata->win->Flags |= WFLG_RMBTRAP;
+				
+				if (data->CurrentPointer)	
+				{
+					SDL_AmigaCursor *ac = (SDL_AmigaCursor *)data->CurrentPointer;
+					if (ac->Pointer.mouseptr)
+					{
+						SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+					}
+				}else{
+					size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
+					SetAttrsA(wdata->win, (struct TagItem *)&pointertags);
+				}
+				
 			}
 			else
 			{
 				wdata->win->Flags &= ~WFLG_RMBTRAP;
-				SDL_ShowCursor(TRUE); // force to show system cursor
+				ClearPointer(wdata->win);
 			}
 		}
 	}

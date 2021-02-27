@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,6 @@
 #include <proto/cybergraphics.h>
 #include <proto/exec.h>
 #include <proto/graphics.h>
-#include <proto/intuition.h>
 #include <proto/dos.h>
 #include <dos/rdargs.h>
 
@@ -52,13 +51,11 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 		cursor->Pointer.offx = hot_x;
 		cursor->Pointer.offy = hot_y;
 
-		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
-
+		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
+	
 		if (bmp != NULL)
 		{
 			struct RastPort rp;
-
-			cursor->Pointer.bmp = bmp;
 
 			InitRastPort(&rp);
 			rp.BitMap = bmp;
@@ -66,8 +63,19 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 			if (SDL_LockSurface(surface) == 0)
 			{
 				WritePixelArray(surface->pixels, 0, 0, surface->pitch, &rp, 0, 0, surface->w, surface->h, RECTFMT_ARGB);
+		
+			
+				Object *mouseptr = NewObject(NULL,POINTERCLASS,
+								POINTERA_BitMap, bmp,
+								POINTERA_XOffset, hot_x,
+								POINTERA_YOffset, hot_y,
+								TAG_DONE);
+				
+				cursor->Pointer.mouseptr = mouseptr;
 				SDL_UnlockSurface(surface);
 			}
+			
+			FreeBitMap(bmp);
 		}
 		else
 		{
@@ -126,7 +134,10 @@ AMIGA_FreeCursor(SDL_Cursor *cursor)
 
 	if (!IS_SYSTEM_CURSOR(cursor))
 	{
-		FreeBitMap(((SDL_AmigaCursor *)cursor)->Pointer.bmp);
+		//FreeBitMap(((SDL_AmigaCursor *)cursor)->Pointer.bmp);
+		if (((SDL_AmigaCursor *)cursor)->Pointer.mouseptr)
+			DisposeObject(((SDL_AmigaCursor *)cursor)->Pointer.mouseptr);	
+		
 	}
 
 	SDL_free(cursor);
@@ -161,13 +172,15 @@ AMIGA_ShowCursor(SDL_Cursor * cursor)
 	{
 		SDL_AmigaCursor *ac = (SDL_AmigaCursor *)cursor;
 		SDL_WindowData *wd;
-		size_t pointertags[] = { POINTERA_BitMap, (size_t)ac->Pointer.bmp, POINTERA_XOffset, ac->Pointer.offx, POINTERA_YOffset, ac->Pointer.offy, TAG_DONE };
 
 		ForeachNode(&data->windowlist, wd)
 		{
 			if (wd->win)
 			{
-				SetWindowPointerA(wd->win, (struct TagItem *)&pointertags);
+				if (ac->Pointer.mouseptr) 
+				{
+					SetWindowPointer(wd->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+				}
 			}
 		}
 	}
@@ -184,7 +197,7 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 	struct Window *win;
 	D("[%s]\n", __FUNCTION__);
 
-		BOOL warpHostPointer;
+	BOOL warpHostPointer;
 
 	warpHostPointer = !SDL_GetRelativeMouseMode() && (window == SDL_GetMouseFocus());
 

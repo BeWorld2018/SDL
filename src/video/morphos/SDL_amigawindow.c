@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -498,8 +498,10 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			else
 			{
 				SDL_AmigaCursor *ac = (SDL_AmigaCursor *)vd->CurrentPointer;
-				size_t pointertags[] = { POINTERA_BitMap, (size_t)ac->Pointer.bmp, POINTERA_XOffset, ac->Pointer.offx, POINTERA_YOffset, ac->Pointer.offy, TAG_DONE };
-				SetWindowPointerA(data->win, (struct TagItem *)&pointertags);
+				if (ac->Pointer.mouseptr) 
+				{
+					SetWindowPointer(data->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+				}
 			}
 
 			data->curr_x = data->win->LeftEdge;

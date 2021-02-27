@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,12 +24,13 @@
 #define _SDL_amigamouse_h
 
 #include "SDL_amigavideo.h"
+#include <proto/intuition.h>
 
 #define IS_SYSTEM_CURSOR(cursor) (cursor == NULL || ((size_t)(cursor)->driverdata) < POINTERTYPE_NUMTYPES)
 
 struct SDL_AmigaPointerData
 {
-	struct BitMap *bmp;
+	Object *mouseptr;
 	int offx, offy;
 };
 
