@@ -52,7 +52,7 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 		cursor->Pointer.offy = hot_y;
 
 		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
-	
+
 		if (bmp != NULL)
 		{
 			struct RastPort rp;
@@ -63,18 +63,18 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 			if (SDL_LockSurface(surface) == 0)
 			{
 				WritePixelArray(surface->pixels, 0, 0, surface->pitch, &rp, 0, 0, surface->w, surface->h, RECTFMT_ARGB);
-		
-			
+
+
 				Object *mouseptr = NewObject(NULL,POINTERCLASS,
 								POINTERA_BitMap, bmp,
 								POINTERA_XOffset, hot_x,
 								POINTERA_YOffset, hot_y,
 								TAG_DONE);
-				
+
 				cursor->Pointer.mouseptr = mouseptr;
 				SDL_UnlockSurface(surface);
 			}
-			
+
 			FreeBitMap(bmp);
 		}
 		else
@@ -136,8 +136,8 @@ AMIGA_FreeCursor(SDL_Cursor *cursor)
 	{
 		//FreeBitMap(((SDL_AmigaCursor *)cursor)->Pointer.bmp);
 		if (((SDL_AmigaCursor *)cursor)->Pointer.mouseptr)
-			DisposeObject(((SDL_AmigaCursor *)cursor)->Pointer.mouseptr);	
-		
+			DisposeObject(((SDL_AmigaCursor *)cursor)->Pointer.mouseptr);
+
 	}
 
 	SDL_free(cursor);
@@ -177,7 +177,7 @@ AMIGA_ShowCursor(SDL_Cursor * cursor)
 		{
 			if (wd->win)
 			{
-				if (ac->Pointer.mouseptr) 
+				if (ac->Pointer.mouseptr)
 				{
 					SetWindowPointer(wd->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
 				}
@@ -286,9 +286,13 @@ AMIGA_GetDoubleClickTimeInMillis(_THIS)
     rda.RDA_Source.CS_Buffer = (STRPTR)SDL_LoadFile("ENV:sys/mouse.conf", (size_t *)&rda.RDA_Source.CS_Length);
     if (rda.RDA_Source.CS_Buffer) {
         LONG *array[4] = {0};
-        if (ReadArgs("Pointer/K,RMBEmulationQualifier/K,DoubleClickS/N/K,DoubleClickM/N/K,/F", (LONG *)array, &rda)) {
-            interval = *array[2] * 1000 + *array[3] / 1000;
-	    	FreeArgs(&rda);
+        if (ReadArgs("Pointer/K,RMBEmulationQualifier/K,DoubleClickS/N/K,DoubleClickM/N/K,/F", (LONG *)array, &rda))
+				{
+						if (arrays[2] != 0L && arrays[3] != 0L)
+						{
+            	interval = *array[2] * 1000 + *array[3] / 1000;
+						}
+	    			FreeArgs(&rda);
         }
         SDL_free(rda.RDA_Source.CS_Buffer);
     }
