@@ -519,10 +519,13 @@ AMIGA_PumpEvents(_THIS)
 				
 				if (data->CurrentPointer)	
 				{
-					SDL_AmigaCursor *ac = (SDL_AmigaCursor *)data->CurrentPointer;
-					if (ac->Pointer.mouseptr)
+					if (!IS_SYSTEM_CURSOR(data->CurrentPointer))
 					{
-						SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+						SDL_AmigaCursor *ac = (SDL_AmigaCursor *)data->CurrentPointer;
+						if (ac->Pointer.mouseptr)
+						{
+							SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+						}
 					}
 				}else{
 					size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
