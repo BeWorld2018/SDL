@@ -858,6 +858,7 @@ static const char *s_ControllerMappings [] =
 #endif
 #if defined(__MORPHOS__)
 	"030000004c050000c405000000000000,PlayStation 4 Dualshock Controller,platform:MorphOS,a:b6,b:b7,x:b4,y:b5,back:b3,start:b2,leftstick:b8,rightstick:b9,leftshoulder:b0,rightshoulder:b1,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:+a4,righttrigger:+a5,",
+	"030000005e0400008e02000000000000,Xbox360 Controller,platform:MorphOS,a:b7,b:b8,x:b5,y:b6,back:b2,guide:b4,start:b3,leftstick:b9,rightstick:b10,leftshoulder:b0,rightshoulder:b1,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:+a4,righttrigger:+a5,",
 #endif  
     NULL
 };

@@ -211,6 +211,8 @@ AMIGA_InitModes(_THIS)
 
 		for (i = 0; (m = monitors[i]); i++)
 		{
+			D("[%s] Add other monitors = %d\n", __FUNCTION__, monitors[i]);
+			
 			if (m != mon)
 			{
 				SDL_DisplayModeData *modedata = SDL_malloc(sizeof(*modedata));
@@ -301,12 +303,12 @@ AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 				mode.format = pixelformats[i].NewPixFmt;
 
 				// Go through display database to find out what modes are available to this monitor
-				D("[%s] Go through display database\n", __FUNCTION__);
+				//D("[%s] Go through display database\n", __FUNCTION__);
 				while ((nextid = NextDisplayInfo(nextid)) != INVALID_ID)
 				{
 					if (GetCyberIDAttr(CYBRIDATTR_PIXFMT, nextid) == pixfmt)
 					{
-						D("[%s] id 0x%08lx matches to pixfmt %ld\n", __FUNCTION__, nextid, pixfmt);
+						//D("[%s] id 0x%08lx matches to pixfmt %ld\n", __FUNCTION__, nextid, pixfmt);
 
 						if (AMIGA_CheckMonitor(md->monitor, nextid))
 						{
@@ -318,10 +320,10 @@ AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 						}
 					}
 
-					D("[%s] Mode 0x%08lx checked.\n", __FUNCTION__, nextid);
+					//D("[%s] Mode 0x%08lx checked.\n", __FUNCTION__, nextid);
 				}
 
-				D("[%s] finished pixel format %ld\n", __FUNCTION__, pixfmt);
+				//D("[%s] finished pixel format %ld\n", __FUNCTION__, pixfmt);
 			}
 		}
 	}

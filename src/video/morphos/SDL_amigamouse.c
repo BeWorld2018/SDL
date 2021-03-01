@@ -284,15 +284,16 @@ AMIGA_GetDoubleClickTimeInMillis(_THIS)
     struct RDArgs rda;
     SDL_memset(&rda, 0, sizeof(rda));
     rda.RDA_Source.CS_Buffer = (STRPTR)SDL_LoadFile("ENV:sys/mouse.conf", (size_t *)&rda.RDA_Source.CS_Length);
-    if (rda.RDA_Source.CS_Buffer) {
+    if (rda.RDA_Source.CS_Buffer)
+    {
         LONG *array[4] = {0};
         if (ReadArgs("Pointer/K,RMBEmulationQualifier/K,DoubleClickS/N/K,DoubleClickM/N/K,/F", (LONG *)array, &rda))
-				{
-						if (arrays[2] != 0L && arrays[3] != 0L)
-						{
+		{
+			if (array[2] != 0L && array[3] != 0L)
+			{
             	interval = *array[2] * 1000 + *array[3] / 1000;
-						}
-	    			FreeArgs(&rda);
+			}
+	    	FreeArgs(&rda);
         }
         SDL_free(rda.RDA_Source.CS_Buffer);
     }
