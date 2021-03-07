@@ -236,7 +236,7 @@ static void AMIGA_GadgetEvent(_THIS, const struct IntuiMessage *m)
 			AMIGA_HideApp(_this, TRUE);
 			break;
 		/*case ETI_Jump:
-			D("[%s] JUMP TO FULLSCREEN\n", __FUNCTION__);
+			D("[%s] JUMP TO *\n", __FUNCTION__);
 			SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 			SDL_SetWindowFullscreen(data->window, data->winflags);
 			break;*/
@@ -495,8 +495,8 @@ AMIGA_PumpEvents(_THIS)
 		while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort)))
 		{
 			wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
-			BYTE fullscreen = wdata->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
-			if  (m->Class == IDCMP_MOUSEMOVE && !fullscreen && !SDL_GetRelativeMouseMode())
+			//BYTE fullscreen = wdata->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
+			if  (m->Class == IDCMP_MOUSEMOVE /*&& !fullscreen*/ && !SDL_GetRelativeMouseMode())
 			{
 				check_mousecoord = TRUE;
 			}
