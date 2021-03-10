@@ -26,7 +26,7 @@
    The easiest way to generate a new mapping is to start Steam in Big Picture
    mode, configure your joystick and then look in config/config.vdf in your
    Steam installation directory for the "SDL_GamepadBind" entry.
-   
+
    Alternatively, you can use the app located in test/controllermap
  */
 static const char *s_ControllerMappings [] =
@@ -859,7 +859,10 @@ static const char *s_ControllerMappings [] =
 #if defined(__MORPHOS__)
 	"030000004c050000c405000000000000,PlayStation 4 Dualshock Controller,platform:MorphOS,a:b6,b:b7,x:b4,y:b5,back:b3,start:b2,leftstick:b8,rightstick:b9,leftshoulder:b0,rightshoulder:b1,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:+a4,righttrigger:+a5,",
 	"030000005e0400008e02000000000000,Xbox360 Controller,platform:MorphOS,a:b7,b:b8,x:b5,y:b6,back:b2,guide:b4,start:b3,leftstick:b9,rightstick:b10,leftshoulder:b0,rightshoulder:b1,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:+a4,righttrigger:+a5,",
-#endif  
+#endif
+#if defined(SDL_JOYSTICK_VITA)
+    "50535669746120436f6e74726f6c6c65,PSVita Controller,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,back:b10,start:b11,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a4,righttrigger:a5,leftstick:b14,rightstick:b15,",
+#endif
     NULL
 };
 

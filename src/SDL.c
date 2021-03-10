@@ -530,6 +530,8 @@ SDL_GetPlatform()
     return "iOS";
 #elif __PSP__
     return "PlayStation Portable";
+#elif __VITA__
+        return "PlayStation Vita";
 #elif __MORPHOS__
     return "MorphOS";
 #else
