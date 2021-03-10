@@ -291,7 +291,7 @@ AMIGA_Joystick(struct Window *window)
 	struct EasyStruct es;
 	es.es_StructSize   = sizeof(struct EasyStruct);
 	es.es_Flags        = 0;
-	es.es_Title        = "SDL2";
+	es.es_Title        = "SDL2 Joystick/GameController";
 	es.es_TextFormat   = "SDL %ld.%ld.%ld -MorphOS-\n\n%s\n%s";
 	es.es_GadgetFormat = "Ok";
 

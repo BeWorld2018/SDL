@@ -141,9 +141,10 @@ STATIC void init_system(struct SDL_Library *LibBase, struct ExecBase *SysBase)
 
 	DataL1LineSize = value;
 
-	if (NewGetSystemAttrsA(&value, sizeof(value), SYSTEMINFOTYPE_PPC_ALTIVEC, NULL))
-	{
-		if (value)
+	ULONG Altivec = 0;
+	if (NewGetSystemAttrsA(&Altivec,sizeof(Altivec),SYSTEMINFOTYPE_PPC_ALTIVEC,NULL))
+    {
+		if (Altivec)
 		{
 #if 0
 			STATIC CONST IPTR tags[] = { SETFUNCTAG_TYPE, SETFUNCTYPE_SYSTEMV, TAG_DONE };

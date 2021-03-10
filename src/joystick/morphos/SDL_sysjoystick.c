@@ -55,7 +55,6 @@
 APTR sensorlist;
 APTR JoySensor[MAX_JOYSTICKS];
 int joystick_count;
-static BOOL updateNeeded = TRUE;
 
 static int
 SDL_MORPHOS_JoystickGetCount(void)
@@ -81,21 +80,20 @@ SDL_MORPHOS_JoystickInit(void)
 
 	D("[%s] Found %ld joysticks...\n", __FUNCTION__, device_index);
 	joystick_count = device_index;
+	
+	/* Add Joystick after Init (once) */
+	/*for (ULONG slot = 0; slot < joystick_count; slot++)
+		{
+			SDL_PrivateJoystickAdded(slot);
+		}
+	*/
 	return rc;
 }
 
 static void
 SDL_MORPHOS_JoystickDetect(void)
 {
-	if (updateNeeded)
-	{
-		/* Add Joystick after Init (once) */
-		for (ULONG slot = 0; slot < joystick_count; slot++)
-		{
-			SDL_PrivateJoystickAdded(slot);
-		}
-		updateNeeded = FALSE;
-	}
+
 }
 
 static const char *

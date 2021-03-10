@@ -335,7 +335,7 @@ CPU_haveAltiVec(void)
     if (0 == error)
         altivec = (hasVectorUnit != 0);
 #elif defined(__MORPHOS__)
-    	ULONG has_altivec;
+    ULONG has_altivec;
 	if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
 	{
 		if(has_altivec) 
