@@ -22,6 +22,8 @@
 #include <stdarg.h>
 
 #define GENERATE_STUBS
+#define SDL_CopyAndSwap16_REAL SDL_CopyAndSwap16
+#define SDL_CopyAndSwap32_REAL SDL_CopyAndSwap32
 
 #include "SDL_stubs.h"
 

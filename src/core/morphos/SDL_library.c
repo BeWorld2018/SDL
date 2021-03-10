@@ -146,18 +146,6 @@ STATIC void init_system(struct SDL_Library *LibBase, struct ExecBase *SysBase)
     {
 		if (Altivec)
 		{
-#if 0
-			STATIC CONST IPTR tags[] = { SETFUNCTAG_TYPE, SETFUNCTYPE_SYSTEMV, TAG_DONE };
-			#define LVO_copy_and_swap16 -1168
-			#define LVO_copy_and_swap32 -1174
-
-			copy_and_swap16 = (APTR)&copy_and_swap16_altivec;
-			copy_and_swap32 = (APTR)&copy_and_swap32_altivec;
-
-			NewSetFunction((APTR)LibBase, (APTR)&copy_and_swap16_altivec, LVO_copy_and_swap16, (struct TagItem *)&tags);
-			NewSetFunction((APTR)LibBase, (APTR)&copy_and_swap32_altivec, LVO_copy_and_swap32, (struct TagItem *)&tags);
-#endif
-
 			HasAltiVec = 1;
 		}
 	}
