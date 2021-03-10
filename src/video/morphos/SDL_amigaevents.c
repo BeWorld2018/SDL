@@ -298,6 +298,12 @@ AMIGA_Joystick(struct Window *window)
 	EasyRequest(window, &es, NULL, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, (ULONG)text2, (ULONG)text1);
 }
 
+static void
+AMIGA_Priority(ULONG prio)
+{
+	LONG pri = prio ? -1 : 0;
+	NewSetTaskAttrsA(NULL, &pri, sizeof(pri), TASKINFOTYPE_PRI, NULL);	
+}
 
 static void
 AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
@@ -324,6 +330,9 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 							break;
 						case MID_MUTE:
 							AHIAUD_Mute(item->Flags & CHECKED);
+							break;
+						case MID_PRIORITY:
+							AMIGA_Priority(item->Flags & CHECKED);
 							break;
 						case MID_JOYSTICK:
 							AMIGA_Joystick(data->win);
@@ -495,8 +504,7 @@ AMIGA_PumpEvents(_THIS)
 		while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort)))
 		{
 			wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
-			//BYTE fullscreen = wdata->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
-			if  (m->Class == IDCMP_MOUSEMOVE /*&& !fullscreen*/ && !SDL_GetRelativeMouseMode())
+			if  (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
 			{
 				check_mousecoord = TRUE;
 			}
