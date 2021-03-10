@@ -38,8 +38,7 @@
 #include "SDL_pixels_c.h"
 
 #ifdef __MORPHOS__
-extern void AMIGA_Swap16(APTR srcx, APTR destx, LONG units);
-extern void AMIGA_Swap32(APTR srcx, APTR destx, LONG units);
+#include "../core/morphos/SDL_cpu.h"
 #endif
 
 #define SAVE_32BIT_BMP
@@ -522,7 +521,7 @@ SDL_LoadBMP_RW(SDL_RWops * src, int freesrc)
             case 16:{
                     Uint16 *pix = (Uint16 *) bits;
 #ifdef __MORPHOS__
-					AMIGA_Swap16(pix, pix, surface->w);
+					SDL_CopyAndSwap16(pix, pix, surface->w);
 #else
                     for (i = 0; i < surface->w; i++)
                         pix[i] = SDL_Swap16(pix[i]);
@@ -533,7 +532,7 @@ SDL_LoadBMP_RW(SDL_RWops * src, int freesrc)
             case 32:{
                     Uint32 *pix = (Uint32 *) bits;
 #ifdef __MORPHOS__
-					AMIGA_Swap32(pix, pix, surface->w);
+					SDL_CopyAndSwap32(pix, pix, surface->w);
 #else
                     for (i = 0; i < surface->w; i++)
                         pix[i] = SDL_Swap32(pix[i]);

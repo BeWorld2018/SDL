@@ -6205,4 +6205,24 @@
 		(((int (*)(int ))*(void**)(__base - 4288))(__t__p0));\
 	})
 
+#define SDL_CopyAndSwap16(__p0, __p1, __p2) \
+	({ \
+		APTR  __t__p0 = __p0;\
+		APTR  __t__p1 = __p1;\
+		LONG  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4294))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_CopyAndSwap32(__p0, __p1, __p2) \
+	({ \
+		APTR  __t__p0 = __p0;\
+		APTR  __t__p1 = __p1;\
+		LONG  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4300))(__t__p0, __t__p1, __t__p2));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

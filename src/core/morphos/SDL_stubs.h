@@ -788,3 +788,7 @@
 	STUB(SDL_ispunct)
 	STUB(SDL_isprint)
 	STUB(SDL_isgraph)
+	
+	STUB(SDL_CopyAndSwap16)
+	STUB(SDL_CopyAndSwap32)
+	

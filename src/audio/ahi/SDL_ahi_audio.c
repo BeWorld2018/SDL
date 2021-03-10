@@ -82,8 +82,8 @@ AHIAUD_PlayDevice(_THIS)
 	switch (hidden->convert)
 	{
 		case AMIAUD_CONVERT_NONE  : break;
-		case AMIAUD_CONVERT_SWAP16: AMIGA_Swap16(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
-		case AMIAUD_CONVERT_SWAP32: AMIGA_Swap32(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
+		case AMIAUD_CONVERT_SWAP16: SDL_CopyAndSwap16(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
+		case AMIAUD_CONVERT_SWAP32: SDL_CopyAndSwap32(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
 	}
 
 	SendIO((struct IORequest *)req);
