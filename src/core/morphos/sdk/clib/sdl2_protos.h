@@ -786,10 +786,12 @@ int SDL_isxdigit(int a);
 int SDL_ispunct(int a);
 int SDL_isprint(int a);
 int SDL_isgraph(int a);
-
 /* Add Altivec Swap */
 void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units);
 void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units);
+/**/
+int SDL_GetAudioDeviceSpec(int index, int iscapture, SDL_AudioSpec *spec);
+
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

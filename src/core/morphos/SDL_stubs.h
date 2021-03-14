@@ -722,9 +722,9 @@
 	STUB(SDL_HapticRumbleInit)
 	STUB(SDL_HapticRumblePlay)
 	STUB(SDL_HapticRumbleStop)
+	
 	STUB(SDL_isupper)
 	STUB(SDL_islower)
-	
 	STUB(SDL_JoystickAttachVirtual)
 	STUB(SDL_JoystickDetachVirtual)
 	STUB(SDL_JoystickIsVirtual)
@@ -740,7 +740,6 @@
 	STUB(SDL_truncf)
 	STUB(SDL_GetPreferredLocales)
 	STUB(SDL_SIMDRealloc)
-
 	STUB(SDL_OpenURL)
 	STUB(SDL_HasSurfaceRLE)
 	STUB(SDL_GameControllerHasLED)
@@ -758,7 +757,6 @@
 	STUB(SDL_GetTouchDevice)
 	STUB(SDL_GetNumTouchFingers)
 	STUB(SDL_GetTouchFinger)
-	
 	STUB(SDL_crc32)
 	STUB(SDL_GameControllerGetSerial)
 	STUB(SDL_JoystickGetSerial)
@@ -791,4 +789,6 @@
 	
 	STUB(SDL_CopyAndSwap16)
 	STUB(SDL_CopyAndSwap32)
+	
+	STUB(SDL_GetAudioDeviceSpec)
 	

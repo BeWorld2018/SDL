@@ -6225,4 +6225,14 @@
 		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4300))(__t__p0, __t__p1, __t__p2));\
 	})
 
+#define SDL_GetAudioDeviceSpec(__p0, __p1, __p2) \
+	({ \
+		int  __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		SDL_AudioSpec * __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(int , int , SDL_AudioSpec *))*(void**)(__base - 4306))(__t__p0, __t__p1, __t__p2));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
