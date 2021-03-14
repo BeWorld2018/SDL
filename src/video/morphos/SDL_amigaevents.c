@@ -44,6 +44,7 @@
 #include <rexx/storage.h>
 #include <workbench/workbench.h>
 #include <workbench/startup.h>
+#include <exec/system.h>
 
 #include <proto/dos.h>
 #include <proto/alib.h>
@@ -258,6 +259,28 @@ AMIGA_AboutSDL(struct Window *window)
 
 	EasyRequest(window, &es, NULL, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, (ULONG)porters, (ULONG)bases);
 }
+
+static void
+AMIGA_AboutSystem(struct Window *window)
+{
+	
+	struct EasyStruct es;
+	es.es_StructSize   = sizeof(struct EasyStruct);
+	es.es_Flags        = 0;
+	es.es_Title        = "About System";
+	es.es_TextFormat   = "System: %s - Vendor: %s\n\nHas Altivec: %s\n";
+	es.es_GadgetFormat = "Ok";
+
+	char			System[256];
+	char			Vendor[256];
+
+	NewGetSystemAttrs(&System,sizeof(System),SYSTEMINFOTYPE_SYSTEM,TAG_DONE);
+	NewGetSystemAttrs(&Vendor,sizeof(Vendor),SYSTEMINFOTYPE_VENDOR,TAG_DONE);
+
+	EasyRequest(window, &es, NULL, System, Vendor, ((HasAltiVec)?"Yes":"No"));
+	
+}
+
 static void
 AMIGA_Joystick(struct Window *window)
 {
@@ -269,24 +292,34 @@ AMIGA_Joystick(struct Window *window)
 	
 	SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	
-	 for (i = 0; i < SDL_NumJoysticks(); ++i) {
-        const char *name;
+	for (i = 0; i < SDL_NumJoysticks(); ++i) {
+    	const char *name;
 		char text[254] = "";
 		SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i),
                                   guid, sizeof (guid));
 
-        if (SDL_IsGameController(i)) {
-            controller_count++;
-            name = SDL_GameControllerNameForIndex(i);
-		}else{
-			name = SDL_JoystickNameForIndex(i);	
-		}			
+		SDL_Joystick *joystick = SDL_JoystickOpen(i);
+        if (joystick != NULL) 
+		{		
+			if (SDL_IsGameController(i)) {
+				controller_count++;
+				name = SDL_GameControllerNameForIndex(i);
+			}else{
+				name = SDL_JoystickNameForIndex(i);	
+			}			
+		
+			snprintf(text, sizeof(text), "%d: %s (guid %s, VID 0x%.4x, PID 0x%.4x, player index = %d)\n",
+				 i, name ? name : "Unknown", guid,
+				SDL_JoystickGetDeviceVendor(i), SDL_JoystickGetDeviceProduct(i), SDL_JoystickGetDevicePlayerIndex(i));
+			strcat(text1, text);
+			snprintf(text, sizeof(text),"    Joystick has %d axes, %d hats, %d balls, and %d buttons\n",
+			   SDL_JoystickNumAxes(joystick), SDL_JoystickNumHats(joystick),
+			   SDL_JoystickNumBalls(joystick), SDL_JoystickNumButtons(joystick));
+			strcat(text1, text);
+			 SDL_JoystickClose(joystick);
+		}
+	}
 	
-		snprintf(text, sizeof(text), "%d: %s (guid %s, VID 0x%.4x, PID 0x%.4x, player index = %d)\n",
-             i, name ? name : "Unknown", guid,
-            SDL_JoystickGetDeviceVendor(i), SDL_JoystickGetDeviceProduct(i), SDL_JoystickGetDevicePlayerIndex(i));
-		strcat(text1, text);
-	 }
 	snprintf(text2, sizeof(text2),"There are %d game controller(s) attached (%d joystick(s))\n", controller_count, SDL_NumJoysticks());
 	struct EasyStruct es;
 	es.es_StructSize   = sizeof(struct EasyStruct);
@@ -337,6 +370,8 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 						case MID_JOYSTICK:
 							AMIGA_Joystick(data->win);
 							break;	
+						case MID_ABOUTSYS:
+							AMIGA_AboutSystem(data->win);
 						default:
 							break;
 					}

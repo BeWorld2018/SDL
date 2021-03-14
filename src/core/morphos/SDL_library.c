@@ -79,6 +79,7 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_ITEM , (char *)"Low CPU Priority", (const STRPTR)"P", (CHECKIT | MENUTOGGLE), 0, (APTR)MID_PRIORITY},
 	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
 	{ NM_ITEM , (char *)"About Joystick", (const STRPTR)"J", 0, 0, (APTR)MID_JOYSTICK},
+	{ NM_ITEM , (char *)"About System", (const STRPTR)"S", 0, 0, (APTR)MID_ABOUTSYS},
 	{ NM_END , NULL, NULL, 0, 0, NULL }
 };
 

@@ -195,7 +195,6 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 {
 	SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
 	struct Window *win;
-	D("[%s]\n", __FUNCTION__);
 
 	BOOL warpHostPointer;
 
@@ -343,7 +342,7 @@ void
 AMIGA_QuitMouse(_THIS)
 {
 	SDL_Mouse *mouse = SDL_GetMouse();
-	D("[%s]\n", __FUNCTION__);
+	//D("[%s]\n", __FUNCTION__);
 
 	if ( mouse->def_cursor ) {
 		SDL_free(mouse->def_cursor);

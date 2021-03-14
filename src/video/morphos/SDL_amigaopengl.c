@@ -28,9 +28,6 @@
 #include "SDL_error.h"
 #include "SDL_syswm.h"
 #include "../SDL_sysvideo.h"
-/*#include "SDL_cgxgl_c.h"
-#include "SDL_cgxvideo.h"
-#include "mydebug.h"*/
 #include "SDL_amigavideo.h"
 #include "SDL_amigawindow.h"
 #include "../../core/morphos/SDL_library.h"
@@ -43,9 +40,7 @@
 
 GLContext *__tglContext;
 extern void *AmiGetGLProc(const char *proc);
-//struct Screen *DefaultScreen;
 
-//extern struct SDL_Library *PowerSDLBase;
 extern struct SDL_Library *SDL2Base;
 
 int AMIGA_GL_LoadLibrary(_THIS, const char *path)
