@@ -65,7 +65,7 @@ SDL_MORPHOS_JoystickGetCount(void)
 static int
 SDL_MORPHOS_JoystickInit(void)
 {
-	int rc = -1;
+	int rc = 0;
 
 	APTR sensor = NULL;
 	ULONG device_index = 0;
@@ -75,7 +75,6 @@ SDL_MORPHOS_JoystickInit(void)
 	while ((sensor = NextSensor(sensor, sensorlist, NULL)) && device_index < MAX_JOYSTICKS)
 	{
 		JoySensor[device_index++] = sensor;
-		rc = 0;
 	}
 
 	D("[%s] Found %ld joysticks...\n", __FUNCTION__, device_index);
