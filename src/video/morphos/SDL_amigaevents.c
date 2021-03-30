@@ -155,36 +155,6 @@ AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 }
 
 static void
-AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
-{
-	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-	if(data->window)
-	{
-		if (activated)
-		{
-			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
-
-			if (SDL_GetKeyboardFocus() != data->window)
-			{
-				SDL_SetKeyboardFocus(data->window);
-			}
-			SDL_SetMouseFocus(data->window);
-		}
-		else
-		{
-			if (SDL_GetKeyboardFocus() == data->window)
-			{
-				SDL_SetKeyboardFocus(NULL);
-			}
-			if (SDL_GetMouseFocus() == data->window)
-			{
-				SDL_SetMouseFocus(NULL);
-			}
-		}
-	}
-}
-
-static void
 AMIGA_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 {
 
@@ -203,6 +173,37 @@ AMIGA_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 			return;
 		}
 		SDL_SendMouseMotion(data->window, 0, 1, m->MouseX, m->MouseY);
+	}
+}
+
+static void
+AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
+{
+	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+	if(data->window)
+	{
+		if (activated)
+		{
+			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
+
+			if (SDL_GetKeyboardFocus() != data->window)
+			{
+				SDL_SetKeyboardFocus(data->window);
+			}
+			SDL_SetMouseFocus(data->window);
+			AMIGA_MouseMove(_this, m, data);
+		}
+		else
+		{
+			if (SDL_GetKeyboardFocus() == data->window)
+			{
+				SDL_SetKeyboardFocus(NULL);
+			}
+			if (SDL_GetMouseFocus() == data->window)
+			{
+				SDL_SetMouseFocus(NULL);
+			}
+		}
 	}
 }
 
