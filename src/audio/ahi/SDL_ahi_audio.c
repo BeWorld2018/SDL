@@ -220,7 +220,7 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	if (OpenDevice(AHINAME, 0, (struct IORequest *)&hidden->req[0].ahir_Std, 0) != 0)
 	{
 		SDL_SetError("Unable to open ahi.device unit 0! Error code %d.\n", hidden->req[0].ahir_Std.io_Error);
-		SDL_free(hidden);
+		//SDL_free(hidden);
 		return -1;
 	}
 	return 0;
