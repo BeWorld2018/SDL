@@ -778,6 +778,22 @@ macro(CheckVivante)
 endmacro(CheckVivante)
 
 # Requires:
+# - libglvnd
+macro(CheckOpenGLKMSDRM)
+  if(VIDEO_OPENGL AND HAVE_VIDEO_KMSDRM)
+    check_c_source_compiles("
+        #include <GL/gl.h>
+        int main(int argc, char** argv) {}" HAVE_VIDEO_OPENGL)
+
+    if(HAVE_VIDEO_OPENGL)
+      set(HAVE_VIDEO_OPENGL TRUE)
+      set(SDL_VIDEO_OPENGL 1)
+      set(SDL_VIDEO_RENDER_OGL 1)
+    endif()
+  endif()
+endmacro()
+
+# Requires:
 # - nada
 macro(CheckOpenGLX11)
   if(VIDEO_OPENGL)
@@ -799,7 +815,7 @@ endmacro()
 # - PkgCheckModules
 macro(CheckEGL)
   pkg_check_modules(EGL egl)
-  string(REPLACE "-D_THREAD_SAFE;" "-D_THREAD_SAFE=1;" EGL_CFLAGS ${EGL_CFLAGS})
+  string(REPLACE "-D_THREAD_SAFE;" "-D_THREAD_SAFE=1;" EGL_CFLAGS "${EGL_CFLAGS}")
 endmacro()
 
 # Requires:
@@ -903,6 +919,9 @@ macro(CheckPTHREAD)
     elseif(HAIKU)
       set(PTHREAD_CFLAGS "-D_REENTRANT")
       set(PTHREAD_LDFLAGS "")
+    elseif(EMSCRIPTEN)
+      set(PTHREAD_CFLAGS "-D_REENTRANT -pthread")
+      set(PTHREAD_LDFLAGS "-pthread")
     else()
       set(PTHREAD_CFLAGS "-D_REENTRANT")
       set(PTHREAD_LDFLAGS "-lpthread")
