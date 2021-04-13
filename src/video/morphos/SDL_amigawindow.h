@@ -98,8 +98,7 @@ extern void AMIGA_HideWindow_Internal(_THIS, SDL_Window * window);
 extern void AMIGA_SetWindowResizable (_THIS, SDL_Window * window, SDL_bool resizable);
 
 extern int AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);
-//extern int AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
-
+extern int AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
 
 #endif /* _SDL_amigawindow_h */
 

@@ -808,4 +808,26 @@ AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 
     return 0;
 }
+
+int
+AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int *top, int *left, int *bottom, int *right)
+{
+
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	
+	if (top)
+		*top = data->win->BorderTop;
+	
+	if (left)
+		*left = data->win->BorderLeft;
+	
+	if (bottom)
+		*bottom = data->win->BorderBottom;
+	
+	if (right)
+		*right = data->win->BorderRight;	
+	
+	return 0;
+}
+
 /* vi: set ts=4 sw=4 expandtab: */
