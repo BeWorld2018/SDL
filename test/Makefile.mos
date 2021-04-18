@@ -202,7 +202,7 @@ testloadso: testloadso.o
 testlock: testlock.o
 	$(CC) -o $@ $^ $(LIBS)
 
-testnative: testnative.o testnativeamigaos4.o
+testnative: testnative.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testoffscreen: testoffscreen.o
