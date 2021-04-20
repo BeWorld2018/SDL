@@ -766,6 +766,9 @@
 	STUB(SDL_GameControllerGetSensorData)
 	STUB(SDL_wcscasecmp)
 	STUB(SDL_wcsncasecmp)
+		
+	STUB(SDL_CopyAndSwap16)
+	STUB(SDL_CopyAndSwap32)
 	
 	STUB(SDL_UpdateNVTexture)
 	STUB(SDL_round)
@@ -777,7 +780,6 @@
 	STUB(SDL_SetWindowMouseGrab)
 	STUB(SDL_GetWindowKeyboardGrab)
 	STUB(SDL_GetWindowMouseGrab)
-	
 	STUB(SDL_isalpha)
 	STUB(SDL_isalnum)
 	STUB(SDL_isblank)
@@ -786,9 +788,5 @@
 	STUB(SDL_ispunct)
 	STUB(SDL_isprint)
 	STUB(SDL_isgraph)
-	
-	STUB(SDL_CopyAndSwap16)
-	STUB(SDL_CopyAndSwap32)
-	
 	STUB(SDL_GetAudioDeviceSpec)
 	

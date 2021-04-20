@@ -34,9 +34,11 @@
 #define SDL_VSetError(__p0, __p1) \
 	({ \
 		const char * __t__p0 = __p0;\
+		va_list  __t__p1;\
+		va_copy(__t__p1, __p1); \
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(const char *, va_list ))*(void**)(__base - 40))(__t__p0, __p1));\
+		(((int (*)(const char *, va_list ))*(void**)(__base - 40))(__t__p0, __t__p1));\
 	})
 
 #define SDL_GetPlatform() \
@@ -509,9 +511,11 @@
 	({ \
 		const char * __t__p0 = __p0;\
 		const char * __t__p1 = __p1;\
+		va_list  __t__p2;\
+		va_copy(__t__p2, __p2); \
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(const char *, const char *, va_list ))*(void**)(__base - 358))(__t__p0, __t__p1, __p2));\
+		(((int (*)(const char *, const char *, va_list ))*(void**)(__base - 358))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_vsnprintf(__p0, __p1, __p2, __p3) \
@@ -519,9 +523,11 @@
 		char * __t__p0 = __p0;\
 		size_t  __t__p1 = __p1;\
 		const char * __t__p2 = __p2;\
+		va_list  __t__p3;\
+		va_copy(__t__p3, __p3); \
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(char *, size_t , const char *, va_list ))*(void**)(__base - 364))(__t__p0, __t__p1, __t__p2, __p3));\
+		(((int (*)(char *, size_t , const char *, va_list ))*(void**)(__base - 364))(__t__p0, __t__p1, __t__p2, __t__p3));\
 	})
 
 #define SDL_acos(__p0) \
@@ -2060,9 +2066,11 @@
 		int  __t__p0 = __p0;\
 		SDL_LogPriority  __t__p1 = __p1;\
 		const char * __t__p2 = __p2;\
+		va_list  __t__p3;\
+		va_copy(__t__p3, __p3); \
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(int , SDL_LogPriority , const char *, va_list ))*(void**)(__base - 1294))(__t__p0, __t__p1, __t__p2, __p3));\
+		(((void (*)(int , SDL_LogPriority , const char *, va_list ))*(void**)(__base - 1294))(__t__p0, __t__p1, __t__p2, __t__p3));\
 	})
 
 #define SDL_LogGetOutputFunction(__p0, __p1) \
@@ -6075,6 +6083,26 @@
 		(((int (*)(const wchar_t *, const wchar_t *, size_t ))*(void**)(__base - 4180))(__t__p0, __t__p1, __t__p2));\
 	})
 
+#define SDL_CopyAndSwap16(__p0, __p1, __p2) \
+	({ \
+		APTR  __t__p0 = __p0;\
+		APTR  __t__p1 = __p1;\
+		LONG  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4186))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_CopyAndSwap32(__p0, __p1, __p2) \
+	({ \
+		APTR  __t__p0 = __p0;\
+		APTR  __t__p1 = __p1;\
+		LONG  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4192))(__t__p0, __t__p1, __t__p2));\
+	})
+
 #define SDL_UpdateNVTexture(__p0, __p1, __p2, __p3, __p4, __p5) \
 	({ \
 		SDL_Texture * __t__p0 = __p0;\
@@ -6085,7 +6113,7 @@
 		int  __t__p5 = __p5;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_Texture *, const SDL_Rect *, const Uint8 *, int , const Uint8 *, int ))*(void**)(__base - 4186))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5));\
+		(((int (*)(SDL_Texture *, const SDL_Rect *, const Uint8 *, int , const Uint8 *, int ))*(void**)(__base - 4198))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5));\
 	})
 
 #define SDL_round(__p0) \
@@ -6093,7 +6121,7 @@
 		double  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((double (*)(double ))*(void**)(__base - 4192))(__t__p0));\
+		(((double (*)(double ))*(void**)(__base - 4204))(__t__p0));\
 	})
 
 #define SDL_roundf(__p0) \
@@ -6101,7 +6129,7 @@
 		float  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((float (*)(float ))*(void**)(__base - 4198))(__t__p0));\
+		(((float (*)(float ))*(void**)(__base - 4210))(__t__p0));\
 	})
 
 #define SDL_lround(__p0) \
@@ -6109,7 +6137,7 @@
 		double  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((long (*)(double ))*(void**)(__base - 4204))(__t__p0));\
+		(((long (*)(double ))*(void**)(__base - 4216))(__t__p0));\
 	})
 
 #define SDL_lroundf(__p0) \
@@ -6117,7 +6145,7 @@
 		float  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((long (*)(float ))*(void**)(__base - 4210))(__t__p0));\
+		(((long (*)(float ))*(void**)(__base - 4222))(__t__p0));\
 	})
 
 #define SDL_SoftStretchLinear(__p0, __p1, __p2, __p3) \
@@ -6128,7 +6156,7 @@
 		const SDL_Rect * __t__p3 = __p3;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_Surface *, const SDL_Rect *, SDL_Surface *, const SDL_Rect *))*(void**)(__base - 4216))(__t__p0, __t__p1, __t__p2, __t__p3));\
+		(((int (*)(SDL_Surface *, const SDL_Rect *, SDL_Surface *, const SDL_Rect *))*(void**)(__base - 4228))(__t__p0, __t__p1, __t__p2, __t__p3));\
 	})
 
 #define SDL_SetWindowKeyboardGrab(__p0, __p1) \
@@ -6137,7 +6165,7 @@
 		SDL_bool  __t__p1 = __p1;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4222))(__t__p0, __t__p1));\
+		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4234))(__t__p0, __t__p1));\
 	})
 
 #define SDL_SetWindowMouseGrab(__p0, __p1) \
@@ -6146,7 +6174,7 @@
 		SDL_bool  __t__p1 = __p1;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4228))(__t__p0, __t__p1));\
+		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4240))(__t__p0, __t__p1));\
 	})
 
 #define SDL_GetWindowKeyboardGrab(__p0) \
@@ -6154,7 +6182,7 @@
 		SDL_Window * __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((SDL_bool (*)(SDL_Window *))*(void**)(__base - 4234))(__t__p0));\
+		(((SDL_bool (*)(SDL_Window *))*(void**)(__base - 4246))(__t__p0));\
 	})
 
 #define SDL_GetWindowMouseGrab(__p0) \
@@ -6162,7 +6190,7 @@
 		SDL_Window * __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((SDL_bool (*)(SDL_Window *))*(void**)(__base - 4240))(__t__p0));\
+		(((SDL_bool (*)(SDL_Window *))*(void**)(__base - 4252))(__t__p0));\
 	})
 
 #define SDL_iscntrl(__p0) \
@@ -6170,7 +6198,7 @@
 		int  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(int ))*(void**)(__base - 4264))(__t__p0));\
+		(((int (*)(int ))*(void**)(__base - 4276))(__t__p0));\
 	})
 
 #define SDL_isxdigit(__p0) \
@@ -6178,7 +6206,7 @@
 		int  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(int ))*(void**)(__base - 4270))(__t__p0));\
+		(((int (*)(int ))*(void**)(__base - 4282))(__t__p0));\
 	})
 
 #define SDL_ispunct(__p0) \
@@ -6186,7 +6214,7 @@
 		int  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(int ))*(void**)(__base - 4276))(__t__p0));\
+		(((int (*)(int ))*(void**)(__base - 4288))(__t__p0));\
 	})
 
 #define SDL_isprint(__p0) \
@@ -6194,7 +6222,7 @@
 		int  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(int ))*(void**)(__base - 4282))(__t__p0));\
+		(((int (*)(int ))*(void**)(__base - 4294))(__t__p0));\
 	})
 
 #define SDL_isgraph(__p0) \
@@ -6202,27 +6230,7 @@
 		int  __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(int ))*(void**)(__base - 4288))(__t__p0));\
-	})
-
-#define SDL_CopyAndSwap16(__p0, __p1, __p2) \
-	({ \
-		APTR  __t__p0 = __p0;\
-		APTR  __t__p1 = __p1;\
-		LONG  __t__p2 = __p2;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4294))(__t__p0, __t__p1, __t__p2));\
-	})
-
-#define SDL_CopyAndSwap32(__p0, __p1, __p2) \
-	({ \
-		APTR  __t__p0 = __p0;\
-		APTR  __t__p1 = __p1;\
-		LONG  __t__p2 = __p2;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(APTR , APTR , LONG ))*(void**)(__base - 4300))(__t__p0, __t__p1, __t__p2));\
+		(((int (*)(int ))*(void**)(__base - 4300))(__t__p0));\
 	})
 
 #define SDL_GetAudioDeviceSpec(__p0, __p1, __p2) \
