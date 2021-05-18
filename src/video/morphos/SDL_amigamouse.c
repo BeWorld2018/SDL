@@ -48,8 +48,8 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 
 		cursor->Cursor.next = NULL;
 		cursor->Cursor.driverdata = &cursor->Pointer;
-		cursor->Pointer.offx = hot_x;
-		cursor->Pointer.offy = hot_y;
+		cursor->Pointer.offx = -hot_x;
+		cursor->Pointer.offy = -hot_y;
 
 		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
 
