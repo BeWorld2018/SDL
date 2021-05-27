@@ -455,7 +455,15 @@
 	STUB(SDL_IsScreenKeyboardShown)
 
 	STUB(SDL_CreateRGBSurface)
+#if defined(GENERATE_STUBS)
+	extern void *SDL_CreateRGBSurfaceFrom_REAL(void *a, int b, int c, int d, int e, int f, int g, int h, int i);
+	void * __saveds LIB_SDL_CreateRGBSurfaceFrom(void *a, int b, int c, int d, int e, int f, int g, int h, int i)
+	{
+		return SDL_CreateRGBSurfaceFrom_REAL(a, b, c, d, e, f, g, h, i);
+	}
+#else
 	STUB(SDL_CreateRGBSurfaceFrom)
+#endif
 	STUB(SDL_FreeSurface)
 	STUB(SDL_SetSurfacePalette)
 	STUB(SDL_LockSurface)
