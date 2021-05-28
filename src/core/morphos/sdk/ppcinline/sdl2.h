@@ -6243,4 +6243,13 @@
 		(((int (*)(int , int , SDL_AudioSpec *))*(void**)(__base - 4306))(__t__p0, __t__p1, __t__p2));\
 	})
 
+#define SDL_SetWindowAlwaysOnTop(__p0, __p1) \
+	({ \
+		SDL_Window * __t__p0 = __p0;\
+		SDL_bool  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4312))(__t__p0, __t__p1));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
