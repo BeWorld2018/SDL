@@ -37,7 +37,7 @@ static const char *video_usage[] = {
     "[--scale N]", "[--depth N]", "[--refresh R]", "[--vsync]", "[--noframe]",
     "[--resizable]", "[--minimize]", "[--maximize]", "[--grab]", "[--keyboard-grab]",
     "[--shown]", "[--hidden]", "[--input-focus]", "[--mouse-focus]",
-    "[--allow-highdpi]", "[--usable-bounds]"
+    "[--flash-on-focus-loss]", "[--allow-highdpi]", "[--usable-bounds]"
 };
 
 static const char *audio_usage[] = {
@@ -441,6 +441,10 @@ SDLTest_CommonArg(SDLTest_CommonState * state, int index)
         state->window_flags |= SDL_WINDOW_MOUSE_FOCUS;
         return 1;
     }
+    if (SDL_strcasecmp(argv[index], "--flash-on-focus-loss") == 0) {
+        state->flash_on_focus_loss = SDL_TRUE;
+        return 1;
+    }
     if (SDL_strcasecmp(argv[index], "--grab") == 0) {
         state->window_flags |= SDL_WINDOW_MOUSE_GRABBED;
         return 1;
@@ -627,6 +631,170 @@ SDLTest_CommonDefaultArgs(SDLTest_CommonState *state, const int argc, char **arg
         i += consumed;
     }
     return SDL_TRUE;
+}
+
+static void
+SDLTest_PrintDisplayOrientation(char* text, size_t maxlen, SDL_DisplayOrientation orientation)
+{
+    switch (orientation) {
+    case SDL_ORIENTATION_UNKNOWN:
+        SDL_snprintfcat(text, maxlen, "UNKNOWN");
+        break;
+    case SDL_ORIENTATION_LANDSCAPE:
+        SDL_snprintfcat(text, maxlen, "LANDSCAPE");
+        break;
+    case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
+        SDL_snprintfcat(text, maxlen, "LANDSCAPE_FLIPPED");
+        break;
+    case SDL_ORIENTATION_PORTRAIT:
+        SDL_snprintfcat(text, maxlen, "PORTRAIT");
+        break;
+    case SDL_ORIENTATION_PORTRAIT_FLIPPED:
+        SDL_snprintfcat(text, maxlen, "PORTRAIT_FLIPPED");
+        break;
+    default:
+        SDL_snprintfcat(text, maxlen, "0x%8.8x", orientation);
+        break;
+    }
+}
+
+static void
+SDLTest_PrintWindowFlag(char* text, size_t maxlen, Uint32 flag)
+{
+    switch (flag) {
+    case SDL_WINDOW_FULLSCREEN:
+        SDL_snprintfcat(text, maxlen, "FULLSCREEN");
+        break;
+    case SDL_WINDOW_OPENGL:
+        SDL_snprintfcat(text, maxlen, "OPENGL");
+        break;
+    case SDL_WINDOW_SHOWN:
+        SDL_snprintfcat(text, maxlen, "SHOWN");
+        break;
+    case SDL_WINDOW_HIDDEN:
+        SDL_snprintfcat(text, maxlen, "HIDDEN");
+        break;
+    case SDL_WINDOW_BORDERLESS:
+        SDL_snprintfcat(text, maxlen, "BORDERLESS");
+        break;
+    case SDL_WINDOW_RESIZABLE:
+        SDL_snprintfcat(text, maxlen, "RESIZABLE");
+        break;
+    case SDL_WINDOW_MINIMIZED:
+        SDL_snprintfcat(text, maxlen, "MINIMIZED");
+        break;
+    case SDL_WINDOW_MAXIMIZED:
+        SDL_snprintfcat(text, maxlen, "MAXIMIZED");
+        break;
+    case SDL_WINDOW_MOUSE_GRABBED:
+        SDL_snprintfcat(text, maxlen, "MOUSE_GRABBED");
+        break;
+    case SDL_WINDOW_INPUT_FOCUS:
+        SDL_snprintfcat(text, maxlen, "INPUT_FOCUS");
+        break;
+    case SDL_WINDOW_MOUSE_FOCUS:
+        SDL_snprintfcat(text, maxlen, "MOUSE_FOCUS");
+        break;
+    case SDL_WINDOW_FULLSCREEN_DESKTOP:
+        SDL_snprintfcat(text, maxlen, "FULLSCREEN_DESKTOP");
+        break;
+    case SDL_WINDOW_FOREIGN:
+        SDL_snprintfcat(text, maxlen, "FOREIGN");
+        break;
+    case SDL_WINDOW_ALLOW_HIGHDPI:
+        SDL_snprintfcat(text, maxlen, "ALLOW_HIGHDPI");
+        break;
+    case SDL_WINDOW_MOUSE_CAPTURE:
+        SDL_snprintfcat(text, maxlen, "MOUSE_CAPTURE");
+        break;
+    case SDL_WINDOW_ALWAYS_ON_TOP:
+        SDL_snprintfcat(text, maxlen, "ALWAYS_ON_TOP");
+        break;
+    case SDL_WINDOW_SKIP_TASKBAR:
+        SDL_snprintfcat(text, maxlen, "SKIP_TASKBAR");
+        break;
+    case SDL_WINDOW_UTILITY:
+        SDL_snprintfcat(text, maxlen, "UTILITY");
+        break;
+    case SDL_WINDOW_TOOLTIP:
+        SDL_snprintfcat(text, maxlen, "TOOLTIP");
+        break;
+    case SDL_WINDOW_POPUP_MENU:
+        SDL_snprintfcat(text, maxlen, "POPUP_MENU");
+        break;
+    case SDL_WINDOW_KEYBOARD_GRABBED:
+        SDL_snprintfcat(text, maxlen, "KEYBOARD_GRABBED");
+        break;
+    case SDL_WINDOW_VULKAN:
+        SDL_snprintfcat(text, maxlen, "VULKAN");
+        break;
+    case SDL_WINDOW_METAL:
+        SDL_snprintfcat(text, maxlen, "METAL");
+        break;
+    default:
+        SDL_snprintfcat(text, maxlen, "0x%8.8x", flag);
+        break;
+    }
+}
+
+static void
+SDLTest_PrintWindowFlags(char* text, size_t maxlen, Uint32 flags)
+{
+    const Uint32 window_flags[] = {
+        SDL_WINDOW_FULLSCREEN,
+        SDL_WINDOW_OPENGL,
+        SDL_WINDOW_SHOWN,
+        SDL_WINDOW_HIDDEN,
+        SDL_WINDOW_BORDERLESS,
+        SDL_WINDOW_RESIZABLE,
+        SDL_WINDOW_MINIMIZED,
+        SDL_WINDOW_MAXIMIZED,
+        SDL_WINDOW_MOUSE_GRABBED,
+        SDL_WINDOW_INPUT_FOCUS,
+        SDL_WINDOW_MOUSE_FOCUS,
+        SDL_WINDOW_FULLSCREEN_DESKTOP,
+        SDL_WINDOW_FOREIGN,
+        SDL_WINDOW_ALLOW_HIGHDPI,
+        SDL_WINDOW_MOUSE_CAPTURE,
+        SDL_WINDOW_ALWAYS_ON_TOP,
+        SDL_WINDOW_SKIP_TASKBAR,
+        SDL_WINDOW_UTILITY,
+        SDL_WINDOW_TOOLTIP,
+        SDL_WINDOW_POPUP_MENU,
+        SDL_WINDOW_KEYBOARD_GRABBED,
+        SDL_WINDOW_VULKAN,
+        SDL_WINDOW_METAL
+    };
+
+    int i;
+    int count = 0;
+    for (i = 0; i < (sizeof(window_flags) / sizeof(window_flags[0])); ++i) {
+        const Uint32 flag = window_flags[i];
+        if ((flags & flag) == flag) {
+            if (count > 0) {
+                SDL_snprintfcat(text, maxlen, " | ");
+            }
+            SDLTest_PrintWindowFlag(text, maxlen, flag);
+            ++count;
+        }
+    }
+}
+
+static void
+SDLTest_PrintButtonMask(char* text, size_t maxlen, Uint32 flags)
+{
+    int i;
+    int count = 0;
+    for (i = 1; i <= 32; ++i) {
+        const Uint32 flag = SDL_BUTTON(i);
+        if ((flags & flag) == flag) {
+            if (count > 0) {
+                SDL_snprintfcat(text, maxlen, " | ");
+            }
+            SDL_snprintfcat(text, maxlen, "SDL_BUTTON(%d)", i);
+            ++count;
+        }
+    }
 }
 
 static void
@@ -1644,6 +1812,16 @@ SDLTest_CommonEvent(SDLTest_CommonState * state, SDL_Event * event, int *done)
                 }
             }
             break;
+        case SDL_WINDOWEVENT_FOCUS_LOST:
+            if (state->flash_on_focus_loss) {
+                SDL_Window *window = SDL_GetWindowFromID(event->window.windowID);
+                if (window) {
+                    SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
+                }
+            }
+            break;
+        default:
+            break;
         }
         break;
     case SDL_KEYDOWN: {
@@ -1792,6 +1970,15 @@ SDLTest_CommonEvent(SDLTest_CommonState * state, SDL_Event * event, int *done)
                     printf("Clipboard is empty\n");
                 }
                 SDL_free(text);
+            }
+            break;
+        case SDLK_f:
+            if (withControl) {
+                /* Ctrl-F flash the window */
+                SDL_Window *window = SDL_GetWindowFromID(event->key.windowID);
+                if (window) {
+                    SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
+                }
             }
             break;
         case SDLK_g:
@@ -1988,6 +2175,117 @@ SDLTest_CommonQuit(SDLTest_CommonState * state)
     SDL_free(state);
     SDL_Quit();
     SDLTest_LogAllocations();
+}
+
+void
+SDLTest_CommonDrawWindowInfo(SDL_Renderer * renderer, SDL_Window * window)
+{
+    char text[1024];
+    int textY = 0;
+    const int lineHeight = 10;
+    int x, y, w, h;
+    SDL_Rect rect;
+    SDL_DisplayMode mode;
+    float ddpi, hdpi, vdpi;
+    Uint32 flags;
+    const int windowDisplayIndex = SDL_GetWindowDisplayIndex(window);
+
+    /* Renderer */
+
+    if (0 == SDL_GetRendererOutputSize(renderer, &w, &h)) {
+        SDL_snprintf(text, sizeof(text), "SDL_GetRendererOutputSize: %dx%d", w, h);
+        SDLTest_DrawString(renderer, 0, textY, text);
+        textY += lineHeight;
+    }
+
+    SDL_RenderGetViewport(renderer, &rect);
+    SDL_snprintf(text, sizeof(text), "SDL_RenderGetViewport: %d,%d, %dx%d",
+                 rect.x, rect.y, rect.w, rect.h);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    /* Window */
+
+    SDLTest_DrawString(renderer, 0, textY, "----");
+    textY += lineHeight;
+
+    SDL_GetWindowPosition(window, &x, &y);
+    SDL_snprintf(text, sizeof(text), "SDL_GetWindowPosition: %d,%d", x, y);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    SDL_GetWindowSize(window, &w, &h);
+    SDL_snprintf(text, sizeof(text), "SDL_GetWindowSize: %dx%d", w, h);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    SDL_snprintf(text, sizeof(text), "SDL_GetWindowFlags: ");
+    SDLTest_PrintWindowFlags(text, sizeof(text), SDL_GetWindowFlags(window));
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    /* Display */
+
+    SDLTest_DrawString(renderer, 0, textY, "----");
+    textY += lineHeight;
+
+    SDL_snprintf(text, sizeof(text), "SDL_GetWindowDisplayIndex: %d", windowDisplayIndex);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    SDL_snprintf(text, sizeof(text), "SDL_GetDisplayName: %s", SDL_GetDisplayName(windowDisplayIndex));
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    if (0 == SDL_GetDisplayBounds(windowDisplayIndex, &rect)) {
+        SDL_snprintf(text, sizeof(text), "SDL_GetDisplayBounds: %d,%d, %dx%d",
+                     rect.x, rect.y, rect.w, rect.h);
+        SDLTest_DrawString(renderer, 0, textY, text);
+        textY += lineHeight;
+    }
+
+    if (0 == SDL_GetCurrentDisplayMode(windowDisplayIndex, &mode)) {
+        SDL_snprintf(text, sizeof(text), "SDL_GetCurrentDisplayMode: %dx%d@%d",
+                     mode.w, mode.h, mode.refresh_rate);
+        SDLTest_DrawString(renderer, 0, textY, text);
+        textY += lineHeight;
+    }
+
+    if (0 == SDL_GetDesktopDisplayMode(windowDisplayIndex, &mode)) {
+        SDL_snprintf(text, sizeof(text), "SDL_GetDesktopDisplayMode: %dx%d@%d",
+                     mode.w, mode.h, mode.refresh_rate);
+        SDLTest_DrawString(renderer, 0, textY, text);
+        textY += lineHeight;
+    }
+
+    if (0 == SDL_GetDisplayDPI(windowDisplayIndex, &ddpi, &hdpi, &vdpi)) {
+        SDL_snprintf(text, sizeof(text), "SDL_GetDisplayDPI: ddpi: %f, hdpi: %f, vdpi: %f",
+                     ddpi, hdpi, vdpi);
+        SDLTest_DrawString(renderer, 0, textY, text);
+        textY += lineHeight;
+    }
+
+    SDL_snprintf(text, sizeof(text), "SDL_GetDisplayOrientation: ");
+    SDLTest_PrintDisplayOrientation(text, sizeof(text), SDL_GetDisplayOrientation(windowDisplayIndex));
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    /* Mouse */
+
+    SDLTest_DrawString(renderer, 0, textY, "----");
+    textY += lineHeight;
+
+    flags = SDL_GetMouseState(&x, &y);
+    SDL_snprintf(text, sizeof(text), "SDL_GetMouseState: %d,%d ", x, y);
+    SDLTest_PrintButtonMask(text, sizeof(text), flags);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    flags = SDL_GetGlobalMouseState(&x, &y);
+    SDL_snprintf(text, sizeof(text), "SDL_GetGlobalMouseState: %d,%d ", x, y);
+    SDLTest_PrintButtonMask(text, sizeof(text), flags);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
 }
 
 /* vi: set ts=4 sw=4 expandtab: */

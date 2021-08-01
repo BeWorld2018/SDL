@@ -33,15 +33,6 @@
 struct SDL_WaylandInput;
 
 typedef struct {
-    struct zxdg_surface_v6 *surface;
-    union {
-        struct zxdg_toplevel_v6 *toplevel;
-        struct zxdg_popup_v6 *popup;
-    } roleobj;
-    SDL_bool initial_configure_seen;
-} SDL_zxdg_shell_surface;
-
-typedef struct {
     struct xdg_surface *surface;
     union {
         struct xdg_toplevel *toplevel;
@@ -50,15 +41,23 @@ typedef struct {
     SDL_bool initial_configure_seen;
 } SDL_xdg_shell_surface;
 
+#ifdef HAVE_LIBDECOR_H
+typedef struct {
+    struct libdecor_frame *frame;
+    SDL_bool initial_configure_seen;
+} SDL_libdecor_surface;
+#endif
+
 typedef struct {
     SDL_Window *sdlwindow;
     SDL_VideoData *waylandData;
     struct wl_surface *surface;
     struct wl_callback *frame_callback;
     union {
+#ifdef HAVE_LIBDECOR_H
+        SDL_libdecor_surface libdecor;
+#endif
         SDL_xdg_shell_surface xdg;
-        SDL_zxdg_shell_surface zxdg;
-        struct wl_shell_surface *wl;
     } shell_surface;
     struct wl_egl_window *egl_window;
     struct SDL_WaylandInput *keyboard_device;
@@ -67,6 +66,7 @@ typedef struct {
     struct zxdg_toplevel_decoration_v1 *server_decoration;
     struct zwp_keyboard_shortcuts_inhibitor_v1 *key_inhibitor;
     struct zwp_idle_inhibitor_v1 *idle_inhibitor;
+    struct xdg_activation_token_v1 *activation_token;
 
     SDL_atomic_t swap_interval_ready;
 
@@ -81,7 +81,7 @@ typedef struct {
         float scale_factor;
     } resize;
 
-    struct wl_output **outputs;
+    SDL_WaylandOutputData **outputs;
     int num_outputs;
 
     float scale_factor;
@@ -89,6 +89,7 @@ typedef struct {
 
 extern void Wayland_ShowWindow(_THIS, SDL_Window *window);
 extern void Wayland_HideWindow(_THIS, SDL_Window *window);
+extern void Wayland_RaiseWindow(_THIS, SDL_Window *window);
 extern void Wayland_SetWindowFullscreen(_THIS, SDL_Window * window,
                                         SDL_VideoDisplay * _display,
                                         SDL_bool fullscreen);
@@ -111,8 +112,7 @@ extern void Wayland_SuspendScreenSaver(_THIS);
 extern SDL_bool
 Wayland_GetWindowWMInfo(_THIS, SDL_Window * window, SDL_SysWMinfo * info);
 extern int Wayland_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
-
-extern void Wayland_HandlePendingResize(SDL_Window *window);
+extern int Wayland_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation);
 
 #endif /* SDL_waylandwindow_h_ */
 

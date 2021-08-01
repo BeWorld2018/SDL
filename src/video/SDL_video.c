@@ -492,17 +492,26 @@ SDL_VideoInit(const char *driver_name)
     }
 
     /* Select the proper video driver */
-    index = 0;
+    i = index = 0;
     video = NULL;
     if (driver_name == NULL) {
         driver_name = SDL_getenv("SDL_VIDEODRIVER");
     }
     if (driver_name != NULL) {
-        for (i = 0; bootstrap[i]; ++i) {
-            if (SDL_strncasecmp(bootstrap[i]->name, driver_name, SDL_strlen(driver_name)) == 0) {
-                video = bootstrap[i]->create(index);
-                break;
+        const char *driver_attempt = driver_name;
+        while(driver_attempt != NULL && *driver_attempt != 0 && video == NULL) {
+            const char* driver_attempt_end = SDL_strchr(driver_attempt, ',');
+            size_t driver_attempt_len = (driver_attempt_end != NULL) ? (driver_attempt_end - driver_attempt)
+                                                                     : SDL_strlen(driver_attempt);
+
+            for (i = 0; bootstrap[i]; ++i) {
+                if (SDL_strncasecmp(bootstrap[i]->name, driver_attempt, driver_attempt_len) == 0) {
+                    video = bootstrap[i]->create(index);
+                    break;
+                }
             }
+
+            driver_attempt = (driver_attempt_end != NULL) ? (driver_attempt_end + 1) : NULL;
         }
     } else {
         for (i = 0; bootstrap[i]; ++i) {
@@ -2792,6 +2801,18 @@ SDL_GetGrabbedWindow(void)
     return _this->grabbed_window;
 }
 
+int
+SDL_FlashWindow(SDL_Window * window, SDL_FlashOperation operation)
+{
+    CHECK_WINDOW_MAGIC(window, -1);
+
+    if (_this->FlashWindow) {
+        return _this->FlashWindow(_this, window, operation);
+    }
+
+    return SDL_Unsupported();
+}
+
 void
 SDL_OnWindowShown(SDL_Window * window)
 {
@@ -2808,7 +2829,10 @@ void
 SDL_OnWindowResized(SDL_Window * window)
 {
     window->surface_valid = SDL_FALSE;
-    SDL_SendWindowEvent(window, SDL_WINDOWEVENT_SIZE_CHANGED, window->w, window->h);
+
+    if (!window->is_destroying) {
+        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_SIZE_CHANGED, window->w, window->h);
+    }
 }
 
 void
@@ -2866,6 +2890,8 @@ SDL_OnWindowFocusGained(SDL_Window * window)
 static SDL_bool
 ShouldMinimizeOnFocusLoss(SDL_Window * window)
 {
+    const char *hint;
+
     if (!(window->flags & SDL_WINDOW_FULLSCREEN) || window->is_destroying) {
         return SDL_FALSE;
     }
@@ -2881,12 +2907,21 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
 #ifdef __ANDROID__
     {
         extern SDL_bool Android_JNI_ShouldMinimizeOnFocusLoss(void);
-        if (! Android_JNI_ShouldMinimizeOnFocusLoss()) {
+        if (!Android_JNI_ShouldMinimizeOnFocusLoss()) {
             return SDL_FALSE;
         }
     }
 #endif
 
+    /* Real fullscreen windows should minimize on focus loss so the desktop video mode is restored */
+    hint = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
+    if (!hint || !*hint || SDL_strcasecmp(hint, "auto") == 0) {
+        if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
+            return SDL_FALSE;
+        } else {
+            return SDL_TRUE;
+        }
+    }
     return SDL_GetHintBoolean(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 }
 
