@@ -772,7 +772,7 @@ int SDL_wcsncasecmp(const wchar_t *str1, const wchar_t *str2, size_t len);
 /* Add Altivec Swap */
 void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units);
 void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units);
-/* 2.0.15 */
+/* 2.0.15 - 2.0.16 */
 int SDL_UpdateNVTexture(SDL_Texture * texture, const SDL_Rect * rect, const Uint8 *Yplane, int Ypitch, const Uint8 *UVplane, int UVpitch);
 double SDL_round(double x);
 float SDL_roundf(float x);
@@ -790,6 +790,12 @@ int SDL_isprint(int a);
 int SDL_isgraph(int a);
 int SDL_GetAudioDeviceSpec(int index, int iscapture, SDL_AudioSpec *spec);
 void SDL_SetWindowAlwaysOnTop(SDL_Window * window, SDL_bool on_top);
+void SDL_TLSCleanup(void);
+void SDL_SetWindowAlwaysOnTop(SDL_Window * window, SDL_bool on_top);
+int SDL_FlashWindow(SDL_Window * window, SDL_FlashOperation operation);
+int SDL_GameControllerSendEffect(SDL_GameController *gamecontroller, const void *data, int size);
+int SDL_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size);
+float SDL_GameControllerGetSensorDataRate(SDL_GameController *gamecontroller, SDL_SensorType type);
 
 #endif
 

@@ -57,12 +57,6 @@ APTR JoySensor[MAX_JOYSTICKS];
 int joystick_count;
 
 static int
-SDL_MORPHOS_JoystickGetCount(void)
-{
-	return joystick_count;
-}
-
-static int
 SDL_MORPHOS_JoystickInit(void)
 {
 	int rc = 0;
@@ -80,19 +74,18 @@ SDL_MORPHOS_JoystickInit(void)
 	D("[%s] Found %ld joysticks...\n", __FUNCTION__, device_index);
 	joystick_count = device_index;
 	
-	/* Add Joystick after Init (once) */
-	/*for (ULONG slot = 0; slot < joystick_count; slot++)
-		{
-			SDL_PrivateJoystickAdded(slot);
-		}
-	*/
 	return rc;
+}
+
+static int
+SDL_MORPHOS_JoystickGetCount(void)
+{
+	return joystick_count;
 }
 
 static void
 SDL_MORPHOS_JoystickDetect(void)
 {
-
 }
 
 static const char *
@@ -102,6 +95,57 @@ SDL_MORPHOS_JoystickGetDeviceName(int device_index)
 	const char *name = NULL;
 	GetSensorAttrTags(sensor, SENSORS_HID_Name, (IPTR)&name, TAG_DONE);
 	return name;
+}
+
+static int
+SDL_MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
+{
+    return device_index;
+}
+
+static void
+SDL_MORPHOS_JoystickSetDevicePlayerIndex(int device_index, int player_index)
+{
+}
+
+
+static SDL_JoystickGUID
+SDL_MORPHOS_JoystickGetDeviceGUID( int device_index )
+{
+	SDL_JoystickGUID guid;
+	APTR sensor = JoySensor[device_index];
+	Uint16 *guid16 = (Uint16 *)guid.data;
+	const char *name = NULL;
+
+	ULONG product, vendor;
+	
+	GetSensorAttrTags(sensor,
+			SENSORS_HID_Name, (IPTR)&name,
+			SENSORS_HID_Product, (IPTR)&product,
+			SENSORS_HID_Vendor, (IPTR)&vendor,
+			TAG_DONE);
+
+	SDL_zero(guid);
+	SDL_memset(guid.data, 0, sizeof(guid.data));
+
+	*guid16++ = SDL_SwapLE16(SDL_HARDWARE_BUS_USB);
+    *guid16++ = 0;
+
+    if (vendor && product)
+	{
+        *guid16++ = SDL_SwapLE16(vendor);
+        *guid16++ = 0;
+        *guid16++ = SDL_SwapLE16(product);
+        *guid16++ = 0;
+        *guid16++ = 0;
+        *guid16++ = 0;
+    } 
+	else
+	{
+        SDL_strlcpy((char*)guid16, name, sizeof(guid.data) - 4);
+    }
+	
+	return guid;
 }
 
 static SDL_JoystickID 
@@ -214,6 +258,63 @@ SDL_MORPHOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
 		rc = 0;
 	}
 	return rc;
+}
+
+static int
+SDL_MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+{
+	struct joystick_hwdata *hwdata = joystick->hwdata;
+	if (hwdata) 
+	{
+		if (hwdata->numRumbles)
+		{
+			DOUBLE lpower=(DOUBLE)(low_frequency_rumble/65535), hpower=(DOUBLE)(high_frequency_rumble/65535);
+			ULONG duration = duration_ms;
+			if (duration != 0 && (lpower > 0.0 || hpower > 0.0)) 
+			{ 
+				D("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration);
+				SetSensorAttrTags(hwdata->rumble[0], 
+					SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower, 
+					SENSORS_HIDInput_Rumble_Duration, duration, 
+					TAG_DONE);
+				SetSensorAttrTags(hwdata->rumble[1], 
+					SENSORS_HIDInput_Rumble_Power , (IPTR)&hpower, 
+					SENSORS_HIDInput_Rumble_Duration, duration, 
+					TAG_DONE);
+			}
+		}	
+	}		
+    return 0;
+}
+
+static int
+SDL_MORPHOS_JoystickRumbleTriggers(SDL_Joystick * joystick, Uint16 left_rumble, Uint16 right_rumble)
+{
+    return SDL_Unsupported();
+}
+
+static SDL_bool
+SDL_MORPHOS_JoystickHasLED(SDL_Joystick * joystick)
+{
+    return SDL_FALSE;
+}
+
+static int
+SDL_MORPHOS_JoystickSetLED(SDL_Joystick * joystick, Uint8 red, Uint8 green, Uint8 blue)
+{
+    return SDL_Unsupported();
+}
+
+static int
+SDL_MORPHOS_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
+{
+    return SDL_Unsupported();
+}
+
+static int
+SDL_MORPHOS_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
+{
+    return SDL_Unsupported();
 }
 
 static void
@@ -353,111 +454,10 @@ SDL_MORPHOS_JoystickQuit(void)
 		ReleaseSensorsList(sensorlist, NULL);
 }
 
-static SDL_JoystickGUID
-SDL_MORPHOS_JoystickGetDeviceGUID( int device_index )
-{
-	SDL_JoystickGUID guid;
-	APTR sensor = JoySensor[device_index];
-	Uint16 *guid16 = (Uint16 *)guid.data;
-	const char *name = NULL;
-
-	ULONG product, vendor;
-	
-	GetSensorAttrTags(sensor,
-			SENSORS_HID_Name, (IPTR)&name,
-			SENSORS_HID_Product, (IPTR)&product,
-			SENSORS_HID_Vendor, (IPTR)&vendor,
-			TAG_DONE);
-
-	SDL_zero(guid);
-	SDL_memset(guid.data, 0, sizeof(guid.data));
-
-	*guid16++ = SDL_SwapLE16(SDL_HARDWARE_BUS_USB);
-    *guid16++ = 0;
-
-    if (vendor && product)
-	{
-        *guid16++ = SDL_SwapLE16(vendor);
-        *guid16++ = 0;
-        *guid16++ = SDL_SwapLE16(product);
-        *guid16++ = 0;
-        *guid16++ = 0;
-        *guid16++ = 0;
-    } 
-	else
-	{
-        SDL_strlcpy((char*)guid16, name, sizeof(guid.data) - 4);
-    }
-	
-	return guid;
-}
-
-static int
-SDL_MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
-{
-	struct joystick_hwdata *hwdata = joystick->hwdata;
-	if (hwdata) 
-	{
-		if (hwdata->numRumbles)
-		{
-			DOUBLE lpower=(DOUBLE)(low_frequency_rumble/65535), hpower=(DOUBLE)(high_frequency_rumble/65535);
-			ULONG duration = duration_ms;
-			if (duration != 0 && (lpower > 0.0 || hpower > 0.0)) 
-			{ 
-				D("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration);
-				SetSensorAttrTags(hwdata->rumble[0], 
-					SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower, 
-					SENSORS_HIDInput_Rumble_Duration, duration, 
-					TAG_DONE);
-				SetSensorAttrTags(hwdata->rumble[1], 
-					SENSORS_HIDInput_Rumble_Power , (IPTR)&hpower, 
-					SENSORS_HIDInput_Rumble_Duration, duration, 
-					TAG_DONE);
-			}
-		}	
-	}		
-    return 0;
-}
-
-static int
-SDL_MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
-{
-    return device_index;
-}
-
-static void
-SDL_MORPHOS_JoystickSetDevicePlayerIndex(int device_index, int player_index)
-{
-}
-
 static SDL_bool
 SDL_MORPHOS_GetGamepadMapping(int device_index, SDL_GamepadMapping * out)
 {
     return SDL_FALSE;
-}
-
-static int
-SDL_MORPHOS_JoystickRumbleTriggers(SDL_Joystick * joystick, Uint16 left_rumble, Uint16 right_rumble)
-{
-    return SDL_Unsupported();
-}
-
-static SDL_bool
-SDL_MORPHOS_JoystickHasLED(SDL_Joystick * joystick)
-{
-    return SDL_FALSE;
-}
-
-static int
-SDL_MORPHOS_JoystickSetLED(SDL_Joystick * joystick, Uint8 red, Uint8 green, Uint8 blue)
-{
-    return SDL_Unsupported();
-}
-
-static int
-SDL_MORPHOS_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
-{
-    return SDL_Unsupported();
 }
 
 SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
@@ -475,6 +475,7 @@ SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
     SDL_MORPHOS_JoystickRumbleTriggers,
     SDL_MORPHOS_JoystickHasLED,
     SDL_MORPHOS_JoystickSetLED,
+	SDL_MORPHOS_JoystickSendEffect,
 	SDL_MORPHOS_JoystickSetSensorsEnabled,
     SDL_MORPHOS_JoystickUpdate,
     SDL_MORPHOS_JoystickClose,
