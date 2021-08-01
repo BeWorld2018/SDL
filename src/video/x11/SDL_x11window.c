@@ -372,6 +372,7 @@ X11_CreateWindow(_THIS, SDL_Window * window)
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
     SDL_DisplayData *displaydata =
         (SDL_DisplayData *) SDL_GetDisplayForWindow(window)->driverdata;
+    const SDL_bool force_override_redirect = SDL_GetHintBoolean(SDL_HINT_X11_FORCE_OVERRIDE_REDIRECT, SDL_FALSE);
     SDL_WindowData *windowdata;
     Display *display = data->display;
     int screen = displaydata->screen;
@@ -444,7 +445,7 @@ X11_CreateWindow(_THIS, SDL_Window * window)
         depth = displaydata->depth;
     }
 
-    xattr.override_redirect = ((window->flags & SDL_WINDOW_TOOLTIP) || (window->flags & SDL_WINDOW_POPUP_MENU)) ? True : False;
+    xattr.override_redirect = ((window->flags & SDL_WINDOW_TOOLTIP) || (window->flags & SDL_WINDOW_POPUP_MENU) || force_override_redirect) ? True : False;
     xattr.backing_store = NotUseful;
     xattr.background_pixmap = None;
     xattr.border_pixel = 0;
@@ -733,7 +734,7 @@ X11_SetWindowTitle(_THIS, SDL_Window * window)
 
     status = X11_XChangeProperty(display, data->xwindow, _NET_WM_NAME, UTF8_STRING, 8, 0, (const unsigned char *) title, strlen(title));
 
-    if (status != Success) {
+    if (status != 1) {
         char *x11_error = NULL;
         char x11_error_locale[256];
         if (X11_XGetErrorText(display, status, x11_error_locale, sizeof(x11_error_locale)) == Success)
@@ -1745,6 +1746,52 @@ X11_AcceptDragAndDrop(SDL_Window * window, SDL_bool accept)
     } else {
         X11_XDeleteProperty(display, data->xwindow, XdndAware);
     }
+}
+
+int
+X11_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation)
+{
+    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+    Display *display = data->videodata->display;
+    XWMHints *wmhints;
+
+    wmhints = X11_XGetWMHints(display, data->xwindow);
+    if (!wmhints) {
+        return SDL_SetError("Couldn't get WM hints");
+    }
+
+    wmhints->flags &= ~XUrgencyHint;
+    data->flashing_window = SDL_FALSE;
+    data->flash_cancel_time = 0;
+
+    switch (operation) {
+    case SDL_FLASH_CANCEL:
+        /* Taken care of above */
+        break;
+    case SDL_FLASH_BRIEFLY:
+        if (!(window->flags & SDL_WINDOW_INPUT_FOCUS)) {
+            wmhints->flags |= XUrgencyHint;
+            data->flashing_window = SDL_TRUE;
+            /* On Ubuntu 21.04 this causes a dialog to pop up, so leave it up for a full second so users can see it */
+            data->flash_cancel_time = SDL_GetTicks() + 1000;
+            if (!data->flash_cancel_time) {
+                data->flash_cancel_time = 1;
+            }
+        }
+        break;
+    case SDL_FLASH_UNTIL_FOCUSED:
+        if (!(window->flags & SDL_WINDOW_INPUT_FOCUS)) {
+            wmhints->flags |= XUrgencyHint;
+            data->flashing_window = SDL_TRUE;
+        }
+        break;
+    default:
+        break;
+    }
+
+    X11_XSetWMHints(display, data->xwindow, wmhints);
+    X11_XFree(wmhints);
+    return 0;
 }
 
 #endif /* SDL_VIDEO_DRIVER_X11 */

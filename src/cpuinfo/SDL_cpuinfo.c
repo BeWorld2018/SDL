@@ -155,7 +155,7 @@ CPU_haveCPUID(void)
     : "%eax", "%ecx"
     );
 #elif (defined(__GNUC__) || defined(__llvm__)) && defined(__x86_64__)
-/* Technically, if this is being compiled under __x86_64__ then it has 
+/* Technically, if this is being compiled under __x86_64__ then it has
    CPUid by definition.  But it's nice to be able to prove it.  :)      */
     __asm__ (
 "        pushfq                      # Get original EFLAGS             \n"
@@ -338,7 +338,7 @@ CPU_haveAltiVec(void)
     ULONG has_altivec;
 	if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
 	{
-		if(has_altivec) 
+		if(has_altivec)
 			altivec = 1;
 	}
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
@@ -1016,7 +1016,7 @@ SDL_GetSystemRAM(void)
 #endif /* __FreeBSD__ || __FreeBSD_kernel__ */
             Uint64 memsize = 0;
             size_t len = sizeof(memsize);
-            
+
             if (sysctl(mib, 2, &memsize, &len, NULL, 0) == 0) {
                 SDL_SystemRAM = (int)(memsize / (1024*1024));
             }
@@ -1050,6 +1050,13 @@ SDL_GetSystemRAM(void)
 #ifdef __MORPHOS__
         if (SDL_SystemRAM <= 0) {
             SDL_SystemRAM = AvailMem(MEMF_TOTAL) / (1024 * 1024);
+        }
+#endif
+#ifdef __VITA__
+        if (SDL_SystemRAM <= 0) {
+            /* Vita has 512MiB on SoC, that's split into 256MiB(+109MiB in extended memory mode) for app
+               +26MiB of physically continuous memory, +112MiB of CDRAM(VRAM) + system reserved memory. */
+            SDL_SystemRAM = 536870912;
         }
 #endif
 #endif
@@ -1107,9 +1114,6 @@ SDL_SIMDRealloc(void *mem, const size_t len)
 
     ptr = (Uint8 *) SDL_realloc(mem, padded + alignment + sizeof (void *));
 
-    if (ptr == mem) {
-        return retval; /* Pointer didn't change, nothing to do */
-    }
     if (ptr == NULL) {
         return NULL; /* Out of memory, bail! */
     }
@@ -1122,7 +1126,7 @@ SDL_SIMDRealloc(void *mem, const size_t len)
     if (mem) {
         ptrdiff = ((size_t) retval) - ((size_t) ptr);
         if (memdiff != ptrdiff) { /* Delta has changed, copy to new offset! */
-            oldmem = (void*) (((size_t) ptr) + memdiff);
+            oldmem = (void*) (((uintptr_t) ptr) + memdiff);
 
             /* Even though the data past the old `len` is undefined, this is the
              * only length value we have, and it guarantees that we copy all the

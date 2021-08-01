@@ -119,9 +119,6 @@ static const SDL_RenderDriver *render_drivers[] = {
 #if SDL_VIDEO_RENDER_VITA_GXM
     &VITA_GXM_RenderDriver,
 #endif
-#if SDL_VIDEO_RENDER_VITA_GLES2
-    &VITA_GLES2_RenderDriver,
-#endif
 #if SDL_VIDEO_RENDER_SW
     &SW_RenderDriver
 #endif
@@ -2669,7 +2666,9 @@ RenderDrawLinesWithRects(SDL_Renderer * renderer,
         }
     }
 
-    retval += QueueCmdFillRects(renderer, frects, nrects);
+    if (nrects) {
+        retval += QueueCmdFillRects(renderer, frects, nrects);
+    }
 
     SDL_small_free(frects, isstack);
 
@@ -2724,7 +2723,9 @@ RenderDrawLinesWithRectsF(SDL_Renderer * renderer,
         }
     }
 
-    retval += QueueCmdFillRects(renderer, frects, nrects);
+    if (nrects) {
+        retval += QueueCmdFillRects(renderer, frects, nrects);
+    }
 
     SDL_small_free(frects, isstack);
 
