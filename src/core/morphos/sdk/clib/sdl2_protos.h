@@ -789,7 +789,6 @@ int SDL_ispunct(int a);
 int SDL_isprint(int a);
 int SDL_isgraph(int a);
 int SDL_GetAudioDeviceSpec(int index, int iscapture, SDL_AudioSpec *spec);
-void SDL_SetWindowAlwaysOnTop(SDL_Window * window, SDL_bool on_top);
 void SDL_TLSCleanup(void);
 void SDL_SetWindowAlwaysOnTop(SDL_Window * window, SDL_bool on_top);
 int SDL_FlashWindow(SDL_Window * window, SDL_FlashOperation operation);

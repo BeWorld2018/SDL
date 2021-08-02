@@ -6243,20 +6243,20 @@
 		(((int (*)(int , int , SDL_AudioSpec *))*(void**)(__base - 4306))(__t__p0, __t__p1, __t__p2));\
 	})
 
+#define SDL_TLSCleanup() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(void))*(void**)(__base - 4312))());\
+	})
+
 #define SDL_SetWindowAlwaysOnTop(__p0, __p1) \
 	({ \
 		SDL_Window * __t__p0 = __p0;\
 		SDL_bool  __t__p1 = __p1;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4324))(__t__p0, __t__p1));\
-	})
-
-#define SDL_TLSCleanup() \
-	({ \
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(void))*(void**)(__base - 4318))());\
+		(((void (*)(SDL_Window *, SDL_bool ))*(void**)(__base - 4318))(__t__p0, __t__p1));\
 	})
 
 #define SDL_FlashWindow(__p0, __p1) \
@@ -6265,7 +6265,7 @@
 		SDL_FlashOperation  __t__p1 = __p1;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_Window *, SDL_FlashOperation ))*(void**)(__base - 4330))(__t__p0, __t__p1));\
+		(((int (*)(SDL_Window *, SDL_FlashOperation ))*(void**)(__base - 4324))(__t__p0, __t__p1));\
 	})
 
 #define SDL_GameControllerSendEffect(__p0, __p1, __p2) \
@@ -6275,7 +6275,7 @@
 		int  __t__p2 = __p2;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_GameController *, const void *, int ))*(void**)(__base - 4336))(__t__p0, __t__p1, __t__p2));\
+		(((int (*)(SDL_GameController *, const void *, int ))*(void**)(__base - 4330))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_JoystickSendEffect(__p0, __p1, __p2) \
@@ -6285,7 +6285,7 @@
 		int  __t__p2 = __p2;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_Joystick *, const void *, int ))*(void**)(__base - 4342))(__t__p0, __t__p1, __t__p2));\
+		(((int (*)(SDL_Joystick *, const void *, int ))*(void**)(__base - 4336))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_GameControllerGetSensorDataRate(__p0, __p1) \
@@ -6294,7 +6294,7 @@
 		SDL_SensorType  __t__p1 = __p1;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((float (*)(SDL_GameController *, SDL_SensorType ))*(void**)(__base - 4348))(__t__p0, __t__p1));\
+		(((float (*)(SDL_GameController *, SDL_SensorType ))*(void**)(__base - 4342))(__t__p0, __t__p1));\
 	})
 
 #endif /* !_PPCINLINE_SDL2_H */

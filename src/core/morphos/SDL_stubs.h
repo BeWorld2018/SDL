@@ -798,7 +798,7 @@
 	STUB(SDL_isgraph)
 	STUB(SDL_GetAudioDeviceSpec)
 	STUB(SDL_TLSCleanup)
-	STUB(SDL_SetWindowAlwaysOnTop )
+	STUB(SDL_SetWindowAlwaysOnTop)
 	STUB(SDL_FlashWindow)
 	STUB(SDL_GameControllerSendEffect)
 	STUB(SDL_JoystickSendEffect)
