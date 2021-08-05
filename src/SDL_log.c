@@ -331,7 +331,7 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
 #if !defined(HAVE_STDIO_H) && !defined(__WINRT__)
         BOOL attachResult;
         DWORD attachError;
-        unsigned long charsWritten;
+        DWORD charsWritten;
         DWORD consoleMode;
 
         /* Maybe attach console and get stderr handle */
@@ -380,7 +380,7 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
 #if !defined(HAVE_STDIO_H) && !defined(__WINRT__)
         /* Screen output to stderr, if console was attached. */
         if (consoleAttached == 1) {
-                if (!WriteConsole(stderrHandle, tstr, SDL_tcslen(tstr), &charsWritten, NULL)) {
+                if (!WriteConsole(stderrHandle, tstr, (DWORD) SDL_tcslen(tstr), &charsWritten, NULL)) {
                     OutputDebugString(TEXT("Error calling WriteConsole\r\n"));
                     if (GetLastError() == ERROR_NOT_ENOUGH_MEMORY) {
                         OutputDebugString(TEXT("Insufficient heap memory to write message\r\n"));
@@ -388,7 +388,7 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
                 }
 
         } else if (consoleAttached == 2) {
-            if (!WriteFile(stderrHandle, output, SDL_strlen(output), &charsWritten, NULL)) {
+            if (!WriteFile(stderrHandle, output, (DWORD) SDL_strlen(output), &charsWritten, NULL)) {
                 OutputDebugString(TEXT("Error calling WriteFile\r\n"));
             }
         }

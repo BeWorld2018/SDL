@@ -68,18 +68,14 @@ typedef struct {
     struct zwp_idle_inhibitor_v1 *idle_inhibitor;
     struct xdg_activation_token_v1 *activation_token;
 
+    /* floating dimensions for restoring from maximized and fullscreen */
+    int floating_width, floating_height;
+
     SDL_atomic_t swap_interval_ready;
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
     struct qt_extended_surface *extended_surface;
 #endif /* SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH */
-
-    struct {
-        SDL_bool pending, configure;
-        uint32_t serial;
-        int width, height;
-        float scale_factor;
-    } resize;
 
     SDL_WaylandOutputData **outputs;
     int num_outputs;

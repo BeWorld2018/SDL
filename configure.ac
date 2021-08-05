@@ -84,10 +84,10 @@ esac
 dnl use CXX for linker on Haiku
 case "$host" in
     *-*-haiku*)
-        LINKER=CXX
+        LINKER='$(CXX)'
         ;;
     *)
-        LINKER=CC
+        LINKER='$(CC)'
         ;;
 esac
 AC_SUBST(LINKER)
@@ -4383,6 +4383,7 @@ if test x$video_wayland = xyes; then
         printf '%s\n' "	\\$(RUN_CMD_GEN)\\$(WAYLAND_SCANNER) \\$(WAYLAND_SCANNER_CODE_MODE) \\$< \\$@" ;\
         echo ;\
         printf '%s\n' "\\$(objects)/\$p-protocol.lo: \\$(gen)/\$p-protocol.c \\$(gen)/\$p-client-protocol.h" ;\
+        printf '%s\n' "	@\\$(SHELL) \\$(auxdir)/mkinstalldirs \\$(objects)" ;\
         printf '%s\n' "	\\$(RUN_CMD_CC)\\$(LIBTOOL) --tag=CC --mode=compile \\$(CC) \\$(CFLAGS) \\$(EXTRA_CFLAGS) $DEPENDENCY_TRACKING_OPTIONS -c \\$< -o \\$@" ;\
         done ;\
         echo ;\

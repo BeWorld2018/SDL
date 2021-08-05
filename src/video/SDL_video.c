@@ -1170,11 +1170,20 @@ SDL_SetWindowDisplayMode(SDL_Window * window, const SDL_DisplayMode * mode)
     if (FULLSCREEN_VISIBLE(window) && (window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
         SDL_DisplayMode fullscreen_mode;
         if (SDL_GetWindowDisplayMode(window, &fullscreen_mode) == 0) {
-            SDL_SetDisplayModeForDisplay(SDL_GetDisplayForWindow(window), &fullscreen_mode);
+            if (SDL_SetDisplayModeForDisplay(SDL_GetDisplayForWindow(window), &fullscreen_mode) == 0) {
+#ifndef ANDROID
+                /* Android may not resize the window to exactly what our fullscreen mode is, especially on
+                 * windowed Android environments like the Chromebook or Samsung DeX.  Given this, we shouldn't
+                 * use fullscreen_mode.w and fullscreen_mode.h, but rather get our current native size.  As such,
+                 * Android's SetWindowFullscreen will generate the window event for us with the proper final size.
+                 */
+                SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED, fullscreen_mode.w, fullscreen_mode.h);
+#endif
+            }
 #if defined(__AMIGAOS4__) || defined(__MORPHOS__)
             // Force window on new screen
             _this->SetWindowFullscreen(_this, window, SDL_GetDisplayForWindow(window), SDL_TRUE);
-#endif
+#endif        
         }
     }
     return 0;
@@ -1370,11 +1379,11 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
                 /* Generate a mode change event here */
                 if (resized) {
 #ifndef ANDROID
-                    // Android may not resize the window to exactly what our fullscreen mode is, especially on
-                    // windowed Android environments like the Chromebook or Samsung DeX.  Given this, we shouldn't
-                    // use fullscreen_mode.w and fullscreen_mode.h, but rather get our current native size.  As such,
-                    // Android's SetWindowFullscreen will generate the window event for us with the proper final size.
-
+                    /* Android may not resize the window to exactly what our fullscreen mode is, especially on
+                     * windowed Android environments like the Chromebook or Samsung DeX.  Given this, we shouldn't
+                     * use fullscreen_mode.w and fullscreen_mode.h, but rather get our current native size.  As such,
+                     * Android's SetWindowFullscreen will generate the window event for us with the proper final size.
+                     */
                     SDL_SendWindowEvent(other, SDL_WINDOWEVENT_RESIZED,
                                         fullscreen_mode.w, fullscreen_mode.h);
 #endif
@@ -1610,6 +1619,22 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
         displayIndex = SDL_GetIndexOfDisplay(display);
         SDL_GetDisplayBounds(displayIndex, &bounds);
 
+        /* for real fullscreen we might switch the resolution, so get width and height
+         * from closest supported mode and use that instead of current resolution
+         */
+        if ((flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP
+              && (bounds.w != w || bounds.h != h)) {
+            SDL_DisplayMode fullscreen_mode, closest_mode;
+            SDL_zero(fullscreen_mode);
+            fullscreen_mode.w = w;
+            fullscreen_mode.h = h;
+            if (SDL_GetClosestDisplayModeForDisplay(display, &fullscreen_mode, &closest_mode) != NULL) {
+                bounds.w = closest_mode.w;
+                bounds.h = closest_mode.h;
+            }
+        }
+        window->fullscreen_mode.w = bounds.w;
+        window->fullscreen_mode.h = bounds.h;
         window->x = bounds.x;
         window->y = bounds.y;
         window->w = bounds.w;
@@ -2143,7 +2168,7 @@ SDL_SetWindowAlwaysOnTop(SDL_Window * window, SDL_bool on_top)
             } else {
                 window->flags &= ~SDL_WINDOW_ALWAYS_ON_TOP;
             }
-            
+
             _this->SetWindowAlwaysOnTop(_this, window, (SDL_bool) want);
         }
     }

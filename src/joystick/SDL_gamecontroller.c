@@ -615,8 +615,7 @@ static ControllerMapping_t *SDL_CreateMappingForHIDAPIController(SDL_JoystickGUI
                 /* Joy-Cons have extra buttons in the same place as paddles */
                 if (SDL_IsJoystickNintendoSwitchJoyConLeft(vendor, product)) {
                     SDL_strlcat(mapping_string, "paddle2:b17,paddle4:b19,", sizeof(mapping_string));
-                }
-                else if (SDL_IsJoystickNintendoSwitchJoyConRight(vendor, product)) {
+                } else if (SDL_IsJoystickNintendoSwitchJoyConRight(vendor, product)) {
                     SDL_strlcat(mapping_string, "paddle1:b16,paddle3:b18,", sizeof(mapping_string));
                 }
                 break;
@@ -658,6 +657,25 @@ static ControllerMapping_t *SDL_CreateMappingForRAWINPUTController(SDL_JoystickG
 }
 
 /*
+ * Helper function to guess at a mapping for WGI controllers
+ */
+static ControllerMapping_t *SDL_CreateMappingForWGIController(SDL_JoystickGUID guid)
+{
+    SDL_bool existing;
+    char mapping_string[1024];
+
+    if (guid.data[15] != SDL_JOYSTICK_TYPE_GAMECONTROLLER) {
+        return NULL;
+    }
+
+    SDL_strlcpy(mapping_string, "none,*,", sizeof(mapping_string));
+    SDL_strlcat(mapping_string, "a:b0,b:b1,x:b2,y:b3,back:b6,start:b7,leftstick:b8,rightstick:b9,leftshoulder:b4,rightshoulder:b5,dpup:b10,dpdown:b12,dpleft:b13,dpright:b11,leftx:a1,lefty:a0~,rightx:a3,righty:a2~,lefttrigger:a4,righttrigger:a5,", sizeof(mapping_string));
+
+    return SDL_PrivateAddMappingForGUID(guid, mapping_string,
+                      &existing, SDL_CONTROLLER_MAPPING_PRIORITY_DEFAULT);
+}
+
+/*
  * Helper function to scan the mappings database for a controller with the specified GUID
  */
 static ControllerMapping_t *SDL_PrivateGetControllerMappingForGUID(SDL_JoystickGUID guid, SDL_bool exact_match)
@@ -688,6 +706,9 @@ static ControllerMapping_t *SDL_PrivateGetControllerMappingForGUID(SDL_JoystickG
         }
         if (!mapping && SDL_IsJoystickRAWINPUT(guid)) {
             mapping = SDL_CreateMappingForRAWINPUTController(guid);
+        }
+        if (!mapping && SDL_IsJoystickWGI(guid)) {
+            mapping = SDL_CreateMappingForWGIController(guid);
         }
     }
     return mapping;
@@ -1161,15 +1182,12 @@ static ControllerMapping_t *SDL_PrivateGetControllerMappingForNameAndGUID(const 
             mapping = SDL_PrivateAddMappingForGUID(guid,
 "none,X360 Wireless Controller,a:b0,b:b1,back:b6,dpdown:b14,dpleft:b11,dpright:b12,dpup:b13,guide:b8,leftshoulder:b4,leftstick:b9,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b10,righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3",
                           &existing, SDL_CONTROLLER_MAPPING_PRIORITY_DEFAULT);
+        } else if (SDL_strstr(name, "Xbox") || SDL_strstr(name, "X-Box") || SDL_strstr(name, "XBOX")) {
+            mapping = s_pXInputMapping;
         }
     }
 #endif /* __LINUX__ */
 
-    if (!mapping && name && !SDL_IsJoystickWGI(guid)) {
-        if (SDL_strstr(name, "Xbox") || SDL_strstr(name, "X-Box") || SDL_strstr(name, "XBOX")) {
-            mapping = s_pXInputMapping;
-        }
-    }
     if (!mapping) {
         mapping = s_pDefaultMapping;
     }

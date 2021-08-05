@@ -29,7 +29,6 @@
 #include "wayland-util.h"
 
 #include "../SDL_sysvideo.h"
-#include "../../core/linux/SDL_dbus.h"
 #include "../../core/linux/SDL_ime.h"
 
 struct xkb_context;
@@ -91,6 +90,9 @@ typedef struct {
     SDL_VideoDisplay placeholder;
     SDL_bool done;
 } SDL_WaylandOutputData;
+
+/* Needed here to get wl_surface declaration, fixes GitHub#4594 */
+#include "SDL_waylanddyn.h"
 
 extern void SDL_WAYLAND_register_surface(struct wl_surface *surface);
 extern void SDL_WAYLAND_register_output(struct wl_output *output);

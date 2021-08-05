@@ -43,7 +43,6 @@
 #include <fcntl.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "SDL_waylanddyn.h"
 #include <wayland-util.h>
 
 #include "xdg-shell-client-protocol.h"
@@ -578,10 +577,6 @@ Wayland_VideoInit(_THIS)
     WAYLAND_wl_display_flush(data->display);
 
     Wayland_InitKeyboard(_this);
-
-#if SDL_USE_LIBDBUS
-    SDL_DBus_Init();
-#endif
 
     return 0;
 }
