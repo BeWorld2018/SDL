@@ -50,6 +50,9 @@
 # if (__clang_major__ < 5)
 #   undef HAVE_AVX_INTRINSICS
 # endif
+# if (defined(_MSC_VER) || defined(__SCE__)) && !defined(__AVX__)
+#   undef HAVE_AVX_INTRINSICS
+# endif
 #elif defined __GNUC__
 # if (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 9)
 #   undef HAVE_AVX_INTRINSICS
