@@ -4253,7 +4253,7 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
 #endif
 #if SDL_VIDEO_DRIVER_MORPHOS
     if (retval == -1 &&
-        SDL_MessageboxValidForDriver(messageboxdata, SDL_SYSWM_AMIGA) &&
+        SDL_MessageboxValidForDriver(messageboxdata, SDL_SYSWM_MORPHOS) &&
         AMIGA_ShowMessageBox(messageboxdata, buttonid) == 0) {
         retval = 0;
     }

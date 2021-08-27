@@ -729,9 +729,8 @@ AMIGA_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo * info)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (info->version.major >= SDL_MAJOR_VERSION)
-	{
-		info->subsystem = SDL_SYSWM_AMIGA;
+	if (info->version.major >= SDL_MAJOR_VERSION) {
+		info->subsystem = SDL_SYSWM_MORPHOS;
 		info->info.intui.window = data->win;
 		return SDL_TRUE;
 	} else {
