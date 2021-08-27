@@ -63,8 +63,7 @@ AMIGA_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *d
 {
 	int state = (m->Code & IECODE_UP_PREFIX) ? SDL_RELEASED : SDL_PRESSED;
 
-	switch (m->Code & ~(IECODE_UP_PREFIX))
-	{
+	switch (m->Code & ~(IECODE_UP_PREFIX)) {
 		case IECODE_LBUTTON:
 			SDL_SendMouseButton(data->window, 0, state, SDL_BUTTON_LEFT);
 			break;
@@ -109,8 +108,7 @@ AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 	UWORD code = m->Code;
 	UWORD rawkey = m->Code & 0x7F;
 
-	switch (code)
-	{
+	switch (code) {
 		case RAWKEY_NM_WHEEL_UP:
 			SDL_SendMouseWheel(data->window, 0, 0, 1, SDL_MOUSEWHEEL_NORMAL);
 			break;
@@ -157,18 +155,13 @@ AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 static void
 AMIGA_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 {
-
-	if (!SDL_GetRelativeMouseMode())
-	{
+	if (!SDL_GetRelativeMouseMode()) {
 		struct Screen *s = data->win->WScreen;
 		int x = (s->MouseX - data->win->LeftEdge - data->win->BorderLeft);
 		int y = (s->MouseY - data->win->TopEdge - data->win->BorderTop);
 		SDL_SendMouseMotion(data->window, 0, 0, x, y);
-	}
-	else
-	{
-		if (data->first_deltamove)
-		{
+	} else {
+		if (data->first_deltamove) {
 			data->first_deltamove = 0;
 			return;
 		}
@@ -180,29 +173,19 @@ static void
 AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 {
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-	if(data->window)
-	{
-		if (activated)
-		{
+	if(data->window) {
+		if (activated) {
 			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
 
 			if (SDL_GetKeyboardFocus() != data->window)
-			{
 				SDL_SetKeyboardFocus(data->window);
-			}
 			SDL_SetMouseFocus(data->window);
 			AMIGA_MouseMove(_this, m, data);
-		}
-		else
-		{
+		} else {
 			if (SDL_GetKeyboardFocus() == data->window)
-			{
 				SDL_SetKeyboardFocus(NULL);
-			}
 			if (SDL_GetMouseFocus() == data->window)
-			{
 				SDL_SetMouseFocus(NULL);
-			}
 		}
 	}
 }
@@ -212,19 +195,17 @@ AMIGA_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 {
 	struct Window *w = data->win;
 
-	if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge)
-	{
+	if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
 		data->curr_x = w->LeftEdge;
 		data->curr_y = w->TopEdge;
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
 	}
 
-	if (data->curr_w != w->Width || data->curr_h != w->Height)
-	{
+	if (data->curr_w != w->Width || data->curr_h != w->Height) {
 		data->curr_w = w->Width;
 		data->curr_h = w->Height;
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
-		AMIGA_GL_ResizeContext(_this, data->window);
+		if (__tglContext) AMIGA_GL_ResizeContext(_this, data->window);
 	}
 }
 
@@ -232,8 +213,7 @@ static void AMIGA_GadgetEvent(_THIS, const struct IntuiMessage *m)
 {
 	D("[%s]\n", __FUNCTION__);
 
-	switch (((struct Gadget *)m->IAddress)->GadgetID)
-	{
+	switch (((struct Gadget *)m->IAddress)->GadgetID) {
 		case ETI_Iconify:
 			AMIGA_HideApp(_this, TRUE);
 			break;
@@ -264,7 +244,6 @@ AMIGA_AboutSDL(struct Window *window)
 static void
 AMIGA_AboutSystem(struct Window *window)
 {
-	
 	struct EasyStruct es;
 	es.es_StructSize   = sizeof(struct EasyStruct);
 	es.es_Flags        = 0;
@@ -272,14 +251,13 @@ AMIGA_AboutSystem(struct Window *window)
 	es.es_TextFormat   = "System: %s - Vendor: %s\n\nHas Altivec: %s\n";
 	es.es_GadgetFormat = "Ok";
 
-	char			System[256];
-	char			Vendor[256];
+	char System[256];
+	char Vendor[256];
 
 	NewGetSystemAttrs(&System,sizeof(System),SYSTEMINFOTYPE_SYSTEM,TAG_DONE);
 	NewGetSystemAttrs(&Vendor,sizeof(Vendor),SYSTEMINFOTYPE_VENDOR,TAG_DONE);
 
 	EasyRequest(window, &es, NULL, System, Vendor, ((HasAltiVec)?"Yes":"No"));
-	
 }
 
 static void
@@ -296,28 +274,25 @@ AMIGA_Joystick(struct Window *window)
 	for (i = 0; i < SDL_NumJoysticks(); ++i) {
     	const char *name;
 		char text[254] = "";
-		SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i),
-                                  guid, sizeof (guid));
-
+		SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i), guid, sizeof (guid));
 		SDL_Joystick *joystick = SDL_JoystickOpen(i);
-        if (joystick != NULL) 
-		{		
+        if (joystick != NULL) {		
 			if (SDL_IsGameController(i)) {
 				controller_count++;
 				name = SDL_GameControllerNameForIndex(i);
-			}else{
+			} else {
 				name = SDL_JoystickNameForIndex(i);	
 			}			
 		
 			snprintf(text, sizeof(text), "%d: %s (guid %s, VID 0x%.4x, PID 0x%.4x, player index = %d)\n",
-				 i, name ? name : "Unknown", guid,
-				SDL_JoystickGetDeviceVendor(i), SDL_JoystickGetDeviceProduct(i), SDL_JoystickGetDevicePlayerIndex(i));
+				i, name ? name : "Unknown", guid,
+			SDL_JoystickGetDeviceVendor(i), SDL_JoystickGetDeviceProduct(i), SDL_JoystickGetDevicePlayerIndex(i));
 			strcat(text1, text);
 			snprintf(text, sizeof(text),"    Joystick has %d axes, %d hats, %d balls, and %d buttons\n",
-			   SDL_JoystickNumAxes(joystick), SDL_JoystickNumHats(joystick),
-			   SDL_JoystickNumBalls(joystick), SDL_JoystickNumButtons(joystick));
+			SDL_JoystickNumAxes(joystick), SDL_JoystickNumHats(joystick),
+			SDL_JoystickNumBalls(joystick), SDL_JoystickNumButtons(joystick));
 			strcat(text1, text);
-			 SDL_JoystickClose(joystick);
+			SDL_JoystickClose(joystick);
 		}
 	}
 	
@@ -344,15 +319,11 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 {
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 
-	switch (m->Class)
-	{
-		case IDCMP_MENUPICK:
-			{
+	switch (m->Class) {
+		case IDCMP_MENUPICK: {
 				struct MenuItem *item = ItemAddress(data->menu, m->Code);
-				if (item)
-				{
-					switch ((ULONG)GTMENUITEM_USERDATA(item))
-					{
+				if (item) {
+					switch ((ULONG)GTMENUITEM_USERDATA(item)) {
 						case MID_ABOUT:
 							AMIGA_AboutSDL(data->win);
 							break;
@@ -425,8 +396,7 @@ AMIGA_CheckBrokerMsg(_THIS)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	CxMsg *msg;
 
-	while ((msg = (CxMsg *)GetMsg(&data->BrokerPort)))
-	{
+	while ((msg = (CxMsg *)GetMsg(&data->BrokerPort))) {
 		size_t id = CxMsgID(msg);
 		size_t tp = CxMsgType(msg);
 
@@ -434,10 +404,8 @@ AMIGA_CheckBrokerMsg(_THIS)
 
 		ReplyMsg((APTR)msg);
 
-		if (tp == CXM_COMMAND)
-		{
-			switch (id)
-			{
+		if (tp == CXM_COMMAND) {
+			switch (id) {
 				case CXCMD_KILL:
 					SDL_SendAppEvent(SDL_QUIT);
 					break;
@@ -459,16 +427,13 @@ AMIGA_CheckScreenEvent(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
-	for (;;)
-	{
+	for (;;) {
 		struct ScreenNotifyMessage *snm;
 
-		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL)
-		{
+		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
 			D("[%s] check ScreenNotifyMessage\n", __FUNCTION__);
 
-			switch ((size_t)snm->snm_Value)
-			{
+			switch ((size_t)snm->snm_Value) {
 				case FALSE:
 					AMIGA_HideApp(_this, FALSE);
 					break;
@@ -492,13 +457,11 @@ AMIGA_CheckWBEvents(_THIS)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct AppMessage *msg;
 	char filename[1024];
-	while ((msg = (struct AppMessage *)GetMsg(&data->WBPort)) != NULL)
-	{
+	while ((msg = (struct AppMessage *)GetMsg(&data->WBPort)) != NULL) {
 		D("[%s] check AppMessage\n", __FUNCTION__);
 
 		switch (msg->am_Type) {
-			case AMTYPE_APPWINDOW:
-				{
+			case AMTYPE_APPWINDOW: {
 				    SDL_Window *window = (SDL_Window *)msg->am_UserData;
 					struct WBArg *argptr = msg->am_ArgList;
 				    for (int i = 0; i < msg->am_NumArgs; i++) {
@@ -531,24 +494,21 @@ AMIGA_PumpEvents(_THIS)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct IntuiMessage *m;
 
-	LONG check_mousecoord = 0;
+	BOOL check_mousecoord = FALSE;
 	size_t sigs = SetSignal(0, data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig | SIGBREAKF_CTRL_C);
 
-	if (sigs & data->WinSig)
-	{
+	if (sigs & data->WinSig) {
 		SDL_WindowData *wdata;
-		while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort)))
-		{
+		while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort))) {
 			wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
 			if  (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
-			{
 				check_mousecoord = TRUE;
-			}
+
 			AMIGA_DispatchEvent(_this, m);
 			ReplyMsg((struct Message *)m);
 		}
 
-		if (check_mousecoord)
+		if (wdata && check_mousecoord)
 		{
 			struct Screen *s = wdata->win->WScreen;
 			LONG mx = s->MouseX;
@@ -557,28 +517,21 @@ AMIGA_PumpEvents(_THIS)
 			LONG wy = wdata->win->TopEdge + wdata->win->BorderTop;
 			LONG wx2 = wdata->win->LeftEdge + wdata->win->Width - wdata->win->BorderRight;
 			LONG wy2 = wdata->win->TopEdge + wdata->win->Height - wdata->win->BorderBottom;
-			if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2)
-			{
+			if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
 				wdata->win->Flags |= WFLG_RMBTRAP;
 				
-				if (data->CurrentPointer)	
-				{
-					if (!IS_SYSTEM_CURSOR(data->CurrentPointer))
-					{
+				if (data->CurrentPointer) {
+					if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
 						SDL_AmigaCursor *ac = (SDL_AmigaCursor *)data->CurrentPointer;
 						if (ac->Pointer.mouseptr)
-						{
 							SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
-						}
 					}
-				}else{
+				} else {
 					size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
 					SetAttrsA(wdata->win, (struct TagItem *)&pointertags);
 				}
 				
-			}
-			else
-			{
+			} else {
 				wdata->win->Flags &= ~WFLG_RMBTRAP;
 				ClearPointer(wdata->win);
 			}
