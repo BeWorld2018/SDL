@@ -32,7 +32,6 @@
 #define ID_CHRS	MAKE_ID('C','H','R','S')
 #define ID_UTF8	MAKE_ID('U','T','F','8')
 
-
 STATIC APTR clipboard_open(void)
 {
 	struct IOClipReq *io;
@@ -40,10 +39,8 @@ STATIC APTR clipboard_open(void)
 
 	mp = CreateMsgPort();
 
-	if ((io = (struct IOClipReq *)CreateIORequest(mp,sizeof(struct IOClipReq))))
-	{
-		if (!(OpenDevice("clipboard.device", 0, (struct IORequest *)io, 0)))
-		{
+	if ((io = (struct IOClipReq *)CreateIORequest(mp,sizeof(struct IOClipReq)))) {
+		if (!(OpenDevice("clipboard.device", 0, (struct IORequest *)io, 0))) {
 			return io;
 		}
 
@@ -63,8 +60,7 @@ STATIC ULONG clipboard_write_data(struct IOClipReq *io, CONST_APTR data, ULONG l
 	io->io_Length  = len;
 	DoIO( (struct IORequest *)io);
 
-	if (io->io_Actual != len)
-	{
+	if (io->io_Actual != len) {
 		io->io_Error = 1;
 	}
 
@@ -75,7 +71,8 @@ STATIC ULONG clipboard_write_data(struct IOClipReq *io, CONST_APTR data, ULONG l
 
 STATIC VOID clipboard_pad_text(struct IOClipReq *io, ULONG textlen)
 {
-	if (textlen & 1) clipboard_write_data(io, "", 1);
+	if (textlen & 1)
+		clipboard_write_data(io, "", 1);
 }
 
 
@@ -104,10 +101,8 @@ STATIC ULONG clipboard_write_header_and_text(struct IOClipReq *io, CONST_STRPTR 
 
 	rc = FALSE;
 
-	if (clipboard_write_data(io, &iffheader, sizeof(iffheader)))
-	{
-		if (clipboard_write_data(io, string, slen))
-		{
+	if (clipboard_write_data(io, &iffheader, sizeof(iffheader))) {
+		if (clipboard_write_data(io, string, slen)) {
 			clipboard_pad_text(io, slen);
 			rc = TRUE;
 		}
@@ -136,10 +131,8 @@ STATIC ULONG clipboard_write_utf8(struct IOClipReq *io, CONST_STRPTR utext, ULON
 
 	rc = FALSE;
 
-	if (clipboard_write_data(io, &utf8_header, sizeof(utf8_header)))
-	{
-		if (clipboard_write_data(io, utext, ulen))
-		{
+	if (clipboard_write_data(io, &utf8_header, sizeof(utf8_header))) {
+		if (clipboard_write_data(io, utext, ulen)) {
 			clipboard_pad_text(io, ulen);
 			rc = TRUE;
 		}
@@ -156,8 +149,7 @@ STATIC VOID clipboard_finalize(struct IOClipReq *io)
 
 STATIC void clipboard_close(struct IOClipReq *io)
 {
-	if (io)
-	{
+	if (io) {
 		struct MsgPort *mp = io->io_Message.mn_ReplyPort;
 
 		CloseDevice((struct IORequest *)io);
@@ -172,16 +164,13 @@ AMIGA_SetClipboardText(_THIS, const char *text)
 	APTR ctx;
 	int rc = -1;
 
-	if ((ctx = clipboard_open()))
-	{
+	if ((ctx = clipboard_open())) {
 		char *stext = AMIGA_ConvertText(text, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
-		if (stext)
-		{
+		if (stext) {
 			int ulen = strlen(text);
 
-			if (clipboard_write_header_and_text(ctx, stext, strlen(stext), ulen))
-			{
+			if (clipboard_write_header_and_text(ctx, stext, strlen(stext), ulen)) {
 				if (clipboard_write_utf8(ctx, text, ulen))
 					rc = 0;
 			}
@@ -202,49 +191,38 @@ AMIGA_GetClipboardText(_THIS)
 	struct IFFHandle *clip = AllocIFF();
 	char *text = NULL;
 
-	if (clip)
-	{
+	if (clip) {
 		clip->iff_Stream = (IPTR)OpenClipboard(0);
 
-		if (clip->iff_Stream)
-		{
+		if (clip->iff_Stream) {
 			InitIFFasClip(clip);
 
-			if (!OpenIFF(clip, IFFF_READ))
-			{
-				if (!StopChunk(clip, ID_FTXT, ID_CHRS) && !StopChunk(clip, ID_FTXT, ID_UTF8))
-				{
+			if (!OpenIFF(clip, IFFF_READ)) {
+				if (!StopChunk(clip, ID_FTXT, ID_CHRS) && !StopChunk(clip, ID_FTXT, ID_UTF8)) {
 					BOOL done = FALSE;
 
-					while (done == FALSE && !ParseIFF(clip, IFFPARSE_SCAN))
-					{
+					while (done == FALSE && !ParseIFF(clip, IFFPARSE_SCAN)) {
 						struct ContextNode *cn = CurrentChunk(clip);
 
-						if (cn)
-						{
+						if (cn) {
 							LONG size = cn->cn_Size;
 
-							if (cn->cn_Type == ID_FTXT && size > 0)
-							{
-								if (cn->cn_ID == ID_CHRS && !text)
-								{
+							if (cn->cn_Type == ID_FTXT && size > 0) {
+								if (cn->cn_ID == ID_CHRS && !text) {
 									char *tmp = SDL_malloc(size + 1);
 
-									if (tmp)
-									{
+									if (tmp) {
 										ReadChunkBytes(clip, tmp, size);
 										tmp[size] = '\0';
 										text = AMIGA_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
 										SDL_free(tmp);
 									}
 								}
-								else if (cn->cn_ID == ID_UTF8)
-								{
+								else if (cn->cn_ID == ID_UTF8) {
 									if (text)
 										SDL_free(text);
 
-									if ((text = SDL_malloc(size + 1)))
-									{
+									if ((text = SDL_malloc(size + 1))) {
 										ReadChunkBytes(clip, text, size);
 										text[size] = '\0';
 										done = TRUE;
@@ -265,8 +243,7 @@ AMIGA_GetClipboardText(_THIS)
 		FreeIFF(clip);
 	}
 
-	if (text == NULL)
-	{
+	if (text == NULL) {
 		if ((text = SDL_malloc(1)))
 			text[0] = '\0';
 	}
