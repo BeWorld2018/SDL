@@ -57,16 +57,13 @@ static void CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 	if (SDL_GetMouseFocus() == sdlwin)
 		SDL_SetMouseFocus(NULL);
 
-	if ((sdlwin->flags & SDL_WINDOW_FOREIGN) == 0)
-	{
+	if ((sdlwin->flags & SDL_WINDOW_FOREIGN) == 0) {
 		struct IntuiMessage *msg, *tmp;
 
 		Forbid();
 
-		ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp)
-		{
-			if (msg->IDCMPWindow == win)
-			{
+		ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp) {
+			if (msg->IDCMPWindow == win) {
 				REMOVE(&msg->ExecMessage.mn_Node);
 				ReplyMsg(&msg->ExecMessage);
 			}
@@ -120,10 +117,8 @@ void AMIGA_OpenWindows(_THIS)
 	SDL_WindowData *wd;
 	D("[%s]\n", __FUNCTION__);
 
-	ForeachNode(&data->windowlist, wd)
-	{
-		if (wd->win == NULL && !(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_AMIGA_WINDOW_SHOWN))
-		{
+	ForeachNode(&data->windowlist, wd) {
+		if (wd->win == NULL && !(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_AMIGA_WINDOW_SHOWN))	{
 			AMIGA_ShowWindow_Internal(_this, wd->window);
 		}
 	}
@@ -137,12 +132,9 @@ AMIGA_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	SDL_WindowData *wd = SDL_malloc(sizeof(*wd));
 	
-	if (wd)
-	{
+	if (wd) {
 		window->driverdata = wd;
-		
 		ADDHEAD(&data->windowlist, wd);
-
 		wd->region = NULL;
 		wd->fb = NULL;
 		wd->window = window;
@@ -154,14 +146,9 @@ AMIGA_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->first_deltamove = 0;
 		wd->winflags = 0;
 		wd->appmsg = NULL;
-
 		if (win)
-		{
 			win->UserData = (APTR)wd;
-		}
-	}
-	else
-	{
+	} else {
 		return SDL_OutOfMemory();
 	}
 
@@ -195,8 +182,7 @@ AMIGA_CreateWindowFrom(_THIS, SDL_Window * window, const void *data)
 	else
 		flags &= ~SDL_WINDOW_BORDERLESS;
 
-	if (win->Flags & WFLG_WINDOWACTIVE)
-	{
+	if (win->Flags & WFLG_WINDOWACTIVE) {
 		flags |= SDL_WINDOW_INPUT_FOCUS;
 		SDL_SetKeyboardFocus(window);
 	}
@@ -210,22 +196,21 @@ void
 AMIGA_SetWindowTitle(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	APTR old = data->window_title;
-	APTR title = NULL;
-
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
+		APTR old = data->window_title;
+		APTR title = NULL;
+
 		title = AMIGA_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
 		D("[AMIGA_SetWindowTitle] %s to %s (0x%08lx)\n", window->title, title, data->win);
 		SetWindowTitles(data->win, title, title);
+			
+		data->window_title = title;
+
+		SDL_free(old);
 	}
-
-	data->window_title = title;
-
-	SDL_free(old);
 }
 
 void
@@ -240,8 +225,7 @@ AMIGA_SetWindowPosition(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
 		struct Screen *scr = vd->WScreen;
 		size_t bh = 0, top = window->y;
@@ -261,14 +245,12 @@ AMIGA_SetWindowMinimumSize(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
 		struct Screen *scr = vd->WScreen;
 		size_t bh = 0, min_h = window->min_h, min_w = window->min_w;
 
-		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0)
-		{
+		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			min_w += data->win->BorderLeft + data->win->BorderRight;
 			min_h += data->win->BorderTop + data->win->BorderBottom;
 		}
@@ -288,14 +270,12 @@ AMIGA_SetWindowMaximumSize(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
 		struct Screen *scr = vd->WScreen;
 		size_t bh = 0, max_h = window->max_h, max_w = window->max_w;
 
-		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0)
-		{
+		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			max_w += data->win->BorderLeft + data->win->BorderRight;
 			max_h += data->win->BorderTop + data->win->BorderBottom;
 		}
@@ -315,14 +295,12 @@ AMIGA_SetWindowSize(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s]\n", __FUNCTION__);
 
-	if (data->win)
-	{
+	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
 		struct Screen *scr = vd->WScreen;
 		size_t bh = 0, h = window->h, w = window->w; 
 
-		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0)
-		{
+		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			w += data->win->BorderLeft + data->win->BorderRight;
 			h += data->win->BorderTop + data->win->BorderBottom;
 		}
@@ -360,6 +338,7 @@ static void
 AMIGA_WindowToFront(struct Window *win)
 {
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, win);
+	
 	ActivateWindow(win);
 	WindowToFront(win);
 }
@@ -371,8 +350,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 	SDL_VideoData *vd = data->videodata;
 	D("[%s] wnd 0x%08lx, scr 0x%08lx\n", __FUNCTION__, data->win, vd->WScreen);
 
-	if (data->win == NULL && (data->sdlflags & SDL_WINDOW_MINIMIZED) == 0)
-	{
+	if (data->win == NULL && (data->sdlflags & SDL_WINDOW_MINIMIZED) == 0) {
 		struct Screen *scr;
 		size_t flags = WFLG_SIMPLE_REFRESH | WFLG_REPORTMOUSE | WFLG_ACTIVATE;
 		size_t w = window->w, h = window->h, max_w = window->max_w, max_h = window->max_h;
@@ -399,18 +377,13 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			barheight = GetSkinInfoAttrA(di, SI_ScreenTitlebarHeight, NULL);
 
 		FreeScreenDrawInfo(scr, di);
-
 		maxheight = scr->Height - barheight;
 
-		// Maximize window
-		if (fullscreen)
-		{
+		if (fullscreen) {
 			w = scr->Width;
 			h = maxheight;
 			top = left = 0;
-		}
-		else if (data->sdlflags & SDL_WINDOW_MAXIMIZED)
-		{
+		} else if (data->sdlflags & SDL_WINDOW_MAXIMIZED) { // Maximize window
 			int border_w = GetSkinInfoAttrA(di, SI_BorderLeft    , NULL) + GetSkinInfoAttrA(di, SI_BorderRight, NULL);
 			int border_h = GetSkinInfoAttrA(di, SI_BorderTopTitle, NULL) + GetSkinInfoAttrA(di, window->flags & SDL_WINDOW_RESIZABLE ? SI_BorderBottomSize : SI_BorderBottom, NULL);
 
@@ -421,26 +394,19 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			max_h = MIN(maxheight - border_h, max_h);
 
 			left = 0;
-			top = barheight; //MAX(barheight, top);
+			top = barheight;
 
 			w = max_w;
 			h = max_h;
 
-			if ((window->flags & SDL_WINDOW_BORDERLESS) == 0)
-			{
-				//top = barheight;
-			}
-
 			D("[%s] maximize to %ld/%ld\n", __FUNCTION__, w, h);
 		}
-		if (!fullscreen)
-		{
+		
+		if (!fullscreen) {
 			data->visualinfo = GetVisualInfoA(vd->WScreen, NULL);
-			if (data->visualinfo) 
-			{
+			if (data->visualinfo) {
 				data->menu = CreateMenusA(&SDL_NewMenu, NULL);
-				if (data->menu)
-				{
+				if (data->menu) {
 					LayoutMenusA(data->menu, data->visualinfo, NULL);
 				}
 			}
@@ -488,18 +454,13 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			WA_ExtraTitlebarGadgets, ETG_ICONIFY /*| ETG_JUMP*/,
 			TAG_DONE);
 
-		if (data->win)
-		{
-			if (IS_SYSTEM_CURSOR(vd->CurrentPointer))
-			{
+		if (data->win) {
+			if (IS_SYSTEM_CURSOR(vd->CurrentPointer)) {
 				size_t pointertags[] = { WA_PointerType, vd->CurrentPointer == NULL ? POINTERTYPE_INVISIBLE : (size_t)vd->CurrentPointer->driverdata, TAG_DONE };
 				SetAttrsA(data->win, (struct TagItem *)&pointertags);
-			}
-			else
-			{
+			} else{
 				SDL_AmigaCursor *ac = (SDL_AmigaCursor *)vd->CurrentPointer;
-				if (ac->Pointer.mouseptr) 
-				{
+				if (ac->Pointer.mouseptr) {
 					SetWindowPointer(data->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
 				}
 			}
@@ -513,25 +474,20 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 
 			data->win->UserData = (APTR)data;
 			
-			if (data->menu)
-			{
+			if (data->menu) 
 				SetMenuStrip(data->win, data->menu);
-			}
 			
 			if (!data->appmsg) {
 				data->appmsg = AddAppWindow(0, (ULONG)window, data->win, &vd->WBPort, TAG_DONE);
-				if (!data->appmsg) {
+				if (!data->appmsg) 
 					D("[%s] ERROR AddAppWindow \n", __FUNCTION__);
-				}
 			}
 			
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
 		}
-			
-	}
-	else if (data->win)
-	{
+		
+	} else if (data->win)	{
 		AMIGA_WindowToFront(data->win);
 	}
 }
@@ -550,8 +506,7 @@ AMIGA_HideWindow_Internal(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		CloseWindowSafely(window, data->win);
 		data->win = NULL;
 	}
@@ -574,9 +529,7 @@ AMIGA_RaiseWindow(_THIS, SDL_Window * window)
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
 
 	if (data->win)
-	{
 		AMIGA_WindowToFront(data->win);
-	}
 }
 
 void
@@ -592,8 +545,7 @@ AMIGA_MaximizeWindow(_THIS, SDL_Window * window)
 	data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
 	data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
 
-	if (data->win)
-	{
+	if (data->win) {
 		if (videodata->CustomScreen == NULL)
 			bh = scr->BarHeight + 1;
 
@@ -619,8 +571,7 @@ AMIGA_RestoreWindow(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		data->sdlflags &= ~(SDL_WINDOW_MINIMIZED | SDL_WINDOW_MAXIMIZED);
 
 		ChangeWindowBox(data->win, window->x, window->y, window->w, window->h);
@@ -678,8 +629,7 @@ AMIGA_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (data->win && data->grabbed != (grabbed ? 1 : 0))
-	{
+	if (data->win && data->grabbed != (grabbed ? 1 : 0)) {
 		D("[%s] %s\n", __FUNCTION__, grabbed ? "grabbed" : "not grabbed");
 
 		data->grabbed = grabbed ? 1 : 0;
@@ -695,12 +645,11 @@ void
 AMIGA_DestroyWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-
 	D("[%s]\n", __FUNCTION__);
+	
 	window->driverdata = NULL;
 
-	if (data)
-	{
+	if (data) {
 		SDL_VideoData *videodata = (SDL_VideoData *) data->videodata;
 
 		REMOVE(&data->node);
@@ -711,12 +660,9 @@ AMIGA_DestroyWindow(_THIS, SDL_Window * window)
 		if (data->region)
 			DisposeRegion(data->region);
 
-		if (IsListEmpty((struct List *)&videodata->windowlist)) // && videodata->CustomScreen)
-		{
+		if (IsListEmpty((struct List *)&videodata->windowlist)) {
 			D("[%s] Was last window... get rid of screen.\n", __FUNCTION__);
 			AMIGA_CloseDisplay(_this);
-			//CloseScreen(videodata->CustomScreen);
-			//videodata->CustomScreen = NULL;
 		}
 
 		SDL_free(data->window_title);
@@ -741,12 +687,10 @@ AMIGA_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo * info)
 
 static void AMIGA_CloseWindow(SDL_Window *window) 
 {
-	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
-	{
+	if (data->win) {
 		if (data->appmsg) {
 			if (RemoveAppWindow(data->appmsg)) {
 				data->appmsg = NULL;
@@ -757,6 +701,7 @@ static void AMIGA_CloseWindow(SDL_Window *window)
 		CloseWindow(win);
 		data->win = NULL;	
 	}
+	
 }
 
 void
@@ -795,10 +740,7 @@ AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 
     D("Setting window '%s' opaqueness to %lu\n", window->title, value);
 
-    ret = SetAttrs(
-        data->win,
-        WA_Opacity, value,
-        TAG_DONE);
+    ret = SetAttrs(data->win, WA_Opacity, value, TAG_DONE);
 
     if (ret) {
         D("Failed to set window opaqueness to %d\n", value);
@@ -811,7 +753,6 @@ AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 int
 AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int *top, int *left, int *bottom, int *right)
 {
-
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	
 	if (top)

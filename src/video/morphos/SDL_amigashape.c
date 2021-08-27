@@ -35,8 +35,7 @@ AMIGA_CreateShaper(SDL_Window *window)
 {
 	SDL_WindowShaper *result;
 
-	if ((result = SDL_malloc(sizeof(*result))))
-	{
+	if ((result = SDL_malloc(sizeof(*result)))) {
 		result->window = window;
 		result->mode.mode = ShapeModeDefault;
 		result->mode.parameters.binarizationCutoff = 1;
@@ -53,7 +52,6 @@ AMIGA_CreateShaper(SDL_Window *window)
 int
 AMIGA_ResizeWindowShape(SDL_Window* window)
 {
-	//SDL_WindowData *data = window->driverdata;
 	SDL_WindowShaper *shaper = window->shaper;
 
 	shaper->userx = window->x;
@@ -77,19 +75,16 @@ AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowS
 	pixels = shape->pixels;
 	pitch = shape->pitch;
 
-	for (y = 0; y < shape->h; y++)
-	{
+	for (y = 0; y < shape->h; y++) {
 		struct Rectangle rect;
 		int x, have_transp = 0;
 
-		for (x = 0; x < shape->w; x++)
-		{
+		for (x = 0; x < shape->w; x++) {
 			Uint32 pixel_value = 0, mask_value = 0;
 			Uint8 *pixel = (Uint8 *)(pixels) + (y * pitch) + (x * bpr);
 			Uint8 r, g, b, alpha;
 
-			switch (bpr)
-			{
+			switch (bpr) {
 				case 1:
 					pixel_value = *(Uint8*)pixel;
 					break;
@@ -109,8 +104,7 @@ AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowS
 
 			SDL_GetRGBA(pixel_value, shape->format, &r, &g, &b, &alpha);
 
-			switch (mode.mode)
-			{
+			switch (mode.mode) {
 				case ShapeModeDefault:
 					mask_value = (alpha >= 1 ? 1 : 0);
 					break;
@@ -129,20 +123,15 @@ AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowS
 					break;
 			}
 
-			if (have_transp == 0)
-			{
-				if (mask_value == 0)
-				{
+			if (have_transp == 0) {
+				if (mask_value == 0) {
 					rect.MinX = x;
 					rect.MinY = y;
 					rect.MaxY = y;
 					have_transp = 1;
 				}
-			}
-			else
-			{
-				if (mask_value == 1)
-				{
+			} else {
+				if (mask_value == 1) {
 					rect.MaxX = x - 1;
 					have_transp = 0;
 					OrRectRegion(region, &rect);
@@ -150,8 +139,7 @@ AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowS
 			}
 		}
 
-		if (have_transp)
-		{
+		if (have_transp) {
 			rect.MaxX = shape->w - 1;
 			OrRectRegion(region, &rect);
 		}
@@ -165,20 +153,17 @@ int
 AMIGA_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowShapeMode *mode)
 {
 	SDL_WindowData *data = shaper->window->driverdata;
-	//SDL_ShapeData *sd = shaper->driverdata;
 	struct Region *old = data->region;
 	struct Region *region = NewRegion();
 
 	D("[%s] shaper: 0x%08lx, window: 0x%08lx, driverdata: 0x%08lx, old: 0x%08lx\n", __FUNCTION__, shaper, shaper->window, data, old);
 
-	if (region)
-	{
+	if (region) {
 		data->region = region;
 
 		AMIGA_ShapeToRegion(region, shape, shaper->mode);
 
-		if (data->win)
-		{
+		if (data->win) {
 			size_t tags[] = { TRANSPCONTROL_REGION, (size_t)region, TAG_DONE };
 			D("[%s] Set transparency region (0x%08lx)\n", __FUNCTION__, region);
 			TransparencyControl(data->win, TRANSPCONTROLMETHOD_INSTALLREGION, (struct TagItem *)&tags);

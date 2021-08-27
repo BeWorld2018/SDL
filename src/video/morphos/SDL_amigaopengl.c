@@ -52,7 +52,6 @@ int AMIGA_GL_LoadLibrary(_THIS, const char *path)
 			TinyGLBase = OpenLibrary("tinygl.library", 52); // This is opened only once, closed only at final exit
 
 		if (TinyGLBase) {
-
 				*SDL2Base->MyTinyGLBase = TinyGLBase;
 				return 0;
 		}
@@ -65,9 +64,7 @@ int AMIGA_GL_LoadLibrary(_THIS, const char *path)
 void *AMIGA_GL_GetProcAddress(_THIS, const char *proc)
 {
 	void *func = NULL;
-
 	func = AmiGetGLProc(proc);
-
 	D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
 
 	return func;
@@ -109,11 +106,8 @@ SDL_GLContext AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 			tgltags[0].ti_Tag = TGL_CONTEXT_WINDOW;
 			tgltags[0].ti_Data = (IPTR)data->win;
 		}
-
+	
 		success = GLAInitializeContext(glcont, tgltags);
-
-		D("[%s] success %d\n", __FUNCTION__, success);
-
 		if (success) {
 			*SDL2Base->MyGLContext = __tglContext = glcont;
 			return glcont;
@@ -142,27 +136,20 @@ AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 
 void AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 {
-	//D("[%s]\n", __FUNCTION__);
-
 	if (window) {
 		SDL_WindowData * data = window->driverdata;
 
-		if (w) {
-			*w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;
-			//D("[%s] w %d\n", __FUNCTION__, *w);
-		}
-
-		if (h) {
+		if (w) 
+			*w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;	
+		if (h) 
 			*h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
-			//D("[%s] h %d\n", __FUNCTION__, *h);
-		}
 	}
+	
 }
 
 int AMIGA_GL_SetSwapInterval(_THIS, int interval)
 {
 	D("[%s]\n", __FUNCTION__);
-
 	return 0; // pretend to succeed
 }
 
@@ -209,14 +196,12 @@ int AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 	SDL_VideoData *vd = data->videodata;
 	int success;
 
-	D("[%s]\n", __FUNCTION__);
-
 	if (__tglContext == NULL) {
 		// only if __tglContext exists
 		D("[%s] no OpenGL context\n", __FUNCTION__);
 		return -1;
 	}
-
+	
 	if (vd->CustomScreen) {
 		struct TagItem tgltags[] =
 		{

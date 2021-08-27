@@ -39,11 +39,10 @@ static SDL_Keycode AMIGA_MapRawKey(UWORD code)
     ie.ie_EventAddress = NULL;
 
     res = MapRawKey(&ie, buffer, sizeof(buffer), NULL);
-    if (res > 0) {
+    if (res > 0)
         return (buffer[0] + buffer[1] * 256);
-    } else {
+    else
         return 0;
-    }
 }
 
 static void AMIGA_UpdateKeymap(_THIS)
@@ -57,9 +56,8 @@ static void AMIGA_UpdateKeymap(_THIS)
     for (i = 0; i < SDL_arraysize(amiga_scancode_table); i++) {
         /* Make sure this scancode is a valid character scancode */
         scancode = amiga_scancode_table[i];
-        if (scancode == SDL_SCANCODE_UNKNOWN ) {
+        if (scancode == SDL_SCANCODE_UNKNOWN)
             continue;
-        }
 
         /* If this key is one of the non-mappable keys, ignore it */
         /* Don't allow the number keys right above the qwerty row to translate or the top left key (grave/backquote) */

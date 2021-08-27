@@ -32,8 +32,7 @@ AMIGA_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (data)
-	{
+	if (data) {
 		SDL_free(data->fb);
 	}
 }
@@ -51,8 +50,7 @@ AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
 	/* Free the old framebuffer surface */
 	AMIGA_DestroyWindowFramebuffer(_this, window);
 
-	switch (vd->sdlpixfmt)
-	{
+	switch (vd->sdlpixfmt) {
 		case SDL_PIXELFORMAT_INDEX8:
 			fmt = SDL_PIXELFORMAT_INDEX8;
 			bpr = (window->w + 15) & ~15;
@@ -69,15 +67,12 @@ AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
 
 	data->fb = fb = SDL_malloc(sizeof(SDL_Framebuffer) + bpr * window->h);
 
-	if (fb)
-	{
+	if (fb) {
 		fb->bpr = bpr;
 		fb->pixfmt = fmt;
 
 		*pixels = fb->buffer;
-	}
-	else
-	{
+	} else {
 		return SDL_OutOfMemory();
 	}
 
@@ -92,8 +87,7 @@ int
 AMIGA_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (data && data->win && data->fb)
-	{
+	if (data && data->win && data->fb) {
 		SDL_Framebuffer *fb = data->fb;
 		struct RastPort *rp = data->win->RPort;
 	   	const struct IBox windowBox = {
@@ -109,8 +103,7 @@ AMIGA_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects
 			dy = r->y + windowBox.Top;
 		    w =  MIN(r->w, windowBox.Width);
 			h = MIN(r->h, windowBox.Height);
-			switch (fb->pixfmt)
-			{
+			switch (fb->pixfmt) {
 				case SDL_PIXELFORMAT_INDEX8:
 					if (data->videodata->CustomScreen) 
 						WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_RAW);

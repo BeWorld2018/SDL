@@ -39,8 +39,7 @@
 static Uint32
 AMIGA_SDLPixelFormatToDepth(Uint32 pixfmt)
 {
-	switch (pixfmt)
-	{
+	switch (pixfmt) {
 		case SDL_PIXELFORMAT_INDEX8:
 			return 8;
 
@@ -68,8 +67,7 @@ AMIGA_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
 {
 	D("[%s]\n", __FUNCTION__);
 
-	switch (pixfmt)
-	{
+	switch (pixfmt) {
 		#if BYTEORDER == LITTLE_ENDIAN
 		case PIXFMT_RGB15PC: return SDL_PIXELFORMAT_RGB555;   // Will not work on big endian machine
 		case PIXFMT_BGR15PC: return SDL_PIXELFORMAT_BGR555;   // Will not work on big endian machine
@@ -106,17 +104,12 @@ AMIGA_GetRefreshRate(struct Screen *s)
 
 	D("[%s]\n", __FUNCTION__);
 
-	if (handle)
-	{
+	if (handle) {
 		struct MonitorInfo mi;
 
 		if (GetDisplayInfoData(handle, (UBYTE *)&mi, sizeof(mi), DTAG_MNTR, 0) >= sizeof(mi))
-		{
 			if (mi.TotalRows)
-			{
 				freq = (ULONG)(1000000000L / ((FLOAT)mi.TotalColorClocks * 280.0 * (FLOAT)mi.TotalRows / 1000.0) + 5.0);
-			}
-		}
 	}
 
 	return freq;
@@ -164,8 +157,7 @@ AMIGA_InitModes(_THIS)
 	s = LockPubScreen("Workbench");
 	mon = NULL;
 
-	if (s)
-	{
+	if (s) {
 		SDL_DisplayModeData *modedata;
 
 		// This is not actual view size but virtual screens are so 90s
@@ -179,8 +171,7 @@ AMIGA_InitModes(_THIS)
 
 		modedata = SDL_malloc(sizeof(*modedata));
 
-		if (modedata)
-		{
+		if (modedata) {
 			modedata->monitor = mon;
 
 			mode.format = pixfmt;
@@ -204,29 +195,23 @@ AMIGA_InitModes(_THIS)
 	}
 
 	// Add other monitors (not desktop)
-	if ((monitors = GetMonitorList(NULL)))
-	{
+	if ((monitors = GetMonitorList(NULL))) {
 		APTR m;
 		int i, j;
 
-		for (i = 0; (m = monitors[i]); i++)
-		{
+		for (i = 0; (m = monitors[i]); i++) {
 			D("[%s] Add other monitors = %d\n", __FUNCTION__, monitors[i]);
 			
-			if (m != mon)
-			{
+			if (m != mon) {
 				SDL_DisplayModeData *modedata = SDL_malloc(sizeof(*modedata));
 
-				if (modedata)
-				{
+				if (modedata) {
 					ULONG *fmt = (ULONG *)getv(m, MA_PixelFormats);
 
-					for (j = MAX_SDL_PIXEL_FORMATS - 1; j >= 0; j--)
-					{
+					for (j = MAX_SDL_PIXEL_FORMATS - 1; j >= 0; j--) {
 						Uint32 pixfmt = pixelformats[j].PixFmt;
 
-						if (fmt[pixfmt])
-						{
+						if (fmt[pixfmt]) {
 							mode.format = pixelformats[j].NewPixFmt;
 							D("[%s] Add %ld/%ld pixfmt %ld\n", __FUNCTION__, mode.w, mode.h, mode.format);
 							break;
@@ -262,14 +247,11 @@ AMIGA_CheckMonitor(APTR mon, ULONG id)
 	int rc = 0;
 	D("[%s] find mon 0x%08lx\n", __FUNCTION__, mon);
 
-	if (monlist)
-	{
+	if (monlist) {
 		int idx;
 
-		for (idx = 0; monlist[idx]; idx++)
-		{
-			if (monlist[idx] == mon)
-			{
+		for (idx = 0; monlist[idx]; idx++) {
+			if (monlist[idx] == mon) {
 				rc = 1;
 				break;
 			}
@@ -287,31 +269,25 @@ AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 	SDL_DisplayModeData *md = sdl_display->driverdata;
 	D("[%s]\n", __FUNCTION__);
 
-	if (md)
-	{
+	if (md) {
 		ULONG i, *fmt = (ULONG *)getv(md->monitor, MA_PixelFormats);
 		SDL_DisplayMode mode = sdl_display->desktop_mode;
 
-		for (i = 0; i < MAX_SDL_PIXEL_FORMATS; i++)
-		{
+		for (i = 0; i < MAX_SDL_PIXEL_FORMATS; i++) {
 			Uint32 pixfmt = pixelformats[i].PixFmt;
 
-			if (fmt[pixfmt])
-			{
+			if (fmt[pixfmt]) {
 				ULONG nextid = INVALID_ID;
 
 				mode.format = pixelformats[i].NewPixFmt;
 
 				// Go through display database to find out what modes are available to this monitor
 				//D("[%s] Go through display database\n", __FUNCTION__);
-				while ((nextid = NextDisplayInfo(nextid)) != INVALID_ID)
-				{
-					if (GetCyberIDAttr(CYBRIDATTR_PIXFMT, nextid) == pixfmt)
-					{
+				while ((nextid = NextDisplayInfo(nextid)) != INVALID_ID) {
+					if (GetCyberIDAttr(CYBRIDATTR_PIXFMT, nextid) == pixfmt) {
 						//D("[%s] id 0x%08lx matches to pixfmt %ld\n", __FUNCTION__, nextid, pixfmt);
 
-						if (AMIGA_CheckMonitor(md->monitor, nextid))
-						{
+						if (AMIGA_CheckMonitor(md->monitor, nextid)) {
 							mode.w = GetCyberIDAttr(CYBRIDATTR_WIDTH, nextid);
 							mode.h = GetCyberIDAttr(CYBRIDATTR_HEIGHT, nextid);
 							mode.driverdata = sdl_display->desktop_mode.driverdata ? SDL_malloc(4) : NULL;
@@ -339,14 +315,11 @@ AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 	
 	D("[%s] Use monitor '%s'\n", __FUNCTION__, data->ScrMonName ? data->ScrMonName : (STRPTR)"Workbench");
 
-	if (!fullscreen && data->ScrMonName == NULL)
-	{
+	if (!fullscreen && data->ScrMonName == NULL) {
 		data->CustomScreen = NULL;
 		screen = LockPubScreen("Workbench");
 		use_wb_screen = 1;
-	}
-	else
-	{
+	} else {
 		struct TagItem screentags[] =
 		{
 			{SA_Quiet, TRUE},
@@ -354,24 +327,22 @@ AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 			{SA_AutoScroll, TRUE},
 			{SA_Title, (IPTR)"SDL2"},
 			{SA_AdaptSize, TRUE},
-			{SA_ErrorCode, &openError},
+			{SA_ErrorCode, (ULONG)&openError},
 			{support3d ? SA_3DSupport : TAG_IGNORE, TRUE},
+			{SA_GammaControl, TRUE},
 			{TAG_DONE}
 		};
 
 		D("[%s] Open screen %ldx%ldx%ld\n", __FUNCTION__, data->ScrWidth, data->ScrHeight, data->ScrDepth);
 
-		if (fullscreen && data->ScrMonName == NULL)
-		{
+		if (fullscreen && data->ScrMonName == NULL) {
 			screen = OpenScreenTags(NULL,
 				//SA_LikeWorkbench, TRUE,
 				SA_Width, data->ScrWidth,
 				SA_Height, data->ScrHeight,
 				SA_Depth, data->ScrDepth,
 				TAG_MORE, (IPTR)screentags);
-		}
-		else
-		{
+		} else {
 			screen = OpenScreenTags(NULL,
 				SA_Width, data->ScrWidth,
 				SA_Height, data->ScrHeight,
@@ -383,8 +354,7 @@ AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 		data->CustomScreen = screen;
 	}
 
-	if (screen == NULL)
-	{
+	if (screen == NULL) {
 		if (data->ScrMonName != NULL)
 			screen = LockPubScreen("Workbench");
 
@@ -421,13 +391,11 @@ AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 
 	data->WScreen = screen;
 
-	if (use_wb_screen)
-	{
+	if (use_wb_screen) {
 		data->ScreenNotifyHandle = AddWorkbenchClient(&data->ScreenNotifyPort, -20);
 	}
 
-	if (data->ScreenSaverSuspendCount)
-	{
+	if (data->ScreenSaverSuspendCount) {
 		size_t i;
 
 		for (i = data->ScreenSaverSuspendCount; i > 0; i--)
@@ -455,8 +423,7 @@ AMIGA_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
 	data->ScrHeight = mode->h;
 	data->ScrDepth = AMIGA_SDLPixelFormatToDepth(mode->format);
 
-	if (mode->driverdata == NULL)
-	{
+	if (mode->driverdata == NULL) {
 		data->ScrMonName = display->name;
 		D("[%s] Use monitor %s\n", __FUNCTION__, data->ScrMonName);
 	}

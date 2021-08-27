@@ -48,21 +48,17 @@
 #include <proto/screennotify.h>
 #include <proto/wb.h>
 
-
 void
 AMIGA_CloseDisplay(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s]\n", __FUNCTION__);
 
-	if (data->CustomScreen)
-	{
+	if (data->CustomScreen) {
 		CloseScreen(data->CustomScreen);
 	}
-	else if (data->WScreen)
-	{
-		if (data->ScreenSaverSuspendCount)
-		{
+	else if (data->WScreen) {
+		if (data->ScreenSaverSuspendCount) {
 			size_t i;
 
 			for (i = data->ScreenSaverSuspendCount; i > 0; i--)
@@ -71,8 +67,7 @@ AMIGA_CloseDisplay(_THIS)
 
 		UnlockPubScreen(NULL, data->WScreen);
 
-		if (data->ScreenNotifyHandle)
-		{
+		if (data->ScreenNotifyHandle) {
 			while (!RemWorkbenchClient(data->ScreenNotifyHandle))
 				Delay(10);
 
@@ -101,9 +96,7 @@ AMIGA_HideApp(_THIS, size_t with_app_icon)
 	AMIGA_CloseDisplay(_this);
 
 	if (with_app_icon && data->AppIcon)
-	{
 		data->AppIconRef = AddAppIconA(0, 0, FilePart(data->FullAppName), &data->WBPort, 0, data->AppIcon, NULL);
-	}
 }
 
 void
@@ -112,8 +105,7 @@ AMIGA_ShowApp(_THIS)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s]\n", __FUNCTION__);
 
-	if (data->AppIconRef)
-	{
+	if (data->AppIconRef) {
 		struct Message *msg;
 
 		RemoveAppIcon(data->AppIconRef);
@@ -123,7 +115,6 @@ AMIGA_ShowApp(_THIS)
 			ReplyMsg(msg);
 	}
 
-	//AMIGA_GetScreen(_this);
 	AMIGA_OpenWindows(_this);
 	AMIGA_GL_ResizeContext(_this, _this->current_glwin);
 }
@@ -134,9 +125,7 @@ AMIGA_VideoInit(_THIS)
 	D("[%s]\n", __FUNCTION__);
 
 	if (AMIGA_InitModes(_this) < 0)
-	{
 		return SDL_SetError("Failed to initialize modes");
-	}
 
 	AMIGA_InitKeyboard(_this);
 	AMIGA_InitMouse(_this);
@@ -150,12 +139,10 @@ AMIGA_VideoInit(_THIS)
 static void
 AMIGA_VideoQuit(_THIS)
 {
-	//SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s]\n", __FUNCTION__);
 
 	AMIGA_CloseWindows(_this);
 	AMIGA_CloseDisplay(_this);
-
 	AMIGA_QuitMouse(_this);
 }
 
@@ -194,9 +181,7 @@ AMIGA_SuspendScreenSaver(_THIS)
 	data->ScreenSaverSuspendCount += suspend ? 1 : -1;
 
 	if (data->WScreen)
-	{
 		SetAttrs(data->WScreen, SA_StopBlanker, suspend, TAG_DONE);
-	}
 }
 
 static
@@ -205,24 +190,18 @@ CONST_STRPTR AMIGA_GetTaskName()
 	struct Process *task = (struct Process *)FindTask(NULL);
 	STRPTR name = "SDL";
 
-	if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS || task->pr_Task.tc_Node.ln_Type == NT_TASK)
-	{
-		if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS && task->pr_CLI)
-		{
+	if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS || task->pr_Task.tc_Node.ln_Type == NT_TASK) {
+		if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS && task->pr_CLI) {
 			struct CommandLineInterface *cli = (struct CommandLineInterface *)BADDR(task->pr_CLI);
 
-			if (cli->cli_Module && cli->cli_CommandName)
-			{
+			if (cli->cli_Module && cli->cli_CommandName) {
 				CONST_STRPTR src = (CONST_STRPTR)BADDR(cli->cli_CommandName);
 				size_t len = *src + 1;
 
-				if (len <= 1)
-				{
+				if (len <= 1) {
 					src = "SDL";
 					len = sizeof("SDL");
-				}
-				else
-				{
+				} else {
 					if (src[1] == '"' && src[len] == '"')
 						len -= 2;
 
@@ -230,19 +209,13 @@ CONST_STRPTR AMIGA_GetTaskName()
 				}
 
 				name = SDL_malloc(len);
-
 				if (name)
 					stccpy(name, src, len);
 			}
-		}
-		else
-		{
+		} else {
 			size_t len = strlen(task->pr_Task.tc_Node.ln_Name) + sizeof("PROGDIR:");
-
 			name = SDL_malloc(len);
-
-			if (name)
-			{
+			if (name) {
 				strcpy(name, "PROGDIR:");
 				strcpy(name+8, task->pr_Task.tc_Node.ln_Name);
 			}
@@ -259,9 +232,7 @@ AMIGA_InitPort(struct MsgPort *port)
 	port->mp_Node.ln_Name = "SDL";
 	port->mp_Flags = PA_SIGNAL;
 	port->mp_SigTask = SysBase->ThisTask;
-
 	NEWLIST(&port->mp_MsgList);
-
 	port->mp_SigBit = AllocSignal(-1);
 }
 
@@ -269,8 +240,8 @@ static void
 AMIGA_InitBroker(SDL_VideoData *data)
 {
 	D("[%s]\n", __FUNCTION__);
+	
 	STRPTR name = FilePart(data->FullAppName);
-
 	data->AppBroker.nb_Version = NB_VERSION;
 	data->AppBroker.nb_Name = name;
 	data->AppBroker.nb_Title = name;
@@ -280,13 +251,9 @@ AMIGA_InitBroker(SDL_VideoData *data)
 	data->AppBroker.nb_Pri = 0;
 	data->AppBroker.nb_Port = &data->BrokerPort;
 	data->AppBroker.nb_ReservedChannel = 0;
-
 	data->BrokerRef = CxBroker(&data->AppBroker, NULL);
-
 	if (data->BrokerRef)
-	{
 		ActivateCxObj(data->BrokerRef, 1);
-	}
 }
 
 static SDL_VideoDevice *
@@ -296,14 +263,12 @@ AMIGA_CreateDevice(int devindex)
 	SDL_VideoDevice *device = (SDL_VideoDevice *) SDL_calloc(1, sizeof(SDL_VideoDevice));
 	D("[%s]\n", __FUNCTION__);
 
-	if (device)
-	{
+	if (device) {
 		SDL_VideoData *data = (struct SDL_VideoData *) SDL_calloc(1, sizeof(SDL_VideoData));
 
 		device->driverdata = data;
 
-		if (data)
-		{
+		if (data) {
 			AMIGA_InitPort(&data->ScreenNotifyPort);
 			AMIGA_InitPort(&data->BrokerPort);
 			AMIGA_InitPort(&data->WBPort);
@@ -322,12 +287,9 @@ AMIGA_CreateDevice(int devindex)
 			data->AppIcon = GetDiskObject((STRPTR)data->FullAppName);
 
 			if (data->AppIcon == NULL)
-			{
 				data->AppIcon = GetDiskObject((STRPTR)"ENVARC:Sys/def_SDL");
-			}
 
-			if (data->AppIcon)
-			{
+			if (data->AppIcon) {
 				data->AppIcon->do_CurrentX = NO_ICON_POSITION;
 				data->AppIcon->do_CurrentY = NO_ICON_POSITION;
 				data->AppIcon->do_Type = 0;

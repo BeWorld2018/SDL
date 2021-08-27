@@ -37,29 +37,24 @@ AMIGA_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 
 	D("[%s]\n", __FUNCTION__);
 
-	if (MUIMasterBase)
-	{
+	if (MUIMasterBase) {
 		char *title = AMIGA_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 		char *message = AMIGA_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
-		if (message)
-		{
+		if (message) {
 			size_t i, tlen = 1;
 			char *btxt;
 
-			for (i = mbd->numbuttons; i > 0; i--)
-			{
+			for (i = mbd->numbuttons; i > 0; i--) {
 				tlen += ConvertTagList((APTR)mbd->buttons[i].text, -1, NULL, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL) + 3;
 			}
 
 			btxt = SDL_malloc(tlen);
 
-			if (btxt)
-			{
+			if (btxt) {
 				char *buf = btxt;
 
-				for (i = 0; i < mbd->numbuttons; i++)
-				{
+				for (i = 0; i < mbd->numbuttons; i++) {
 					if (i > 0)
 						*buf++ = '|';
 

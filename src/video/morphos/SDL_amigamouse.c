@@ -41,8 +41,7 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 	SDL_AmigaCursor *cursor = SDL_malloc(sizeof(*cursor));
 	D("[%s]\n", __FUNCTION__);
 
-	if (cursor)
-	{
+	if (cursor) {
 		SDL_AmigaCursor *ac = SDL_malloc(sizeof(*ac));
 		struct BitMap *bmp;
 
@@ -53,18 +52,14 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 
 		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
 
-		if (bmp != NULL)
-		{
+		if (bmp != NULL) {
 			struct RastPort rp;
 
 			InitRastPort(&rp);
 			rp.BitMap = bmp;
 
-			if (SDL_LockSurface(surface) == 0)
-			{
+			if (SDL_LockSurface(surface) == 0) {
 				WritePixelArray(surface->pixels, 0, 0, surface->pitch, &rp, 0, 0, surface->w, surface->h, RECTFMT_ARGB);
-
-
 				Object *mouseptr = NewObject(NULL,POINTERCLASS,
 								POINTERA_BitMap, bmp,
 								POINTERA_XOffset, -hot_x,
@@ -76,9 +71,7 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 			}
 
 			FreeBitMap(bmp);
-		}
-		else
-		{
+		} else {
 			SDL_free(cursor);
 			cursor = NULL;
 		}
@@ -93,14 +86,10 @@ AMIGA_CreateSystemCursor(SDL_SystemCursor id)
 	SDL_Cursor *cursor = SDL_malloc(sizeof(*cursor));
 	D("[%s]\n", __FUNCTION__);
 
-	if (cursor)
-	{
+	if (cursor) {
 		size_t type = POINTERTYPE_NORMAL;
-
 		cursor->next = NULL;
-
-		switch (id)
-		{
+		switch (id) {
 			default:
 			case SDL_SYSTEM_CURSOR_ARROW:     type = POINTERTYPE_NORMAL; break;
 			case SDL_SYSTEM_CURSOR_IBEAM:     type = POINTERTYPE_SELECTTEXT; break;
@@ -118,9 +107,7 @@ AMIGA_CreateSystemCursor(SDL_SystemCursor id)
 
 		cursor->driverdata = (APTR)type;
 		D("[%s] %ld to %ld\n", __FUNCTION__, id, type);
-	}
-	else
-	{
+	} else {
 		SDL_OutOfMemory();
 	}
 
@@ -132,8 +119,7 @@ AMIGA_FreeCursor(SDL_Cursor *cursor)
 {
 	D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
 
-	if (!IS_SYSTEM_CURSOR(cursor))
-	{
+	if (!IS_SYSTEM_CURSOR(cursor)) {
 		//FreeBitMap(((SDL_AmigaCursor *)cursor)->Pointer.bmp);
 		if (((SDL_AmigaCursor *)cursor)->Pointer.mouseptr)
 			DisposeObject(((SDL_AmigaCursor *)cursor)->Pointer.mouseptr);
@@ -150,39 +136,26 @@ AMIGA_ShowCursor(SDL_Cursor * cursor)
 	SDL_VideoData *data = (SDL_VideoData *)video->driverdata;
 	//D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
 
-	if (IS_SYSTEM_CURSOR(cursor))
-	{
+	if (IS_SYSTEM_CURSOR(cursor)) {
 		size_t type = cursor ? (size_t)cursor->driverdata : POINTERTYPE_INVISIBLE;
 
-		if (data->CurrentPointer != cursor)
-		{
+		if (data->CurrentPointer != cursor) {
 			SDL_WindowData *wd;
 			size_t pointertags[] = { WA_PointerType, type, TAG_DONE };
 
 			ForeachNode(&data->windowlist, wd)
-			{
 				if (wd->win)
-				{
 					SetAttrsA(wd->win, (struct TagItem *)&pointertags);
-				}
-			}
+			
 		}
-	}
-	else
-	{
+	} else {
 		SDL_AmigaCursor *ac = (SDL_AmigaCursor *)cursor;
 		SDL_WindowData *wd;
 
 		ForeachNode(&data->windowlist, wd)
-		{
 			if (wd->win)
-			{
 				if (ac->Pointer.mouseptr)
-				{
 					SetWindowPointer(wd->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
-				}
-			}
-		}
 	}
 
 	data->CurrentPointer = cursor;
@@ -197,13 +170,11 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 	struct Window *win;
 
 	BOOL warpHostPointer;
-
 	warpHostPointer = !SDL_GetRelativeMouseMode() && (window == SDL_GetMouseFocus());
 
 	if (warpHostPointer) {
 
-		if ((win = data->win))
-		{
+		if ((win = data->win)) {
 			struct MsgPort port;
 			struct IOStdReq req;
 
@@ -214,8 +185,7 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 			req.io_Device = NULL;
 			req.io_Unit = NULL;
 
-			if (OpenDevice("input.device", 0, (struct IORequest *)&req, 0) == 0)
-			{
+			if (OpenDevice("input.device", 0, (struct IORequest *)&req, 0) == 0) {
 				struct InputEvent ie;
 				struct IEPointerPixel newpos;
 
@@ -238,7 +208,7 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 				CloseDevice((struct IORequest *)&req);
 			}
 		}
-	}else{
+	} else {
 		SDL_SendMouseMotion(window,0, SDL_GetRelativeMouseMode(), x, y);
 	}
 }
@@ -252,24 +222,17 @@ AMIGA_SetRelativeMouseMode(SDL_bool enabled)
 	SDL_WindowData *wd;
 	size_t or_mask, and_mask;
 
-	if (enabled)
-	{
+	if (enabled) {
 		or_mask = IDCMP_DELTAMOVE;
 		and_mask = ~0;
-	}
-	else
-	{
+	} else {
 		or_mask = 0;
 		and_mask = ~IDCMP_DELTAMOVE;
 	}
 
 	ForeachNode(&data->windowlist, wd)
-	{
 		if (wd->win)
-		{
 			ModifyIDCMP(wd->win, (wd->win->IDCMPFlags | or_mask) & and_mask);
-		}
-	}
 
 	return 0;
 }
@@ -283,15 +246,12 @@ AMIGA_GetDoubleClickTimeInMillis(_THIS)
     struct RDArgs rda;
     SDL_memset(&rda, 0, sizeof(rda));
     rda.RDA_Source.CS_Buffer = (STRPTR)SDL_LoadFile("ENV:sys/mouse.conf", (size_t *)&rda.RDA_Source.CS_Length);
-    if (rda.RDA_Source.CS_Buffer)
-    {
+    if (rda.RDA_Source.CS_Buffer) {
         LONG *array[4] = {0};
-        if (ReadArgs("Pointer/K,RMBEmulationQualifier/K,DoubleClickS/N/K,DoubleClickM/N/K,/F", (LONG *)array, &rda))
-		{
+        if (ReadArgs("Pointer/K,RMBEmulationQualifier/K,DoubleClickS/N/K,DoubleClickM/N/K,/F", (LONG *)array, &rda)) {
 			if (array[2] != 0L && array[3] != 0L)
-			{
             	interval = *array[2] * 1000 + *array[3] / 1000;
-			}
+
 	    	FreeArgs(&rda);
         }
         SDL_free(rda.RDA_Source.CS_Buffer);
