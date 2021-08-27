@@ -26,6 +26,9 @@
 #ifndef _SDL_amigaopengl_h
 #define _SDL_amigaopengl_h
 
+#include <tgl/gl.h>
+GLContext *__tglContext;
+
 /* OpenGL functions */
 extern int AMIGA_GL_LoadLibrary(_THIS, const char *path);
 extern void *AMIGA_GL_GetProcAddress(_THIS, const char *proc);

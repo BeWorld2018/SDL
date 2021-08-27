@@ -35,10 +35,8 @@
 #include <proto/exec.h>
 #include <proto/tinygl.h>
 #include <proto/intuition.h>
-#include <tgl/gl.h>
 #include <tgl/glu.h>
 
-GLContext *__tglContext;
 extern void *AmiGetGLProc(const char *proc);
 
 extern struct SDL_Library *SDL2Base;
@@ -86,11 +84,25 @@ SDL_GLContext AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 	SDL_VideoData *vd = data->videodata;
 	BYTE fullscreen = data->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
 
+	if (__tglContext) {
+		if  ( *SDL2Base->MyGLContext  == __tglContext)  {
+			GLADestroyContext((GLContext *)__tglContext);
+		}
+		GLClose(__tglContext);
+		__tglContext = NULL;
+	}
 	GLContext *glcont = GLInit();
 
-	D("[%s] context 0x%08lx\n", __FUNCTION__, glcont);
+	D("[%s] new context 0x%08lx\n", __FUNCTION__, glcont);
 
 	if (glcont) {
+		
+		if (!fullscreen && !data->winflags & SDL_AMIGA_WINDOW_SHOWN)  {
+			 /**SDL2Base->MyGLContext =*/ __tglContext = glcont;
+			//D("[%s] HIDDEN context 0x%08lx, __tglContext 0x%08lx, MyGLContext 0x%08lx\n", __FUNCTION__, glcont, __tglContext, *SDL2Base->MyGLContext);
+		 	return glcont;
+	 	}
+		
 		int success;
 		struct TagItem tgltags[] =
 		{
@@ -125,13 +137,14 @@ int
 AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-
-	/*if (window && context)*/ {
+	int ret = -1;
+	
+	if (context) {
 		*SDL2Base->MyGLContext = __tglContext = context;
-		return 0;
+		ret = 0;
 	}
 
-	return -1;
+	return ret;
 }
 
 void AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
@@ -177,7 +190,7 @@ int AMIGA_GL_SwapWindow(_THIS, SDL_Window * window)
 void
 AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
 {
-	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
+	D("[%s] context 0x%08lx, tglcontext 0x%08lx, MyGLContext 0x%08lx\n", __FUNCTION__, context, __tglContext, *SDL2Base->MyGLContext);
 
 	if (TinyGLBase == NULL) {
 		D("[%s] the library is already closed\n", __FUNCTION__);
@@ -185,8 +198,12 @@ AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
 	}
 
 	if (context) {
-		GLADestroyContext((GLContext *)context);
+		if  ( *SDL2Base->MyGLContext  == context)  {
+			GLADestroyContext((GLContext *)context);
+		}
 		GLClose(context);
+		if (context == __tglContext)  
+			__tglContext = NULL;
 	}
 }
 

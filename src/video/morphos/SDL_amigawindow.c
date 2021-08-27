@@ -28,6 +28,7 @@
 #include "../../core/morphos/SDL_misc.h"
 #include "../../events/SDL_keyboard_c.h"
 #include "../../events/SDL_mouse_c.h"
+#include "../../core/morphos/SDL_library.h"
 
 #include "SDL_amigavideo.h"
 #include "SDL_amigamodes.h"
@@ -46,8 +47,10 @@
 #include <proto/wb.h>
 
 extern struct NewMenu SDL_NewMenu;
+extern struct SDL_Library *SDL2Base;
 
-static void CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
+static void 
+AMIGA_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 {
 	D("[%s]\n", __FUNCTION__);
 
@@ -105,7 +108,7 @@ AMIGA_CloseWindows(_THIS)
 		if (win)
 		{
 			wd->win = NULL;
-			CloseWindowSafely(wd->window, win);
+			AMIGA_CloseWindowSafely(wd->window, win);
 		}
 	}
 }
@@ -465,6 +468,12 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
+			
+			//  OPENGL Context 
+			if (window->flags & SDL_WINDOW_OPENGL && ((GLContext*)*SDL2Base->MyGLContext  != __tglContext)) {
+				D("[%s] Window SDL_GL_CreateContext 0x%08lx\n", __FUNCTION__, data->win);
+				SDL_GL_CreateContext(window);
+			}		
 		}
 		
 	} else if (data->win)	{
@@ -487,7 +496,7 @@ AMIGA_HideWindow_Internal(_THIS, SDL_Window * window)
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 
 	if (data->win) {
-		CloseWindowSafely(window, data->win);
+		AMIGA_CloseWindowSafely(window, data->win);
 		data->win = NULL;
 	}
 }
@@ -575,8 +584,7 @@ AMIGA_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _displa
 	vd->FullScreen = fullscreen;
 
 	AMIGA_OpenWindows(_this);
-	//AMIGA_UpdateWindowState(_this, window);
-	AMIGA_GL_ResizeContext(_this, window);
+	if (__tglContext) AMIGA_GL_ResizeContext(_this, window);
 }
 
 
@@ -634,9 +642,14 @@ AMIGA_DestroyWindow(_THIS, SDL_Window * window)
 
 		REMOVE(&data->node);
 
-		if (data->win)
-			CloseWindowSafely(window, data->win);
-
+		if (data->win) {
+			if (__tglContext) {
+				D("[%s] Missing SDL_GL_DeleteContext : 0x%08lx.\n", __FUNCTION__, __tglContext);
+				AMIGA_GL_DeleteContext(_this, __tglContext);
+			}
+			AMIGA_CloseWindowSafely(window, data->win);
+			data->win = NULL;
+		}
 		if (data->region)
 			DisposeRegion(data->region);
 
