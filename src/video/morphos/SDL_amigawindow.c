@@ -69,25 +69,24 @@ static void CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 			}
 		}
 
-		#if !defined(__MORPHOS__)
-		win->UserPort = NULL;
-		ModifyIDCMP(win, 0);
-		#endif
-		
 		SDL_WindowData *data = (SDL_WindowData *) sdlwin->driverdata;
 		if (data->appmsg) {
 			if (RemoveAppWindow(data->appmsg)) {
 				data->appmsg = NULL;
 			}
 		}
-		
-		ClearMenuStrip(win);
+		/*if (data->menu) {
+			ClearMenuStrip(win);
+			FreeMenus(data->menu);
+			data->menu = NULL;
+		}
+		if (data->visualinfo) {
+			FreeVisualInfo(data->visualinfo);
+					data->visualinfo = NULL;
+		}*/
 		
 		CloseWindow(win);
-		if (data->menu) FreeMenus(data->menu);
-		if (data->visualinfo) FreeVisualInfo(data->visualinfo);
-		data->menu = NULL;
-		data->visualinfo = NULL;
+		
 		Permit();
 	}
 }
@@ -315,26 +314,6 @@ AMIGA_SetWindowSize(_THIS, SDL_Window * window)
 }
 
 static void
-AMIGA_UpdateWindowState(_THIS, SDL_Window * window)
-{
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	D("[%s]\n", __FUNCTION__);
-
-	if (data->win)
-	{
-		AMIGA_HideWindow(_this, window);
-		AMIGA_ShowWindow(_this, window);
-	}
-}
-
-void
-AMIGA_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
-{
-	D("[%s]\n", __FUNCTION__);
-	AMIGA_UpdateWindowState(_this, window);
-}
-
-static void
 AMIGA_WindowToFront(struct Window *win)
 {
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, win);
@@ -425,7 +404,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			flags |= WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET;
 
 		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
-		
+		SDL_bool win_top = (window->flags & SDL_WINDOW_ALWAYS_ON_TOP && !fullscreen);
 		if (win_resizable)
 			flags |= WFLG_SIZEGADGET | WFLG_SIZEBBOTTOM;
 
@@ -450,8 +429,9 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			fullscreen ? TAG_IGNORE : WA_Title, data->window_title,
 			WA_UserPort, &vd->WinPort,
 			WA_AutoAdjust, TRUE,
+			WA_FrontWindow, win_top ? TRUE : FALSE,
 			WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY | IDCMP_MOUSEMOVE | IDCMP_DELTAMOVE | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW | IDCMP_CHANGEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK,
-			WA_ExtraTitlebarGadgets, ETG_ICONIFY /*| ETG_JUMP*/,
+			WA_ExtraTitlebarGadgets, ETG_ICONIFY,
 			TAG_DONE);
 
 		if (data->win) {
@@ -704,10 +684,10 @@ static void AMIGA_CloseWindow(SDL_Window *window)
 	
 }
 
-void
-AMIGA_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resizable)
+static 
+void AMIGA_RecreateWindow(_THIS, SDL_Window * window)
 {
-	SDL_WindowData *data = window->driverdata;
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
 	
     if (window->flags & SDL_WINDOW_FOREIGN) {
@@ -728,6 +708,27 @@ AMIGA_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resizable)
     } else {
         D("[%s] Failed to re-create window '%s'\n", __FUNCTION__, window->title);
     }
+}
+
+void
+AMIGA_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top)
+{
+	D("[%s]\n", __FUNCTION__);
+	AMIGA_RecreateWindow(_this, window);
+}
+
+void
+AMIGA_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resizable)
+{
+	D("[%s]\n", __FUNCTION__);
+	AMIGA_RecreateWindow(_this, window);
+}
+
+void
+AMIGA_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
+{
+	D("[%s]\n", __FUNCTION__);
+	AMIGA_RecreateWindow(_this, window);
 }
 
 int

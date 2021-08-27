@@ -93,8 +93,7 @@ extern void AMIGA_DestroyWindow(_THIS, SDL_Window * window);
 extern SDL_bool AMIGA_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo *info);
 
 extern void AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window);
-extern void AMIGA_HideWindow_Internal(_THIS, SDL_Window * window);
-
+extern void AMIGA_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top);
 extern void AMIGA_SetWindowResizable (_THIS, SDL_Window * window, SDL_bool resizable);
 
 extern int AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);

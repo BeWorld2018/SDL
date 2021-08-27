@@ -323,6 +323,7 @@ AMIGA_CreateDevice(int devindex)
 			device->MinimizeWindow = AMIGA_MinimizeWindow;
 			device->RestoreWindow = AMIGA_RestoreWindow;
 			device->SetWindowBordered = AMIGA_SetWindowBordered;
+			device->SetWindowAlwaysOnTop = AMIGA_SetWindowAlwaysOnTop;
 			device->SetWindowFullscreen = AMIGA_SetWindowFullscreen;
  			device->SetWindowGammaRamp = AMIGA_SetWindowGammaRamp;
 			device->SetWindowMouseGrab = AMIGA_SetWindowGrab;
