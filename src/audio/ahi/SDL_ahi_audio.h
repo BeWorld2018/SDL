@@ -43,13 +43,15 @@ struct SDL_PrivateAudioData
 	struct MsgPort    ahiport;
 	struct AHIRequest req[2];
 
-	APTR  buffers[2];
-	UBYTE convert;
+	Uint8                *buffers[2];
+	//UBYTE convert;
 	UBYTE current_buffer;
 	UBYTE sample_format;
 	UBYTE playing;
-
-	UBYTE mixbuf[0];
+	Uint32	lastCaptureTicks;
+	SDL_bool requestSent;
 };
+
+typedef struct SDL_PrivateAudioData MOSAudioData;
 
 #endif /* _SDL_ahi_audio_h */

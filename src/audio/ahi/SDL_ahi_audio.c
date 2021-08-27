@@ -21,6 +21,7 @@
 #include "../../SDL_internal.h"
 
 #include "SDL_audio.h"
+#include "SDL_timer.h"
 #include "../SDL_audio_c.h"
 #include "SDL_ahi_audio.h"
 #include "../../core/morphos/SDL_cpu.h"
@@ -31,6 +32,8 @@
 #include <dos/dos.h>
 #include <exec/execbase.h>
 #include <proto/exec.h>
+
+#define RESTART_CAPTURE_THRESHOLD 500
 
 static Fixed AHI_Volume = 0x10000;
 
@@ -43,7 +46,7 @@ AHIAUD_Mute(ULONG mute)
 static void
 AHIAUD_WaitDevice(_THIS)
 {
-	struct SDL_PrivateAudioData *hidden = this->hidden;
+	MOSAudioData *hidden = this->hidden;
 	struct AHIRequest *req = &hidden->req[hidden->current_buffer];
 
 	if (req->ahir_Std.io_Data) {
@@ -58,7 +61,7 @@ AHIAUD_WaitDevice(_THIS)
 static void
 AHIAUD_PlayDevice(_THIS)
 {
-	struct SDL_PrivateAudioData *hidden = this->hidden;
+	MOSAudioData *hidden = this->hidden;
 	struct AHIRequest *req;
 	ULONG current, current2;
 	
@@ -66,7 +69,7 @@ AHIAUD_PlayDevice(_THIS)
 	current2 = current ^ 1;
 	req = &hidden->req[current];
 
-	req->ahir_Std.io_Data    = hidden->buffers[current];
+	req->ahir_Std.io_Data    = (APTR)hidden->buffers[current];
 	req->ahir_Std.io_Length  = this->spec.size;
 	req->ahir_Std.io_Offset  = 0;
 	req->ahir_Frequency      = this->spec.freq;
@@ -90,32 +93,25 @@ AHIAUD_PlayDevice(_THIS)
 static Uint8 *
 AHIAUD_GetDeviceBuf(_THIS)
 {
-	struct SDL_PrivateAudioData *hidden = this->hidden;
+	MOSAudioData *hidden = this->hidden;
 	return (Uint8 *) hidden->buffers[hidden->current_buffer];
 }
-
-/*static void
-AHIAUD_WaitDone(_THIS)
-{
-	struct SDL_PrivateAudioData *hidden = this->hidden;
-	int i;
-
-	for (i = 0; i < 2; i++)
-	{
-		struct AHIRequest *req = &hidden->req[i];
-
-		if (req->ahir_Std.io_Data)
-		{
-			WaitIO((struct IORequest *)req);
-		}
-	}
-}*/
 
 static void
 AHIAUD_CloseDevice(_THIS)
 {
-	struct SDL_PrivateAudioData *hidden = this->hidden;
+	MOSAudioData *hidden = this->hidden;
 
+    if (hidden->buffers[0]) {
+        SDL_free(hidden->buffers[0]);
+        hidden->buffers[0] = NULL;
+    }
+
+    if (hidden->buffers[1]) {
+        SDL_free(hidden->buffers[1]);
+        hidden->buffers[1] = NULL;
+    }
+	
 	this->hidden = NULL;
 
 	CloseDevice((struct IORequest *)&hidden->req[0].ahir_Std);
@@ -125,7 +121,7 @@ AHIAUD_CloseDevice(_THIS)
 static void
 AHIAUD_ThreadInit(_THIS)
 {
-	struct SDL_PrivateAudioData *hidden = this->hidden;
+	MOSAudioData *hidden = this->hidden;
 
 	hidden->ahiport.mp_Node.ln_Pri = 60;
 	hidden->ahiport.mp_Flags = PA_SIGNAL;
@@ -140,13 +136,10 @@ AHIAUD_ThreadInit(_THIS)
 static int
 AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 {
-	struct SDL_PrivateAudioData *hidden;
+	MOSAudioData *hidden;
 	SDL_AudioFormat test_format;
 	int sample_format = -1;
 	//UBYTE convert = AMIAUD_CONVERT_NONE;
-
-	if (iscapture)
-		return SDL_SetError("Capture not supported.");
 	
 	if ((this->spec.format & 0xff) != 8)
 		 this->spec.format = AUDIO_S16MSB;
@@ -189,7 +182,7 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	/* Update the fragment size as size in bytes */
 	SDL_CalculateAudioSpec(&this->spec);
 
-	hidden = (APTR)SDL_malloc(sizeof(*hidden) + this->spec.size * 2);
+	hidden = SDL_malloc(sizeof(MOSAudioData));
 
 	if (hidden == NULL)
 		return SDL_OutOfMemory();
@@ -200,12 +193,22 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	hidden->req[0].ahir_Std.io_Data = NULL;
 	hidden->req[0].ahir_Version = 6;
 
-	hidden->buffers[0] = &hidden->mixbuf[0];
-	hidden->buffers[1] = &hidden->mixbuf[this->spec.size];
+	hidden->buffers[0] = (Uint8 *) SDL_malloc(this->spec.size);
+	hidden->buffers[1] = (Uint8 *) SDL_malloc(this->spec.size);
+	if (hidden->buffers[0] == NULL || hidden->buffers[1] == NULL) {
+        D("[%s]No memory for audio buffer\n", __FUNCTION__);
+        SDL_SetError("No memory for audio buffer");
+        return -1;
+    }
+	
+    SDL_memset(hidden->buffers[0], this->spec.silence, this->spec.size);
+    SDL_memset(hidden->buffers[1], this->spec.silence, this->spec.size);
+	
 	//hidden->convert = convert;
 	hidden->current_buffer = 0;
 	hidden->sample_format = sample_format;
 	hidden->playing = 0;
+	hidden->requestSent = SDL_FALSE;
 
 	this->hidden = hidden;
 	
@@ -216,12 +219,82 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	return 0;
 }
 
+static void
+AHIAUD_FillCaptureRequest(struct AHIRequest * request, void * buffer, int length, int frequency, int type)
+{
+    request->ahir_Std.io_Message.mn_Node.ln_Pri = 60;
+    request->ahir_Std.io_Data    = buffer,
+    request->ahir_Std.io_Length  = length;
+    request->ahir_Std.io_Command = CMD_READ;
+    request->ahir_Volume = AHI_Volume;
+    request->ahir_Position = 0x8000;
+    request->ahir_Link = NULL;
+    request->ahir_Frequency = frequency;
+    request->ahir_Type = type;
+}
+
 static int
 AHIAUD_CaptureFromDevice(_THIS, void *buffer, int buflen)
 {
-	// TODO
+	struct AHIRequest  *request;
+	MOSAudioData *hidden = this->hidden;
+	Uint32 now;
+	UBYTE current;
+	size_t copyLen;
+    void *completedBuffer;
 	
-	return 0;
+	now = SDL_GetTicks();
+	current = hidden->current_buffer;
+	request = &hidden->req[0];
+	
+    if ((now - hidden->lastCaptureTicks) > RESTART_CAPTURE_THRESHOLD) {
+
+	    if (hidden->requestSent) {
+            WaitIO((struct IORequest *)request);
+        }
+
+        AHIAUD_FillCaptureRequest(
+            request,
+            hidden->buffers[current],
+            this->spec.size,
+            this->spec.freq,
+            hidden->sample_format);
+
+        request->ahir_Std.io_Offset = 0;
+
+        D("[%s] Start recording\n", __FUNCTION__);
+
+        DoIO((struct IORequest *)request);
+        hidden->requestSent = SDL_FALSE;
+		
+		current = 1 - current;
+
+    } else {
+        WaitIO((struct IORequest *)request);
+    }
+
+    AHIAUD_FillCaptureRequest(
+        request,
+        hidden->buffers[current],
+        this->spec.size,
+        this->spec.freq,
+        hidden->sample_format);
+
+    SendIO((struct IORequest *)request);
+    hidden->requestSent = SDL_TRUE;
+
+	current = 1 - current;
+	
+    completedBuffer = hidden->buffers[current];
+
+    copyLen = MIN(buflen, this->spec.size);
+
+    SDL_memcpy(buffer, completedBuffer, copyLen);
+
+    hidden->lastCaptureTicks = now;
+    hidden->current_buffer = current;
+
+    return copyLen;
 }
 
 static int
@@ -237,9 +310,9 @@ AHIAUD_Init(SDL_AudioDriverImpl * impl)
 	impl->GetDeviceBuf = AHIAUD_GetDeviceBuf;
 	impl->CloseDevice = AHIAUD_CloseDevice;
 
-	impl->HasCaptureSupport = 0;
+	impl->HasCaptureSupport = 1;
 	impl->OnlyHasDefaultOutputDevice = 1;
-	impl->OnlyHasDefaultCaptureDevice = 0;
+	impl->OnlyHasDefaultCaptureDevice = 1;
 	
 	return 1;   /* this audio target is available. */
 }
