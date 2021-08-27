@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -23,6 +23,7 @@
 #ifndef _SDL_ahi_audio_h
 #define _SDL_ahi_audio_h
 
+#include "SDL_types.h"
 #include "../SDL_sysaudio.h"
 
 #include <devices/ahi.h>
@@ -30,12 +31,12 @@
 /* Hidden "this" pointer for the audio functions */
 #define _THIS   SDL_AudioDevice *this
 
-typedef enum
+/*typedef enum
 {
 	AMIAUD_CONVERT_NONE,
 	AMIAUD_CONVERT_SWAP16,
 	AMIAUD_CONVERT_SWAP32
-} CONVTYPE;
+} CONVTYPE;*/
 
 struct SDL_PrivateAudioData
 {

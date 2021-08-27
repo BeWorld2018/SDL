@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -46,8 +46,7 @@ AHIAUD_WaitDevice(_THIS)
 	struct SDL_PrivateAudioData *hidden = this->hidden;
 	struct AHIRequest *req = &hidden->req[hidden->current_buffer];
 
-	if (req->ahir_Std.io_Data)
-	{
+	if (req->ahir_Std.io_Data) {
 		WaitIO((struct IORequest *)req);
 
 		req->ahir_Std.io_Data = NULL;
@@ -71,7 +70,7 @@ AHIAUD_PlayDevice(_THIS)
 	req->ahir_Std.io_Length  = this->spec.size;
 	req->ahir_Std.io_Offset  = 0;
 	req->ahir_Frequency      = this->spec.freq;
-	req->ahir_Volume         = AHI_Volume; // 0x10000;
+	req->ahir_Volume         = AHI_Volume; 
 	req->ahir_Type           = hidden->sample_format;
 	req->ahir_Position       = 0x8000;
 	req->ahir_Link           = (hidden->playing ? &hidden->req[current2] : NULL);
@@ -79,12 +78,11 @@ AHIAUD_PlayDevice(_THIS)
 	hidden->current_buffer = current2;
 	hidden->playing = 1;
 	
-	switch (hidden->convert)
-	{
+	/*switch (hidden->convert) {
 		case AMIAUD_CONVERT_NONE  : break;
 		case AMIAUD_CONVERT_SWAP16: SDL_CopyAndSwap16(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
 		case AMIAUD_CONVERT_SWAP32: SDL_CopyAndSwap32(hidden->buffers[current], hidden->buffers[current], this->spec.size / 2); break;
-	}
+	}*/
 
 	SendIO((struct IORequest *)req);
 }
@@ -145,29 +143,24 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	struct SDL_PrivateAudioData *hidden;
 	SDL_AudioFormat test_format;
 	int sample_format = -1;
-	UBYTE convert = AMIAUD_CONVERT_NONE;
+	//UBYTE convert = AMIAUD_CONVERT_NONE;
 
 	if (iscapture)
 		return SDL_SetError("Capture not supported.");
 	
-	if ((this->spec.format & 0xff) != 8) {
+	if ((this->spec.format & 0xff) != 8)
 		 this->spec.format = AUDIO_S16MSB;
-	}
 
-	
-	
 	test_format = SDL_FirstAudioFormat(this->spec.format);
 	
-	while (sample_format < 0 && test_format)
-	{
-		convert = AMIAUD_CONVERT_NONE;
-		switch (test_format)
-		{
+	while (sample_format < 0 && test_format) {
+		//convert = AMIAUD_CONVERT_NONE;
+		switch (test_format) {
 			case AUDIO_U8: 
 			case AUDIO_S8: 			
 				sample_format = this->spec.channels == 1 ? AHIST_M8S : AHIST_S8S; break; 	
 			break;
-			case AUDIO_S16LSB://	convert = AMIAUD_CONVERT_SWAP16;
+			case AUDIO_S16LSB://convert = AMIAUD_CONVERT_SWAP16;
 			case AUDIO_S16MSB: sample_format = this->spec.channels == 1 ? AHIST_M16S : AHIST_S16S; break;
 
 			case AUDIO_S32LSB://convert = AMIAUD_CONVERT_SWAP32;
@@ -188,8 +181,7 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 	if (this->spec.channels > 2)
 		this->spec.channels = 2;
 
-	if (this->spec.samples > 1024)
-	{
+	if (this->spec.samples > 1024) {
 		this->spec.samples = MAX(this->spec.freq / 20, 256);
 		this->spec.samples = (this->spec.samples + 7) & ~7;
 	}
@@ -210,17 +202,15 @@ AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
 
 	hidden->buffers[0] = &hidden->mixbuf[0];
 	hidden->buffers[1] = &hidden->mixbuf[this->spec.size];
-	hidden->convert = convert;
+	//hidden->convert = convert;
 	hidden->current_buffer = 0;
 	hidden->sample_format = sample_format;
 	hidden->playing = 0;
 
 	this->hidden = hidden;
 	
-	if (OpenDevice(AHINAME, 0, (struct IORequest *)&hidden->req[0].ahir_Std, 0) != 0)
-	{
+	if (OpenDevice(AHINAME, 0, (struct IORequest *)&hidden->req[0].ahir_Std, 0) != 0) {
 		SDL_SetError("Unable to open ahi.device unit 0! Error code %d.\n", hidden->req[0].ahir_Std.io_Error);
-		//SDL_free(hidden);
 		return -1;
 	}
 	return 0;
@@ -255,5 +245,5 @@ AHIAUD_Init(SDL_AudioDriverImpl * impl)
 }
 
 AudioBootStrap AHIAUD_bootstrap = {
-    "ahi", "Amiga AHI audio driver", AHIAUD_Init, 0
+    "ahi", "MorphOS AHI audio driver", AHIAUD_Init, 0
 };
