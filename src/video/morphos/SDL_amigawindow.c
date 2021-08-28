@@ -44,6 +44,7 @@
 #include <proto/gadtools.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
+#include <proto/tinygl.h>
 #include <proto/wb.h>
 
 extern struct NewMenu SDL_NewMenu;
@@ -87,6 +88,14 @@ AMIGA_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 			FreeVisualInfo(data->visualinfo);
 					data->visualinfo = NULL;
 		}*/
+		
+		if (__tglContext) {
+			if  ( *SDL2Base->MyGLContext  == __tglContext)  {
+				GLADestroyContext((GLContext *)__tglContext);
+			}
+			GLClose(__tglContext);
+			__tglContext = NULL;
+		}
 		
 		CloseWindow(win);
 		

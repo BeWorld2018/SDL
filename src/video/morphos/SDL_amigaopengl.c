@@ -41,7 +41,8 @@ extern void *AmiGetGLProc(const char *proc);
 
 extern struct SDL_Library *SDL2Base;
 
-int AMIGA_GL_LoadLibrary(_THIS, const char *path)
+int
+AMIGA_GL_LoadLibrary(_THIS, const char *path)
 {
 	D("[%s]\n", __FUNCTION__);
 
@@ -59,7 +60,8 @@ int AMIGA_GL_LoadLibrary(_THIS, const char *path)
 	return -1;
 }
 
-void *AMIGA_GL_GetProcAddress(_THIS, const char *proc)
+void *
+AMIGA_GL_GetProcAddress(_THIS, const char *proc)
 {
 	void *func = NULL;
 	func = AmiGetGLProc(proc);
@@ -68,7 +70,8 @@ void *AMIGA_GL_GetProcAddress(_THIS, const char *proc)
 	return func;
 }
 
-void AMIGA_GL_UnloadLibrary(_THIS)
+void 
+AMIGA_GL_UnloadLibrary(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
 
@@ -78,20 +81,23 @@ void AMIGA_GL_UnloadLibrary(_THIS)
 	}
 }
 
-SDL_GLContext AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
+SDL_GLContext 
+AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 	BYTE fullscreen = data->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
 
+	GLContext *glcont;
+	
 	if (__tglContext) {
 		if  ( *SDL2Base->MyGLContext  == __tglContext)  {
 			GLADestroyContext((GLContext *)__tglContext);
 		}
-		GLClose(__tglContext);
-		__tglContext = NULL;
+		glcont = __tglContext;
+	} else {
+		glcont= GLInit();
 	}
-	GLContext *glcont = GLInit();
 
 	D("[%s] new context 0x%08lx\n", __FUNCTION__, glcont);
 
@@ -147,7 +153,8 @@ AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 	return ret;
 }
 
-void AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
+void
+AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 {
 	if (window) {
 		SDL_WindowData * data = window->driverdata;
@@ -160,13 +167,15 @@ void AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 	
 }
 
-int AMIGA_GL_SetSwapInterval(_THIS, int interval)
+int
+AMIGA_GL_SetSwapInterval(_THIS, int interval)
 {
 	D("[%s]\n", __FUNCTION__);
 	return 0; // pretend to succeed
 }
 
-int AMIGA_GL_GetSwapInterval(_THIS)
+int
+AMIGA_GL_GetSwapInterval(_THIS)
 {
 	SDL_VideoData *data = _this->driverdata;
 
@@ -176,7 +185,8 @@ int AMIGA_GL_GetSwapInterval(_THIS)
 	return data->CustomScreen != NULL ? 1 : 0;
 }
 
-int AMIGA_GL_SwapWindow(_THIS, SDL_Window * window)
+int
+AMIGA_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	//D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
@@ -207,7 +217,8 @@ AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
 	}
 }
 
-int AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
+int
+AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
