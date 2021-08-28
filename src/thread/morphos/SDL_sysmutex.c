@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -55,9 +55,8 @@ SDL_CreateMutex(void)
 void
 SDL_DestroyMutex(SDL_mutex * mutex)
 {
-    if (mutex) {
+    if (mutex)
         SDL_free(mutex);
-    }
 }
 
 /* Lock the mutex */
@@ -67,9 +66,8 @@ SDL_LockMutex(SDL_mutex * mutex)
 #if SDL_THREADS_DISABLED
     return 0;
 #else
-    if (mutex == NULL) {
+    if (mutex == NULL)
         return SDL_SetError("Passed a NULL mutex");
-    }
 
     ObtainSemaphore(&mutex->sem);
     return 0;
@@ -83,9 +81,8 @@ SDL_TryLockMutex(SDL_mutex * mutex)
 #if SDL_THREADS_DISABLED
     return 0;
 #else
-    if (mutex == NULL) {
+    if (mutex == NULL)
         return SDL_SetError("Passed a NULL mutex");
-    }
 
     return AttemptSemaphore(&mutex->sem) ? 0 : SDL_MUTEX_TIMEDOUT;
 #endif /* SDL_THREADS_DISABLED */
@@ -98,9 +95,8 @@ SDL_mutexV(SDL_mutex * mutex)
 #if SDL_THREADS_DISABLED
     return 0;
 #else
-    if (mutex == NULL) {
+    if (mutex == NULL)
         return SDL_SetError("Passed a NULL mutex");
-    }
 
     ReleaseSemaphore(&mutex->sem);
     return 0;

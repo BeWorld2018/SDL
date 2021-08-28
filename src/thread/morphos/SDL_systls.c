@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -45,12 +45,10 @@ SDL_SYS_GetTLSData()
 {
 	struct MemList *ml;
 
-	ForeachNode(&SysBase->ThisTask->tc_MemEntry, ml)
-	{
+	ForeachNode(&SysBase->ThisTask->tc_MemEntry, ml) {
 		if (ml->ml_NumEntries == 1 &&
 		    ml->ml_Node.ln_Name == (char *) ml->ml_ME[0].me_Addr &&
-		    !strcmp(ml->ml_Node.ln_Name, TLS_MAGICID))
-		{
+		    !strcmp(ml->ml_Node.ln_Name, TLS_MAGICID)) {
 			struct tlsmagic *tm = ml->ml_ME[0].me_Addr;
 			return tm->tlsptr;
 		}
@@ -68,12 +66,10 @@ SDL_SYS_SetTLSData(SDL_TLSData *data)
 	struct MemList *ml;
 	struct tlsmagic *tm;
 
-	ForeachNode(&t->tc_MemEntry, ml)
-	{
+	ForeachNode(&t->tc_MemEntry, ml) {
 		if (ml->ml_NumEntries == 1 &&
 		    ml->ml_Node.ln_Name == (char *) ml->ml_ME[0].me_Addr &&
-		    !strcmp(ml->ml_Node.ln_Name, TLS_MAGICID))
-		{
+		    !strcmp(ml->ml_Node.ln_Name, TLS_MAGICID)) {
 			tm = ml->ml_ME[0].me_Addr;
 			tm->tlsptr = data;
 			return 0;

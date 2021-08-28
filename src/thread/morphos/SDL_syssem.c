@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -131,14 +131,12 @@ SDL_CreateSemaphore(Uint32 initial_value)
 void
 SDL_DestroySemaphore(SDL_sem * sem)
 {
-    if (sem)
-    {
+    if (sem) {
         ObtainSemaphore(&sem->sem);
 
         sem->sem_value = (Uint32)-1;
 
-        while (!IsListEmpty((struct List *) &sem->waitlist))
-        {
+        while (!IsListEmpty((struct List *) &sem->waitlist)) {
             struct waitnode *wn;
 
             for (wn = (struct waitnode *) sem->waitlist.mlh_Head; wn->msg.mn_Node.ln_Succ; wn = (struct waitnode *) wn->msg.mn_Node.ln_Succ)
@@ -159,16 +157,13 @@ SDL_SemTryWait(SDL_sem * sem)
 {
     int retval = SDL_MUTEX_TIMEDOUT;
 
-    if (!sem) {
+    if (!sem)
         return SDL_SetError("Passed a NULL semaphore");
-    }
 
-    if (sem->sem_value > 0)
-    {
+    if (sem->sem_value > 0) {
         ObtainSemaphore(&sem->sem);
 
-        if (sem->sem_value > 0)
-        {
+        if (sem->sem_value > 0) {
             --sem->sem_value;
             retval = 0;
         }
@@ -185,20 +180,17 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
     int retval = SDL_MUTEX_TIMEDOUT;
     struct waitnode wn;
 
-    if (!sem) {
+    if (!sem)
         return SDL_SetError("Passed a NULL semaphore");
-    }
 
     /* Try semaphore */
     ObtainSemaphore(&sem->sem);
 
-    if (sem->sem_value > 0)
-    {
+    if (sem->sem_value > 0) {
         --sem->sem_value;
         retval = 0;
     }
-    else if (timeout > 0)
-    {
+    else if (timeout > 0) {
         InitQPort(&wn.port);
         wn.msg.mn_Node.ln_Type = NT_MESSAGE;
         wn.msg.mn_ReplyPort = &wn.port;
@@ -208,8 +200,7 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
     ReleaseSemaphore(&sem->sem);
 
     /* Sem not available and we have timeout */
-    if (retval == SDL_MUTEX_TIMEDOUT && timeout > 0)
-    {
+    if (retval == SDL_MUTEX_TIMEDOUT && timeout > 0) {
         struct timerequest req;
         struct Message *msg;
 
@@ -223,8 +214,7 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
         msg = WaitPort(&wn.port);
         retval = 0;
 
-        if (msg != &wn.msg)
-        {
+        if (msg != &wn.msg) {
             ObtainSemaphore(&sem->sem);
             REMOVE(&wn);
             retval = wn.msg.mn_Node.ln_Type == NT_REPLYMSG ?  0 : SDL_MUTEX_TIMEDOUT;
@@ -247,8 +237,7 @@ SDL_SemWait(SDL_sem * sem)
 Uint32
 SDL_SemValue(SDL_sem * sem)
 {
-    if (!sem)
-    {
+    if (!sem) {
         SDL_SetError("Passed a NULL semaphore");
         return -1;
     }
@@ -261,17 +250,15 @@ SDL_SemPost(SDL_sem * sem)
 {
     struct waitnode *wn;
 
-    if (!sem) {
+    if (!sem)
         return SDL_SetError("Passed a NULL semaphore");
-    }
 
     ObtainSemaphore(&sem->sem);
 
     sem->sem_value++;
 
    	/* Wake whatever task happens to be first in the waitlist */
-    if ((wn = (APTR)REMHEAD(&sem->waitlist)))
-    {
+    if ((wn = (APTR)REMHEAD(&sem->waitlist))) {
         sem->sem_value--;
         ReplyMsg(&wn->msg);
     }
