@@ -27,6 +27,8 @@
 #include <exec/nodes.h>
 #endif
 
+#include <tgl/gl.h>
+
 typedef struct
 {
 	Uint32 kludge1, kludge2, bpr, pixfmt;
@@ -49,6 +51,8 @@ typedef struct
 
 	struct SDL_VideoData *videodata;
 
+	GLContext *__tglContext;
+	
 	// Currently known window position and dimensions
 	LONG curr_x, curr_y, curr_w, curr_h;
 

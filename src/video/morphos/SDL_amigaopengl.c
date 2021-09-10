@@ -35,7 +35,11 @@
 #include <proto/exec.h>
 #include <proto/tinygl.h>
 #include <proto/intuition.h>
+
+#include <tgl/gl.h>
 #include <tgl/glu.h>
+
+GLContext *__tglContext;
 
 extern void *AmiGetGLProc(const char *proc);
 
@@ -88,27 +92,11 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 	SDL_VideoData *vd = data->videodata;
 	BYTE fullscreen = data->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
 
-	GLContext *glcont;
-	
-	if (__tglContext) {
-		if  ( *SDL2Base->MyGLContext  == __tglContext)  {
-			GLADestroyContext((GLContext *)__tglContext);
-		}
-		glcont = __tglContext;
-	} else {
-		glcont= GLInit();
-	}
-
+	GLContext *glcont = GLInit();
 	D("[%s] new context 0x%08lx\n", __FUNCTION__, glcont);
 
 	if (glcont) {
-		
-		if (!fullscreen && !data->winflags & SDL_AMIGA_WINDOW_SHOWN)  {
-			 /**SDL2Base->MyGLContext =*/ __tglContext = glcont;
-			//D("[%s] HIDDEN context 0x%08lx, __tglContext 0x%08lx, MyGLContext 0x%08lx\n", __FUNCTION__, glcont, __tglContext, *SDL2Base->MyGLContext);
-		 	return glcont;
-	 	}
-		
+				
 		int success;
 		struct TagItem tgltags[] =
 		{
@@ -128,10 +116,14 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 		success = GLAInitializeContext(glcont, tgltags);
 		if (success) {
 			*SDL2Base->MyGLContext = __tglContext = glcont;
+			data->__tglContext = glcont;
+			D("[%s] new context SUCCES 0x%08lx\n", __FUNCTION__, glcont);
 			return glcont;
 		}
-
+		D("[%s] new context FAILED 0x%08lx\n", __FUNCTION__, glcont);
 		GLClose(glcont);
+		data->__tglContext = NULL;
+		
 	} else {
 		SDL_SetError("Couldn't create TinyGL/OpenGL context");
 	}
@@ -143,13 +135,13 @@ int
 AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
+	
 	int ret = -1;
 	
-	if (context) {
-		*SDL2Base->MyGLContext = __tglContext = context;
-		ret = 0;
-	}
+	*SDL2Base->MyGLContext = __tglContext = context;
 
+	if (context) ret = 0;
+	
 	return ret;
 }
 
@@ -190,30 +182,39 @@ AMIGA_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	//D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (!data->win)
+	if (!data->win && data->__tglContext)
 		return -1;
 	// TODO check the window context
-	GLASwapBuffers(__tglContext);
+	GLASwapBuffers(data->__tglContext);
 	return 0;
 }
 
 void
 AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
 {
-	D("[%s] context 0x%08lx, tglcontext 0x%08lx, MyGLContext 0x%08lx\n", __FUNCTION__, context, __tglContext, *SDL2Base->MyGLContext);
+	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
 
 	if (TinyGLBase == NULL) {
 		D("[%s] the library is already closed\n", __FUNCTION__);
 		return;
 	}
-
 	if (context) {
-		if  ( *SDL2Base->MyGLContext  == context)  {
-			GLADestroyContext((GLContext *)context);
+		SDL_Window *sdlwin;
+		Uint32 deletions = 0;
+
+		for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
+
+			SDL_WindowData *data = sdlwin->driverdata;
+
+			if (data->__tglContext == context) {
+                D("[%s] Found TinyGL context 0x%08lx, clearing window binding\n", __FUNCTION__, context);
+
+                GLADestroyContext(context);
+				GLClose(context);
+                data->__tglContext = NULL;
+                deletions++;
+			}
 		}
-		GLClose(context);
-		if (context == __tglContext)  
-			__tglContext = NULL;
 	}
 }
 
@@ -224,7 +225,7 @@ AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 	SDL_VideoData *vd = data->videodata;
 	int success;
 
-	if (__tglContext == NULL) {
+	if (data->__tglContext == NULL) {
 		// only if __tglContext exists
 		D("[%s] no OpenGL context\n", __FUNCTION__);
 		return -1;
@@ -237,10 +238,10 @@ AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 			{TGL_CONTEXT_STENCIL, TRUE}, // TODO check if stencil and depth are needed
 			{TAG_DONE}
 		};
-		GLADestroyContext(__tglContext);
-		success = GLAInitializeContext(__tglContext, tgltags);
+		GLADestroyContext(data->__tglContext);
+		success = GLAInitializeContext(data->__tglContext, tgltags);
 	} else {
-		success = GLAReinitializeContextWindowed(__tglContext, data->win);
+		success = GLAReinitializeContextWindowed(data->__tglContext, data->win);
 	}
 	D("[%s] success %d\n", __FUNCTION__, success);
 

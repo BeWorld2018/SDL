@@ -2620,7 +2620,7 @@ void *AmiGetGLProc(const char *proc)
      { "glColorMask", AmiglColorMask },
      { "glAlphaFunc", AmiglAlphaFunc },
      { "glBlendFunc", AmiglBlendFunc },
-	 /*{ "glBlendColor", AmiglBlendColor },
+	 /*{ "glBlendColor", AmiglBlendColor },  // MorphOS 3.16
 	 { "glBlendEquation", AmiglBlendEquation },
 	 { "glBlendEquationSeparate", AmiglBlendEquationSeparate },
 	 { "glBlendFuncSeparate", AmiglBlendFuncSeparate },*/

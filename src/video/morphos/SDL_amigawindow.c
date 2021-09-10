@@ -44,11 +44,9 @@
 #include <proto/gadtools.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
-#include <proto/tinygl.h>
 #include <proto/wb.h>
 
 extern struct NewMenu SDL_NewMenu;
-extern struct SDL_Library *SDL2Base;
 
 static void 
 AMIGA_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
@@ -79,7 +77,7 @@ AMIGA_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 				data->appmsg = NULL;
 			}
 		}
-		/*if (data->menu) {
+		if (data->menu) {
 			ClearMenuStrip(win);
 			FreeMenus(data->menu);
 			data->menu = NULL;
@@ -87,14 +85,6 @@ AMIGA_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 		if (data->visualinfo) {
 			FreeVisualInfo(data->visualinfo);
 					data->visualinfo = NULL;
-		}*/
-		
-		if (__tglContext) {
-			if  ( *SDL2Base->MyGLContext  == __tglContext)  {
-				GLADestroyContext((GLContext *)__tglContext);
-			}
-			GLClose(__tglContext);
-			__tglContext = NULL;
 		}
 		
 		CloseWindow(win);
@@ -150,6 +140,7 @@ AMIGA_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->fb = NULL;
 		wd->window = window;
 		wd->win = win;
+		wd->__tglContext = NULL;
 		wd->grabbed = -1;
 		wd->sdlflags = 0;
 		wd->window_title = NULL;
@@ -477,12 +468,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
-			
-			//  OPENGL Context 
-			if (window->flags & SDL_WINDOW_OPENGL && ((GLContext*)*SDL2Base->MyGLContext  != __tglContext)) {
-				D("[%s] Window SDL_GL_CreateContext 0x%08lx\n", __FUNCTION__, data->win);
-				SDL_GL_CreateContext(window);
-			}		
+					
 		}
 		
 	} else if (data->win)	{
@@ -593,7 +579,7 @@ AMIGA_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _displa
 	vd->FullScreen = fullscreen;
 
 	AMIGA_OpenWindows(_this);
-	if (__tglContext) AMIGA_GL_ResizeContext(_this, window);
+	if (data->__tglContext) AMIGA_GL_ResizeContext(_this, window);
 }
 
 
@@ -652,10 +638,6 @@ AMIGA_DestroyWindow(_THIS, SDL_Window * window)
 		REMOVE(&data->node);
 
 		if (data->win) {
-			if (__tglContext) {
-				D("[%s] Missing SDL_GL_DeleteContext : 0x%08lx.\n", __FUNCTION__, __tglContext);
-				AMIGA_GL_DeleteContext(_this, __tglContext);
-			}
 			AMIGA_CloseWindowSafely(window, data->win);
 			data->win = NULL;
 		}

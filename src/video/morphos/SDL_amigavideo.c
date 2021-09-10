@@ -116,7 +116,7 @@ AMIGA_ShowApp(_THIS)
 	}
 
 	AMIGA_OpenWindows(_this);
-	if (__tglContext) AMIGA_GL_ResizeContext(_this, _this->current_glwin);
+	AMIGA_GL_ResizeContext(_this, _this->current_glwin);
 }
 
 static int
