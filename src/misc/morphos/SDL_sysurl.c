@@ -27,7 +27,7 @@
 int
 SDL_SYS_OpenURL(const char *url)
 {
-	SDL_Log("[%s] url=%s\n", __FUNCTION__, url);
+	D("[%s] url=%s\n", __FUNCTION__, url);
 	static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
 	if (OpenURLBase) {
 		if(!URL_OpenA((STRPTR)url, (struct TagItem*) URLTags)) {
