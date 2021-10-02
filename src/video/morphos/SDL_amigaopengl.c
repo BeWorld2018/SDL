@@ -74,7 +74,7 @@ AMIGA_GL_GetProcAddress(_THIS, const char *proc)
 	return func;
 }
 
-void 
+void
 AMIGA_GL_UnloadLibrary(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
@@ -85,7 +85,7 @@ AMIGA_GL_UnloadLibrary(_THIS)
 	}
 }
 
-SDL_GLContext 
+SDL_GLContext
 AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
@@ -96,7 +96,7 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 	D("[%s] new context 0x%08lx\n", __FUNCTION__, glcont);
 
 	if (glcont) {
-				
+
 		int success;
 		struct TagItem tgltags[] =
 		{
@@ -112,7 +112,7 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 			tgltags[0].ti_Tag = TGL_CONTEXT_WINDOW;
 			tgltags[0].ti_Data = (IPTR)data->win;
 		}
-	
+
 		success = GLAInitializeContext(glcont, tgltags);
 		if (success) {
 			*SDL2Base->MyGLContext = __tglContext = glcont;
@@ -123,7 +123,7 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 		D("[%s] new context FAILED 0x%08lx\n", __FUNCTION__, glcont);
 		GLClose(glcont);
 		data->__tglContext = NULL;
-		
+
 	} else {
 		SDL_SetError("Couldn't create TinyGL/OpenGL context");
 	}
@@ -135,13 +135,13 @@ int
 AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-	
-	int ret = -1;
-	
+
+	int ret = 0;
+
 	*SDL2Base->MyGLContext = __tglContext = context;
 
-	if (context) ret = 0;
-	
+	//if (context) ret = 0;
+
 	return ret;
 }
 
@@ -151,12 +151,12 @@ AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 	if (window) {
 		SDL_WindowData * data = window->driverdata;
 
-		if (w) 
-			*w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;	
-		if (h) 
+		if (w)
+			*w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;
+		if (h)
 			*h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
 	}
-	
+
 }
 
 int
@@ -230,7 +230,7 @@ AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 		D("[%s] no OpenGL context\n", __FUNCTION__);
 		return -1;
 	}
-	
+
 	if (vd->CustomScreen) {
 		struct TagItem tgltags[] =
 		{
