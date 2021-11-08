@@ -225,7 +225,7 @@ AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 	SDL_VideoData *vd = data->videodata;
 	int success;
 
-	if (data->__tglContext == NULL) {
+	if (data->__tglContext == NULL || __tglContext == NULL) {
 		// only if __tglContext exists
 		D("[%s] no OpenGL context\n", __FUNCTION__);
 		return -1;
