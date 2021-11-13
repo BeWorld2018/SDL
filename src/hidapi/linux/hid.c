@@ -22,8 +22,6 @@
 ********************************************************/
 #include "../../SDL_internal.h"
 
-#ifdef SDL_JOYSTICK_HIDAPI
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* needed for wcsdup() before glibc 2.10 */
 #endif
@@ -50,7 +48,7 @@
 #include <linux/input.h>
 #include <libudev.h>
 
-#include "hidapi.h"
+#include "../hidapi/hidapi.h"
 
 #ifdef NAMESPACE
 namespace NAMESPACE
@@ -716,7 +714,7 @@ hid_device * HID_API_EXPORT hid_open_path(const char *path, int bExclusive)
 	dev = new_hid_device();
 
 	/* OPEN HERE */
-	dev->device_handle = open(path, O_RDWR);
+	dev->device_handle = open(path, O_RDWR | O_CLOEXEC);
 
 	/* If we have a good handle, return it. */
 	if (dev->device_handle >= 0) {
@@ -828,35 +826,47 @@ int HID_API_EXPORT hid_set_nonblocking(hid_device *dev, int nonblock)
 	return 0; /* Success */
 }
 
-
 int HID_API_EXPORT hid_send_feature_report(hid_device *dev, const unsigned char *data, size_t length)
 {
+	static const int MAX_RETRIES = 50;
+	int retry;
 	int res;
 
-	res = ioctl(dev->device_handle, HIDIOCSFEATURE(length), data);
-	if (res < 0)
-		perror("ioctl (SFEATURE)");
+	for (retry = 0; retry < MAX_RETRIES; ++retry) {
+		res = ioctl(dev->device_handle, HIDIOCSFEATURE(length), data);
+		if (res < 0 && errno == EPIPE) {
+			/* Try again... */
+			continue;
+		}
 
+		if (res < 0)
+			perror("ioctl (SFEATURE)");
+		break;
+	}
 	return res;
 }
 
 int HID_API_EXPORT hid_get_feature_report(hid_device *dev, unsigned char *data, size_t length)
 {
 	int res;
+    unsigned char report = data[0];
 
-	/* It looks like HIDIOCGFEATURE() on Bluetooth LE devices doesn't return the report number */
-	if (dev->needs_ble_hack) {
-		data[1] = data[0];
-		++data;
-		--length;
-	}
-	res = ioctl(dev->device_handle, HIDIOCGFEATURE(length), data);
-	if (res < 0)
-		perror("ioctl (GFEATURE)");
-	else if (dev->needs_ble_hack)
-		++res;
-
-	return res;
+    res = ioctl(dev->device_handle, HIDIOCGFEATURE(length), data);
+    if (res < 0)
+        perror("ioctl (GFEATURE)");
+    else if (dev->needs_ble_hack) {
+        /* Versions of BlueZ before 5.56 don't include the report in the data, and versions of BlueZ >= 5.56 include 2 copies of the report.
+         * We'll fix it so that there is a single copy of the report in both cases
+        */
+        if (data[0] == report && data[1] == report) {
+            memmove(&data[0], &data[1], res);
+        } else if (data[0] != report) {
+            memmove(&data[1], &data[0], res);
+            data[0] = report;
+            ++res;
+        }
+    }
+    return res;
 }
 
 
@@ -898,5 +908,3 @@ HID_API_EXPORT const wchar_t * HID_API_CALL  hid_error(hid_device *dev)
 #ifdef NAMESPACE
 }
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */

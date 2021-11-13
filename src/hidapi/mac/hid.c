@@ -21,8 +21,6 @@
  ********************************************************/
 #include "../../SDL_internal.h"
 
-#ifdef SDL_JOYSTICK_HIDAPI
-
 /* See Apple Technical Note TN2187 for details on IOHidManager. */
 
 #include <IOKit/hid/IOHIDManager.h>
@@ -33,7 +31,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "hidapi.h"
+#include "../hidapi/hidapi.h"
 
 /* Barrier implementation because Mac OSX doesn't have pthread_barrier.
  It also doesn't have clock_gettime(). So much for POSIX and SUSv2.
@@ -1191,5 +1189,3 @@ int main(void)
 	return 0;
 }
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */
