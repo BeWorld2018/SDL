@@ -50,10 +50,13 @@
 #endif
 #if defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))
 #include <sys/sysctl.h>         /* For AltiVec check */
-#elif (defined(__OpenBSD__) || defined(__FreeBSD__)) && defined(__powerpc__)
+#elif defined(__OpenBSD__) && defined(__powerpc__)
 #include <sys/param.h>
 #include <sys/sysctl.h> /* For AltiVec check */
 #include <machine/cpu.h>
+#elif defined(__FreeBSD__) && defined(__powerpc__)
+#include <machine/cpu.h>
+#include <sys/auxv.h>
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
 #include <signal.h>
 #include <setjmp.h>
@@ -117,7 +120,7 @@
 #define CPU_HAS_AVX512F (1 << 12)
 #define CPU_HAS_ARM_SIMD (1 << 13)
 
-#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__ && !__MORPHOS__
+#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__ && !__FreeBSD__ && !__MORPHOS__
 /* This is the brute force way of detecting instruction sets...
    the idea is borrowed from the libmpeg2 library - thanks!
  */
@@ -321,11 +324,9 @@ CPU_haveAltiVec(void)
 {
     volatile int altivec = 0;
 #ifndef SDL_CPUINFO_DISABLED
-#if (defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))) || (defined(__OpenBSD__) && defined(__powerpc__)) || (defined(__FreeBSD__) && defined(__powerpc__))
+#if (defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))) || (defined(__OpenBSD__) && defined(__powerpc__))
 #ifdef __OpenBSD__
     int selectors[2] = { CTL_MACHDEP, CPU_ALTIVEC };
-#elif defined(__FreeBSD__)
-    int selectors[2] = { CTL_HW, PPC_FEATURE_HAS_ALTIVEC };
 #else
     int selectors[2] = { CTL_HW, HW_VECTORUNIT };
 #endif
@@ -336,11 +337,16 @@ CPU_haveAltiVec(void)
         altivec = (hasVectorUnit != 0);
 #elif defined(__MORPHOS__)
     ULONG has_altivec;
-	if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
-	{
-		if(has_altivec)
-			altivec = 1;
-	}
+    if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
+    {
+      if(has_altivec)
+        altivec = 1;
+    }
+#elif defined(__FreeBSD__) && defined(__powerpc__)
+    unsigned long cpufeatures = 0;
+    elf_aux_info(AT_HWCAP, &cpufeatures, sizeof(cpufeatures));
+    altivec = cpufeatures & PPC_FEATURE_HAS_ALTIVEC;
+    return altivec;
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
     void (*handler) (int sig);
     handler = signal(SIGILL, illegal_instruction);
@@ -358,14 +364,14 @@ CPU_haveAltiVec(void)
 static int
 CPU_haveARMSIMD(void)
 {
-	return 1;
+    return 1;
 }
 
 #elif !defined(__arm__)
 static int
 CPU_haveARMSIMD(void)
 {
-	return 0;
+    return 0;
 }
 
 #elif defined(__LINUX__)
@@ -375,7 +381,7 @@ CPU_haveARMSIMD(void)
     int arm_simd = 0;
     int fd;
 
-    fd = open("/proc/self/auxv", O_RDONLY);
+    fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
     if (fd >= 0)
     {
         Elf32_auxv_t aux;
@@ -399,20 +405,20 @@ CPU_haveARMSIMD(void)
 static int
 CPU_haveARMSIMD(void)
 {
-	_kernel_swi_regs regs;
-	regs.r[0] = 0;
-	if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
-		return 0;
+    _kernel_swi_regs regs;
+    regs.r[0] = 0;
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+        return 0;
 
-	if (!(regs.r[0] & (1<<31)))
-		return 0;
+    if (!(regs.r[0] & (1<<31)))
+        return 0;
 
-	regs.r[0] = 34;
-	regs.r[1] = 29;
-	if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
-		return 0;
+    regs.r[0] = 34;
+    regs.r[1] = 29;
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+        return 0;
 
-	return regs.r[0];
+    return regs.r[0];
 }
 
 #else
@@ -431,7 +437,7 @@ readProcAuxvForNeon(void)
     int neon = 0;
     int fd;
 
-    fd = open("/proc/self/auxv", O_RDONLY);
+    fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
     if (fd >= 0)
     {
         Elf32_auxv_t aux;

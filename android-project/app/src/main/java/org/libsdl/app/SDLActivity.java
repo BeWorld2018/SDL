@@ -164,7 +164,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     protected String[] getLibraries() {
         return new String[] {
-            "hidapi",
             "SDL2",
             // "SDL2_image",
             // "SDL2_mixer",
@@ -379,10 +378,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     }
 
     public static int getCurrentOrientation() {
-        final Context context = SDLActivity.getContext();
-        final Display display = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-
         int result = SDL_ORIENTATION_UNKNOWN;
+
+        Activity activity = (Activity)getContext();
+        if (activity == null) {
+            return result;
+        }
+        Display display = activity.getWindowManager().getDefaultDisplay();
 
         switch (display.getRotation()) {
             case Surface.ROTATION_0:

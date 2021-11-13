@@ -35,6 +35,10 @@
 
 #define DEBUG_AUDIOSTREAM 0
 
+#ifdef __ARM_NEON
+#define HAVE_NEON_INTRINSICS 1
+#endif
+
 #ifdef __SSE__
 #define HAVE_SSE_INTRINSICS 1
 #endif
@@ -47,7 +51,7 @@
 #define HAVE_AVX_INTRINSICS 1
 #endif
 #if defined __clang__
-# if (__clang_major__ < 5)
+# if (!__has_attribute(target))
 #   undef HAVE_AVX_INTRINSICS
 # endif
 # if (defined(_MSC_VER) || defined(__SCE__)) && !defined(__AVX__)
@@ -116,11 +120,8 @@ SDL_ConvertStereoToMono(SDL_AudioCVT * cvt, SDL_AudioFormat format)
 
 #if HAVE_AVX_INTRINSICS
 /* MSVC will always accept AVX intrinsics when compiling for x64 */
-#if defined(__clang__)
-#pragma clang attribute push (__attribute__((target("avx"))), apply_to=function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx")
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((target("avx")))
 #endif
 /* Convert from 5.1 to stereo. Average left and right, distribute center, discard LFE. */
 static void SDLCALL
@@ -181,11 +182,6 @@ SDL_Convert51ToStereo_AVX(SDL_AudioCVT * cvt, SDL_AudioFormat format)
         cvt->filters[cvt->filter_index] (cvt, format);
     }
 }
-#if defined(__clang__)
-#pragma clang attribute pop
-#elif defined(__GNUC__)
-#pragma GCC pop_options
-#endif
 #endif
 
 #if HAVE_SSE_INTRINSICS
@@ -232,6 +228,66 @@ SDL_Convert51ToStereo_SSE(SDL_AudioCVT * cvt, SDL_AudioFormat format)
         i -= 2; src += 12; dst += 4;
     }
 
+
+    /* Finish off any leftovers with scalar operations. */
+    while (i) {
+        const float front_center_distributed = src[2] * 0.5f;
+        dst[0] = (src[0] + front_center_distributed + src[4]) * two_fifths_f;  /* left */
+        dst[1] = (src[1] + front_center_distributed + src[5]) * two_fifths_f;  /* right */
+        i--; src += 6; dst+=2;
+    }
+
+    cvt->len_cvt /= 3;
+    if (cvt->filters[++cvt->filter_index]) {
+        cvt->filters[cvt->filter_index] (cvt, format);
+    }
+}
+#endif
+
+#if HAVE_NEON_INTRINSICS
+/* Convert from 5.1 to stereo. Average left and right, distribute center, discard LFE. */
+static void SDLCALL
+SDL_Convert51ToStereo_NEON(SDL_AudioCVT * cvt, SDL_AudioFormat format)
+{
+    float *dst = (float *) cvt->buf;
+    const float *src = dst;
+    int i = cvt->len_cvt / (sizeof (float) * 6);
+    const float two_fifths_f = 1.0f / 2.5f;
+    const float32x4_t two_fifths_v = vdupq_n_f32(two_fifths_f);
+    const float32x4_t half = vdupq_n_f32(0.5f);
+
+    LOG_DEBUG_CONVERT("5.1", "stereo (using NEON)");
+    SDL_assert(format == AUDIO_F32SYS);
+
+    /* SDL's 5.1 layout: FL+FR+FC+LFE+BL+BR */
+
+    /* Just use unaligned load/stores, it's the same NEON instructions and
+       hopefully even unaligned NEON is faster than the scalar fallback. */
+    while (i >= 2) {
+        /* Two 5.1 samples (12 floats) fit nicely in three 128bit */
+        /* registers. Using shuffles they can be rearranged so that */
+        /* the conversion math can be vectorized. */
+        const float32x4_t in0 = vld1q_f32(src);     /* 0FL 0FR 0FC 0LF */
+        const float32x4_t in1 = vld1q_f32(src + 4); /* 0BL 0BR 1FL 1FR */
+        const float32x4_t in2 = vld1q_f32(src + 8); /* 1FC 1LF 1BL 1BR */
+
+        /* 0FC 0FC 1FC 1FC */
+        const float32x4_t fc_distributed = vmulq_f32(half, vcombine_f32(vdup_lane_f32(vget_high_f32(in0), 0), vdup_lane_f32(vget_low_f32(in2), 0)));
+
+        /* 0FL 0FR 1BL 1BR */
+        const float32x4_t blended = vcombine_f32(vget_low_f32(in0), vget_high_f32(in2));
+
+        /*   0FL 0FR 1BL 1BR */
+        /* + 0BL 0BR 1FL 1FR */
+        /* =  0L  0R  1L  1R */
+        float32x4_t out = vaddq_f32(blended, in1);
+        out = vaddq_f32(out, fc_distributed);
+        out = vmulq_f32(out, two_fifths_v);
+
+        vst1q_f32(dst, out);
+
+        i -= 2; src += 12; dst += 4;
+    }
 
     /* Finish off any leftovers with scalar operations. */
     while (i) {
@@ -1185,6 +1241,12 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
             }
             #endif
 
+            #if HAVE_NEON_INTRINSICS
+            if (!filter && SDL_HasNEON()) {
+                filter = SDL_Convert51ToStereo_NEON;
+            }
+            #endif
+
             if (!filter) {
                 filter = SDL_Convert51ToStereo;
             }
@@ -1239,7 +1301,7 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
            handled by now, but let's be defensive */
       return SDL_SetError("Invalid channel combination");
     }
-    
+
     /* Do rate conversion, if necessary. Updates (cvt). */
     if (SDL_BuildAudioResampleCVT(cvt, dst_channels, src_rate, dst_rate) < 0) {
         return -1;              /* shouldn't happen, but just in case... */
@@ -1721,7 +1783,7 @@ SDL_AudioStreamPut(SDL_AudioStream *stream, const void *buf, int len)
             stream->staging_buffer_filled += len;
             return 0;
         }
- 
+
         /* Fill the staging buffer, process it, and continue */
         amount = (stream->staging_buffer_size - stream->staging_buffer_filled);
         SDL_assert(amount > 0);
