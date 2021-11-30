@@ -22,14 +22,13 @@
 
 #include "SDL_stdinc.h"
 
-#define USE_ALTIVEC_BLITTERS 1
-
-#if USE_ALTIVEC_BLITTERS
-#include <hardware/vector.h>
-#endif
 #include <exec/types.h>
 
 #include "SDL_library.h"
+
+#if HAVE_ALTIVEC_H
+#include <hardware/vector.h>
+#endif
 
 void copy_and_swap16_generic(APTR src, APTR dst, LONG size);
 asm(
@@ -142,7 +141,8 @@ asm(
 
 void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units)
 {
-	#if USE_ALTIVEC_BLITTERS
+	#if HAVE_ALTIVEC_H
+
 	if (units >= 32 && HasAltiVec)
 	{
 		IPTR p1, p2;
@@ -203,7 +203,8 @@ void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units)
 
 void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units)
 {
-	#if USE_ALTIVEC_BLITTERS
+	#if HAVE_ALTIVEC_H
+
 	if (units >= 32 && HasAltiVec)
 	{
 		IPTR p1, p2;

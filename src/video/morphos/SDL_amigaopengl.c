@@ -139,9 +139,7 @@ AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 	int ret = 0;
 
 	*SDL2Base->MyGLContext = __tglContext = context;
-
-	//if (context) ret = 0;
-
+	
 	return ret;
 }
 
@@ -230,7 +228,11 @@ AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
 		D("[%s] no OpenGL context\n", __FUNCTION__);
 		return -1;
 	}
-
+	if (data->win == NULL)  {
+		D("[%s] no window\n", __FUNCTION__);
+		return -1;
+	}
+	
 	if (vd->CustomScreen) {
 		struct TagItem tgltags[] =
 		{

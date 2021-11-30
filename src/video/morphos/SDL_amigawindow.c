@@ -639,6 +639,7 @@ AMIGA_DestroyWindow(_THIS, SDL_Window * window)
 
 		if (data->win) {
 			AMIGA_CloseWindowSafely(window, data->win);
+			data->__tglContext = NULL;
 			data->win = NULL;
 		}
 		if (data->region)
