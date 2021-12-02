@@ -220,7 +220,7 @@ Wayland_SendWakeupEvent(_THIS, SDL_Window *window)
 {
     SDL_VideoData *d = _this->driverdata;
 
-    /* TODO: Maybe use a pipe to avoid the compositor round trip? */
+    /* TODO: Maybe use a pipe to avoid the compositor roundtrip? */
     wl_display_sync(d->display);
     WAYLAND_wl_display_flush(d->display);
 }
@@ -749,7 +749,8 @@ keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
                        uint32_t format, int fd, uint32_t size)
 {
     struct SDL_WaylandInput *input = data;
-    char *map_str, *locale;
+    char *map_str;
+    const char *locale;
 
     if (!data) {
         close(fd);

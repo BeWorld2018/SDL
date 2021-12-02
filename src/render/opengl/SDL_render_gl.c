@@ -1218,6 +1218,12 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
         }
     }
 
+#ifdef __MACOSX__
+    // On macOS, moving the window seems to invalidate the OpenGL viewport state,
+    // so don't bother trying to persist it across frames; always reset it.
+    // Workaround for: https://github.com/libsdl-org/SDL/issues/1504
+    data->drawstate.viewport_dirty = SDL_TRUE;
+#endif
 
     while (cmd) {
         switch (cmd->command) {
@@ -1226,7 +1232,7 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
                 const Uint8 g = cmd->data.color.g;
                 const Uint8 b = cmd->data.color.b;
                 const Uint8 a = cmd->data.color.a;
-                const Uint32 color = ((a << 24) | (r << 16) | (g << 8) | b);
+                const Uint32 color = (((Uint32)a << 24) | (r << 16) | (g << 8) | b);
                 if (color != data->drawstate.color) {
                     data->glColor4f((GLfloat) r * inv255f,
                                     (GLfloat) g * inv255f,
@@ -1264,7 +1270,7 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
                 const Uint8 g = cmd->data.color.g;
                 const Uint8 b = cmd->data.color.b;
                 const Uint8 a = cmd->data.color.a;
-                const Uint32 color = ((a << 24) | (r << 16) | (g << 8) | b);
+                const Uint32 color = (((Uint32)a << 24) | (r << 16) | (g << 8) | b);
                 if (color != data->drawstate.clear_color) {
                     const GLfloat fr = ((GLfloat) r) * inv255f;
                     const GLfloat fg = ((GLfloat) g) * inv255f;

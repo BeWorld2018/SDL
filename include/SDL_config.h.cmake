@@ -222,6 +222,7 @@
 #cmakedefine HAVE_INOTIFY_INIT 1
 #cmakedefine HAVE_INOTIFY_INIT1 1
 #cmakedefine HAVE_INOTIFY 1
+#cmakedefine HAVE_O_CLOEXEC 1
 
 /* Apple platforms might be building universal binaries, where Intel builds
    can use immintrin.h but other architectures can't. */
@@ -328,7 +329,6 @@
 #cmakedefine SDL_JOYSTICK_IOKIT @SDL_JOYSTICK_IOKIT@
 #cmakedefine SDL_JOYSTICK_MFI @SDL_JOYSTICK_MFI@
 #cmakedefine SDL_JOYSTICK_LINUX @SDL_JOYSTICK_LINUX@
-#cmakedefine SDL_JOYSTICK_WINMM @SDL_JOYSTICK_WINMM@
 #cmakedefine SDL_JOYSTICK_OS2 @SDL_JOYSTICK_OS2@
 #cmakedefine SDL_JOYSTICK_USBHID @SDL_JOYSTICK_USBHID@
 #cmakedefine SDL_HAVE_MACHINE_JOYSTICK_H @SDL_HAVE_MACHINE_JOYSTICK_H@
@@ -493,6 +493,9 @@
 
 /* Enable dynamic libsamplerate support */
 #cmakedefine SDL_LIBSAMPLERATE_DYNAMIC @SDL_LIBSAMPLERATE_DYNAMIC@
+
+/* Enable ime support */
+#cmakedefine SDL_USE_IME @SDL_USE_IME@
 
 /* Platform specific definitions */
 #cmakedefine SDL_IPHONE_KEYBOARD @SDL_IPHONE_KEYBOARD@

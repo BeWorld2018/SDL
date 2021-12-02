@@ -138,9 +138,10 @@ PrintKey(SDL_Keysym * sym, SDL_bool pressed, SDL_bool repeat)
 }
 
 static void
-PrintText(char *eventtype, char *text)
+PrintText(const char *eventtype, const char *text)
 {
-    char *spot, expanded[1024];
+    const char *spot;
+    char expanded[1024];
 
     expanded[0] = '\0';
     for ( spot = text; *spot; ++spot )
@@ -209,7 +210,7 @@ static int SDLCALL ping_thread(void *ptr)
 {
     int cnt;
     SDL_Event sdlevent;
-    memset(&sdlevent, 0 , sizeof(SDL_Event));
+    SDL_memset(&sdlevent, 0 , sizeof(SDL_Event));
     for (cnt = 0; cnt < 10; ++cnt) {
         fprintf(stderr, "sending event (%d/%d) from thread.\n", cnt + 1, 10); fflush(stderr);
         sdlevent.type = SDL_KEYDOWN;

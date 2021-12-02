@@ -447,8 +447,6 @@
     <ClInclude Include="..\include\SDL_misc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\src\atomic\SDL_atomic.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -813,6 +811,11 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\misc\SDL_url.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\joystick\windows\SDL_windows_gaming_input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

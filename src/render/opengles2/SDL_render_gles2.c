@@ -569,10 +569,18 @@ GLES2_SelectProgram(GLES2_RenderData *data, GLES2_ImageSource source, int w, int
             ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_JPEG;
             break;
         case SDL_YUV_CONVERSION_BT601:
-            ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_BT601;
+            if (SDL_GetHintBoolean("SDL_RENDER_OPENGL_NV12_RG_SHADER", SDL_FALSE)) {
+                ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_RG_BT601;
+            } else {
+                ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_RA_BT601;
+            }
             break;
         case SDL_YUV_CONVERSION_BT709:
-            ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_BT709;
+            if (SDL_GetHintBoolean("SDL_RENDER_OPENGL_NV12_RG_SHADER", SDL_FALSE)) {
+                ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_RG_BT709;
+            } else {
+                ftype = GLES2_SHADER_FRAGMENT_TEXTURE_NV12_RA_BT709;
+            }
             break;
         default:
             SDL_SetError("Unsupported YUV conversion mode: %d\n", SDL_GetYUVConversionModeForResolution(w, h));
@@ -665,9 +673,9 @@ GLES2_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL
     }
 
     if (colorswap == 0) {
-        color = (cmd->data.draw.r << 0) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 16) | (cmd->data.draw.a << 24);
+        color = (cmd->data.draw.r << 0) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 16) | ((Uint32)cmd->data.draw.a << 24);
     } else {
-        color = (cmd->data.draw.r << 16) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 0) | (cmd->data.draw.a << 24);
+        color = (cmd->data.draw.r << 16) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 0) | ((Uint32)cmd->data.draw.a << 24);
     }
 
     cmd->data.draw.count = count;
@@ -694,9 +702,9 @@ GLES2_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_
     }
 
     if (colorswap == 0) {
-        color = (cmd->data.draw.r << 0) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 16) | (cmd->data.draw.a << 24);
+        color = (cmd->data.draw.r << 0) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 16) | ((Uint32)cmd->data.draw.a << 24);
     } else {
-        color = (cmd->data.draw.r << 16) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 0) | (cmd->data.draw.a << 24);
+        color = (cmd->data.draw.r << 16) | (cmd->data.draw.g << 8) | (cmd->data.draw.b << 0) | ((Uint32)cmd->data.draw.a << 24);
     }
 
     cmd->data.draw.count = count;
@@ -778,7 +786,7 @@ GLES2_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture 
             g = (col_ >> 8) & 0xff;
             b = (col_ >> 16) & 0xff;
             a = (col_ >> 24) & 0xff;
-            col_ = (r << 16) | (g << 8) | (b << 0) | (a << 24);
+            col_ = (r << 16) | (g << 8) | (b << 0) | ((Uint32)a << 24);
             *((int *)verts++) = col_;
         }
 
@@ -1098,7 +1106,7 @@ GLES2_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
                 const Uint8 g = cmd->data.color.g;
                 const Uint8 b = colorswap ? cmd->data.color.r : cmd->data.color.b;
                 const Uint8 a = cmd->data.color.a;
-                const Uint32 color = ((a << 24) | (r << 16) | (g << 8) | b);
+                const Uint32 color = (((Uint32)a << 24) | (r << 16) | (g << 8) | b);
                 if (color != data->drawstate.clear_color) {
                     const GLfloat fr = ((GLfloat) r) * inv255f;
                     const GLfloat fg = ((GLfloat) g) * inv255f;
@@ -1126,8 +1134,41 @@ GLES2_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
             case SDL_RENDERCMD_COPY_EX: /* unused */
                 break;
 
+            case SDL_RENDERCMD_DRAW_LINES: {
+                if (SetDrawState(data, cmd, GLES2_IMAGESOURCE_SOLID) == 0) {
+                    size_t count = cmd->data.draw.count;
+                    if (count > 2) {
+                        /* joined lines cannot be grouped */
+                        data->glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)count);
+                    } else {
+                        /* let's group non joined lines */
+                        SDL_RenderCommand *finalcmd = cmd;
+                        SDL_RenderCommand *nextcmd = cmd->next;
+                        SDL_BlendMode thisblend = cmd->data.draw.blend;
+
+                        while (nextcmd != NULL) {
+                            const SDL_RenderCommandType nextcmdtype = nextcmd->command;
+                            if (nextcmdtype != SDL_RENDERCMD_DRAW_LINES) {
+                                break;  /* can't go any further on this draw call, different render command up next. */
+                            } else if (nextcmd->data.draw.count != 2) {
+                                break;  /* can't go any further on this draw call, those are joined lines */
+                            } else if (nextcmd->data.draw.blend != thisblend) {
+                                break;  /* can't go any further on this draw call, different blendmode copy up next. */
+                            } else {
+                                finalcmd = nextcmd;  /* we can combine copy operations here. Mark this one as the furthest okay command. */
+                                count += cmd->data.draw.count;
+                            }
+                            nextcmd = nextcmd->next;
+                        }
+
+                        data->glDrawArrays(GL_LINES, 0, (GLsizei)count);
+                        cmd = finalcmd;  /* skip any copy commands we just combined in here. */
+                    }
+                }
+                break;
+            }
+
             case SDL_RENDERCMD_DRAW_POINTS:
-            case SDL_RENDERCMD_DRAW_LINES:
             case SDL_RENDERCMD_GEOMETRY: {
                 /* as long as we have the same copy command in a row, with the
                    same texture, we can combine them all into a single draw call. */
@@ -1161,8 +1202,6 @@ GLES2_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
                     int op = GL_TRIANGLES; /* SDL_RENDERCMD_GEOMETRY */
                     if (thiscmdtype == SDL_RENDERCMD_DRAW_POINTS) {
                         op = GL_POINTS; 
-                    } else if (thiscmdtype == SDL_RENDERCMD_DRAW_LINES) {
-                        op = GL_LINE_STRIP; 
                     }
                     data->glDrawArrays(op, 0, (GLsizei) count);
                 }

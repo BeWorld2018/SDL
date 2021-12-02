@@ -66,6 +66,9 @@ static NSString *GCInputXboxShareButton = @"Button Share";
 #if defined(__MACOSX__) && (__MAC_OS_X_VERSION_MAX_ALLOWED <= 101600)
 + (BOOL)supportsHIDDevice:(IOHIDDeviceRef)device;
 #endif
+#if !((__IPHONE_OS_VERSION_MAX_ALLOWED >= 130000) || (__APPLETV_OS_VERSION_MAX_ALLOWED >= 130000) || (__MAC_OS_VERSION_MAX_ALLOWED >= 1500000))
+@property(nonatomic, readonly) NSString *productCategory;
+#endif
 @end
 @interface GCExtendedGamepad (SDL)
 #if !((__IPHONE_OS_VERSION_MAX_ALLOWED >= 121000) || (__APPLETV_OS_VERSION_MAX_ALLOWED >= 121000) || (__MAC_OS_VERSION_MAX_ALLOWED >= 1401000))
@@ -1331,6 +1334,7 @@ IOS_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
     Uint32 result = 0;
 
+#if defined(ENABLE_MFI_LIGHT) || defined(ENABLE_MFI_RUMBLE)
     @autoreleasepool {
         SDL_JoystickDeviceItem *device = joystick->hwdata;
 
@@ -1340,13 +1344,13 @@ IOS_JoystickGetCapabilities(SDL_Joystick *joystick)
 
         if (@available(macos 11.0, iOS 14.0, tvOS 14.0, *)) {
             GCController *controller = device->controller;
-#ifdef ENABLE_MFI_LIGHT
+            #ifdef ENABLE_MFI_LIGHT
             if (controller.light) {
                 result |= SDL_JOYCAP_LED;
             }
-#endif /* ENABLE_MFI_LIGHT */
+            #endif
 
-#ifdef ENABLE_MFI_RUMBLE
+            #ifdef ENABLE_MFI_RUMBLE
             if (controller.haptics) {
                 for (GCHapticsLocality locality in controller.haptics.supportedLocalities) {
                     if ([locality isEqualToString:GCHapticsLocalityHandles]) {
@@ -1356,9 +1360,10 @@ IOS_JoystickGetCapabilities(SDL_Joystick *joystick)
                     }
                 }
             }
-#endif /* ENABLE_MFI_RUMBLE */
+            #endif
         }
     }
+#endif /* ENABLE_MFI_LIGHT || ENABLE_MFI_RUMBLE */
 
     return result;
 }
@@ -1471,7 +1476,6 @@ IOS_JoystickClose(SDL_Joystick *joystick)
 
 #ifdef ENABLE_MFI_SYSTEM_GESTURE_STATE
             if (@available(macOS 11.0, iOS 14.0, tvOS 14.0, *)) {
-                GCController *controller = joystick->hwdata->controller;
                 for (id key in controller.physicalInputProfile.buttons) {
                     GCControllerButtonInput *button = controller.physicalInputProfile.buttons[key];
                     if ([button isBoundToSystemGesture]) {
