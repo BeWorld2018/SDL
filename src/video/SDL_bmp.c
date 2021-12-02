@@ -37,10 +37,6 @@
 #include "SDL_endian.h"
 #include "SDL_pixels_c.h"
 
-#ifdef __MORPHOS__
-#include "../core/morphos/SDL_cpu.h"
-#endif
-
 #define SAVE_32BIT_BMP
 
 /* Compression encodings for BMP files */

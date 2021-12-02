@@ -1204,11 +1204,10 @@ SDL_AllocRW(void)
     if (area == NULL) {
         SDL_OutOfMemory();
     } else {
-	#if defined(__MORPHOS__)
+#if defined(__MORPHOS__)
         register APTR DataSeg __asm("r13");
-
         area->r13 = DataSeg;
-        #endif
+#endif
         area->type = SDL_RWOPS_UNKNOWN;
     }
     return area;
