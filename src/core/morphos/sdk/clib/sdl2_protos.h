@@ -772,7 +772,7 @@ int SDL_wcsncasecmp(const wchar_t *str1, const wchar_t *str2, size_t len);
 /* Add Altivec Swap */
 void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units);
 void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units);
-/* 2.0.15 - 2.0.16 */
+/* 2.0.16 */
 int SDL_UpdateNVTexture(SDL_Texture * texture, const SDL_Rect * rect, const Uint8 *Yplane, int Ypitch, const Uint8 *UVplane, int UVpitch);
 double SDL_round(double x);
 float SDL_roundf(float x);
@@ -795,6 +795,45 @@ int SDL_FlashWindow(SDL_Window * window, SDL_FlashOperation operation);
 int SDL_GameControllerSendEffect(SDL_GameController *gamecontroller, const void *data, int size);
 int SDL_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size);
 float SDL_GameControllerGetSensorDataRate(SDL_GameController *gamecontroller, SDL_SensorType type);
+/* 2.0.18 */
+int SDL_SetTextureUserData(SDL_Texture * texture, void *userdata);
+void * SDL_GetTextureUserData(SDL_Texture * texture);
+int SDL_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Vertex *vertices, int num_vertices, const int *indices, int num_indices);
+int SDL_RenderGeometryRaw(SDL_Renderer *renderer, SDL_Texture *texture, const float *xy, int xy_stride, const int *color, int color_stride, const float *uv, int uv_stride, int num_vertices, const void *indices, int num_indices, int size_indices);
+int SDL_RenderSetVSync(SDL_Renderer* renderer, int vsync);
+int SDL_vasprintf(char **strp, const char *fmt, va_list ap);
+void* SDL_GetWindowICCProfile(SDL_Window * window, size_t* size);
+Uint64 SDL_GetTicks64(void);
+const char* SDL_GameControllerGetAppleSFSymbolsNameForButton(SDL_GameController *gamecontroller, SDL_GameControllerButton button);
+const char* SDL_GameControllerGetAppleSFSymbolsNameForAxis(SDL_GameController *gamecontroller, SDL_GameControllerAxis axis);
+int SDL_hid_init(void);
+int SDL_hid_exit(void);
+Uint32 SDL_hid_device_change_count(void);
+SDL_hid_device_info * SDL_hid_enumerate(unsigned short vendor_id, unsigned short product_id);
+void SDL_hid_free_enumeration(SDL_hid_device_info *devs);
+SDL_hid_device * SDL_hid_open(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number);
+SDL_hid_device * SDL_hid_open_path(const char *path, int bExclusive);
+int SDL_hid_write(SDL_hid_device *dev, const unsigned char *data, size_t length);
+int SDL_hid_read_timeout(SDL_hid_device *dev, unsigned char *data, size_t length, int milliseconds);
+int SDL_hid_read(SDL_hid_device *dev, unsigned char *data, size_t length);
+int SDL_hid_set_nonblocking(SDL_hid_device *dev, int nonblock);
+int SDL_hid_send_feature_report(SDL_hid_device *dev, const unsigned char *data, size_t length);
+int SDL_hid_get_feature_report(SDL_hid_device *dev, unsigned char *data, size_t length);
+void SDL_hid_close(SDL_hid_device *dev);
+int SDL_hid_get_manufacturer_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_product_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_serial_number_string(SDL_hid_device *dev, wchar_t *string, size_t maxlen);
+int SDL_hid_get_indexed_string(SDL_hid_device *dev, int string_index, wchar_t *string, size_t maxlen);
+int SDL_SetWindowMouseRect(SDL_Window * window, const SDL_Rect * rect);
+const SDL_Rect * SDL_GetWindowMouseRect(SDL_Window * window);
+void SDL_RenderWindowToLogical(SDL_Renderer * renderer, int windowX, int windowY, float *logicalX, float *logicalY);
+void SDL_RenderLogicalToWindow(SDL_Renderer * renderer, float logicalX, float logicalY, int *windowX, int *windowY);
+SDL_bool SDL_JoystickHasRumble(SDL_Joystick *joystick);	
+SDL_bool SDL_JoystickHasRumbleTriggers(SDL_Joystick *joystick);		
+SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
+SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
+void SDL_hid_ble_scan(SDL_bool active);
+int SDL_PremultiplyAlpha(int width, int height, Uint32 src_format, const void * src, int src_pitch, Uint32 dst_format, void * dst, int dst_pitch);
 
 #endif
 

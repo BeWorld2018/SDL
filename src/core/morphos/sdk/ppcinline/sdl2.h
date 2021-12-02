@@ -6297,4 +6297,361 @@
 		(((float (*)(SDL_GameController *, SDL_SensorType ))*(void**)(__base - 4342))(__t__p0, __t__p1));\
 	})
 
+#define SDL_SetTextureUserData(__p0, __p1) \
+	({ \
+		SDL_Texture * __t__p0 = __p0;\
+		void * __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_Texture *, void *))*(void**)(__base - 4348))(__t__p0, __t__p1));\
+	})
+
+#define SDL_GetTextureUserData(__p0) \
+	({ \
+		SDL_Texture * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void *(*)(SDL_Texture *))*(void**)(__base - 4354))(__t__p0));\
+	})
+
+#define SDL_RenderGeometry(__p0, __p1, __p2, __p3, __p4, __p5) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		SDL_Texture * __t__p1 = __p1;\
+		const SDL_Vertex * __t__p2 = __p2;\
+		int  __t__p3 = __p3;\
+		const int * __t__p4 = __p4;\
+		int  __t__p5 = __p5;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_Renderer *, SDL_Texture *, const SDL_Vertex *, int , const int *, int ))*(void**)(__base - 4360))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5));\
+	})
+
+#define SDL_RenderGeometryRaw(__p0, __p1, __p2, __p3, __p4, __p5, __p6, __p7, __p8, __p9, __p10, __p11) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		SDL_Texture * __t__p1 = __p1;\
+		const float * __t__p2 = __p2;\
+		int  __t__p3 = __p3;\
+		const int * __t__p4 = __p4;\
+		int  __t__p5 = __p5;\
+		const float * __t__p6 = __p6;\
+		int  __t__p7 = __p7;\
+		int  __t__p8 = __p8;\
+		const void * __t__p9 = __p9;\
+		int  __t__p10 = __p10;\
+		int  __t__p11 = __p11;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_Renderer *, SDL_Texture *, const float *, int , const int *, int , const float *, int , int , const void *, int , int ))*(void**)(__base - 4366))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5, __t__p6, __t__p7, __t__p8, __t__p9, __t__p10, __t__p11));\
+	})
+
+#define SDL_RenderSetVSync(__p0, __p1) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_Renderer *, int ))*(void**)(__base - 4372))(__t__p0, __t__p1));\
+	})
+
+#define SDL_vasprintf(__p0, __p1, __p2) \
+	({ \
+		char ** __t__p0 = __p0;\
+		const char * __t__p1 = __p1;\
+		va_list  __t__p2;\
+		va_copy(__t__p2, __p2); \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(char **, const char *, va_list ))*(void**)(__base - 4378))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_GetWindowICCProfile(__p0, __p1) \
+	({ \
+		SDL_Window * __t__p0 = __p0;\
+		size_t * __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void *(*)(SDL_Window *, size_t *))*(void**)(__base - 4384))(__t__p0, __t__p1));\
+	})
+
+#define SDL_GetTicks64() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint64 (*)(void))*(void**)(__base - 4390))());\
+	})
+
+#define SDL_GameControllerGetAppleSFSymbolsNameForButton(__p0, __p1) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		SDL_GameControllerButton  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(SDL_GameController *, SDL_GameControllerButton ))*(void**)(__base - 4396))(__t__p0, __t__p1));\
+	})
+
+#define SDL_GameControllerGetAppleSFSymbolsNameForAxis(__p0, __p1) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		SDL_GameControllerAxis  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(SDL_GameController *, SDL_GameControllerAxis ))*(void**)(__base - 4402))(__t__p0, __t__p1));\
+	})
+
+#define SDL_hid_init() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(void))*(void**)(__base - 4408))());\
+	})
+
+#define SDL_hid_exit() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(void))*(void**)(__base - 4414))());\
+	})
+
+#define SDL_hid_device_change_count() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint32 (*)(void))*(void**)(__base - 4420))());\
+	})
+
+#define SDL_hid_enumerate(__p0, __p1) \
+	({ \
+		unsigned short  __t__p0 = __p0;\
+		unsigned short  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_hid_device_info *(*)(unsigned short , unsigned short ))*(void**)(__base - 4426))(__t__p0, __t__p1));\
+	})
+
+#define SDL_hid_free_enumeration(__p0) \
+	({ \
+		SDL_hid_device_info * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_hid_device_info *))*(void**)(__base - 4432))(__t__p0));\
+	})
+
+#define SDL_hid_open(__p0, __p1, __p2) \
+	({ \
+		unsigned short  __t__p0 = __p0;\
+		unsigned short  __t__p1 = __p1;\
+		const wchar_t * __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_hid_device *(*)(unsigned short , unsigned short , const wchar_t *))*(void**)(__base - 4438))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_open_path(__p0, __p1) \
+	({ \
+		const char * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_hid_device *(*)(const char *, int ))*(void**)(__base - 4444))(__t__p0, __t__p1));\
+	})
+
+#define SDL_hid_write(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		const unsigned char * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, const unsigned char *, size_t ))*(void**)(__base - 4450))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_read_timeout(__p0, __p1, __p2, __p3) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		unsigned char * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		int  __t__p3 = __p3;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, unsigned char *, size_t , int ))*(void**)(__base - 4456))(__t__p0, __t__p1, __t__p2, __t__p3));\
+	})
+
+#define SDL_hid_read(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		unsigned char * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, unsigned char *, size_t ))*(void**)(__base - 4462))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_set_nonblocking(__p0, __p1) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, int ))*(void**)(__base - 4468))(__t__p0, __t__p1));\
+	})
+
+#define SDL_hid_send_feature_report(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		const unsigned char * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, const unsigned char *, size_t ))*(void**)(__base - 4474))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_get_feature_report(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		unsigned char * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, unsigned char *, size_t ))*(void**)(__base - 4480))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_close(__p0) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_hid_device *))*(void**)(__base - 4486))(__t__p0));\
+	})
+
+#define SDL_hid_get_manufacturer_string(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		wchar_t * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, wchar_t *, size_t ))*(void**)(__base - 4492))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_get_product_string(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		wchar_t * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, wchar_t *, size_t ))*(void**)(__base - 4498))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_get_serial_number_string(__p0, __p1, __p2) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		wchar_t * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, wchar_t *, size_t ))*(void**)(__base - 4504))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_hid_get_indexed_string(__p0, __p1, __p2, __p3) \
+	({ \
+		SDL_hid_device * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		wchar_t * __t__p2 = __p2;\
+		size_t  __t__p3 = __p3;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_hid_device *, int , wchar_t *, size_t ))*(void**)(__base - 4510))(__t__p0, __t__p1, __t__p2, __t__p3));\
+	})
+
+#define SDL_SetWindowMouseRect(__p0, __p1) \
+	({ \
+		SDL_Window * __t__p0 = __p0;\
+		const SDL_Rect * __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_Window *, const SDL_Rect *))*(void**)(__base - 4516))(__t__p0, __t__p1));\
+	})
+
+#define SDL_GetWindowMouseRect(__p0) \
+	({ \
+		SDL_Window * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const SDL_Rect *(*)(SDL_Window *))*(void**)(__base - 4522))(__t__p0));\
+	})
+
+#define SDL_RenderWindowToLogical(__p0, __p1, __p2, __p3, __p4) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		int  __t__p2 = __p2;\
+		float * __t__p3 = __p3;\
+		float * __t__p4 = __p4;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_Renderer *, int , int , float *, float *))*(void**)(__base - 4528))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+	})
+
+#define SDL_RenderLogicalToWindow(__p0, __p1, __p2, __p3, __p4) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		float  __t__p1 = __p1;\
+		float  __t__p2 = __p2;\
+		int * __t__p3 = __p3;\
+		int * __t__p4 = __p4;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_Renderer *, float , float , int *, int *))*(void**)(__base - 4534))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+	})
+
+#define SDL_JoystickHasRumble(__p0) \
+	({ \
+		SDL_Joystick * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(SDL_Joystick *))*(void**)(__base - 4540))(__t__p0));\
+	})
+
+#define SDL_JoystickHasRumbleTriggers(__p0) \
+	({ \
+		SDL_Joystick * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(SDL_Joystick *))*(void**)(__base - 4546))(__t__p0));\
+	})
+
+#define SDL_GameControllerHasRumbleTriggers(__p0) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(SDL_GameController *))*(void**)(__base - 4558))(__t__p0));\
+	})
+
+#define SDL_hid_ble_scan(__p0) \
+	({ \
+		SDL_bool  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_bool ))*(void**)(__base - 4564))(__t__p0));\
+	})
+
+#define SDL_PremultiplyAlpha(__p0, __p1, __p2, __p3, __p4, __p5, __p6, __p7) \
+	({ \
+		int  __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		Uint32  __t__p2 = __p2;\
+		const void * __t__p3 = __p3;\
+		int  __t__p4 = __p4;\
+		Uint32  __t__p5 = __p5;\
+		void * __t__p6 = __p6;\
+		int  __t__p7 = __p7;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(int , int , Uint32 , const void *, int , Uint32 , void *, int ))*(void**)(__base - 4570))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5, __t__p6, __t__p7));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
