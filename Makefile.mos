@@ -35,6 +35,7 @@ SOURCES = \
 	src/filesystem/amiga/*.c \
 	src/haptic/*.c \
 	src/haptic/dummy/*.c \
+	src/hidapi/*.c \
 	src/joystick/*.c \
 	src/joystick/morphos/*.c \
 	src/loadso/dlopen/*.c \
@@ -56,7 +57,7 @@ SOURCES = \
 	src/misc/*.c \
 	src/misc/morphos/*.c \
 	src/locale/*.c \
-	src/locale/morphos/*.c \
+	src/locale/morphos/*.c
 
 CORESOURCES = src/core/morphos/*.c
 COREOBJECTS = $(shell echo $(CORESOURCES) | sed -e 's,\.c,\.o,g')

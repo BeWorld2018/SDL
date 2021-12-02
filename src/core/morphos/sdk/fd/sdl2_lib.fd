@@ -759,8 +759,7 @@ SDL_RenderWindowToLogical(renderer,windowX,windowY,logicalX,logicalY)(sysv,r12ba
 SDL_RenderLogicalToWindow(renderer,logicalX,logicalY,windowX,windowY)(sysv,r12base)
 SDL_JoystickHasRumble(joystick)(sysv,r12base)
 SDL_JoystickHasRumbleTriggers(joystick)(sysv,r12base)
-SDL_GameControllerHasRumbleTriggers(gamecontroller)(sysv,r12base)
+SDL_GameControllerHasRumble(gamecontroller)(sysv,r12base)
 SDL_GameControllerHasRumbleTriggers(gamecontroller)(sysv,r12base)
 SDL_hid_ble_scan(active)(sysv,r12base)
 SDL_PremultiplyAlpha(width,height,src_format,src,src_pitch,dst_format,dst,dst_pitch)(sysv,r12base)
-

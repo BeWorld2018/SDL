@@ -6623,6 +6623,14 @@
 		(((SDL_bool (*)(SDL_Joystick *))*(void**)(__base - 4546))(__t__p0));\
 	})
 
+#define SDL_GameControllerHasRumble(__p0) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(SDL_GameController *))*(void**)(__base - 4552))(__t__p0));\
+	})
+
 #define SDL_GameControllerHasRumbleTriggers(__p0) \
 	({ \
 		SDL_GameController * __t__p0 = __p0;\

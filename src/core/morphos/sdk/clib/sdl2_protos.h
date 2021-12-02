@@ -830,7 +830,7 @@ void SDL_RenderWindowToLogical(SDL_Renderer * renderer, int windowX, int windowY
 void SDL_RenderLogicalToWindow(SDL_Renderer * renderer, float logicalX, float logicalY, int *windowX, int *windowY);
 SDL_bool SDL_JoystickHasRumble(SDL_Joystick *joystick);	
 SDL_bool SDL_JoystickHasRumbleTriggers(SDL_Joystick *joystick);		
-SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
+SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 void SDL_hid_ble_scan(SDL_bool active);
 int SDL_PremultiplyAlpha(int width, int height, Uint32 src_format, const void * src, int src_pitch, Uint32 dst_format, void * dst, int dst_pitch);

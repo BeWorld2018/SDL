@@ -171,7 +171,7 @@
 /* Enable assembly routines */
 #define SDL_ALTIVEC_BLITTERS    1
 
-/* Maybe later */
+/* Enable OpenGL RENDER */
 #ifndef SDL_VIDEO_RENDER_OGL
 #define SDL_VIDEO_RENDER_OGL    1
 #endif
@@ -180,6 +180,9 @@
 #ifndef SDL_VIDEO_OPENGL
 #define SDL_VIDEO_OPENGL    1
 #endif
+
+/* Disable HIDAPI */
+#define SDL_HIDAPI_DISABLED 1
 
 #if defined(__MORPHOS__)
 	#if defined(__SDL_DEBUG)
