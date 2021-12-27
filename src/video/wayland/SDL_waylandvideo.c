@@ -202,6 +202,7 @@ Wayland_CreateDevice(int devindex)
         return NULL;
     }
 
+    data->initializing = SDL_TRUE;
     data->display = display;
 
     /* Initialize all variables that we clean on shutdown */
@@ -301,13 +302,60 @@ display_handle_geometry(void *data,
 
 {
     SDL_WaylandOutputData *driverdata = data;
+    SDL_VideoDisplay *display;
+    int i;
+
+    if (driverdata->done) {
+        /* Clear the wl_output ref so Reset doesn't free it */
+        display = SDL_GetDisplay(driverdata->index);
+        for (i = 0; i < display->num_display_modes; i += 1) {
+            display->display_modes[i].driverdata = NULL;
+        }
+
+        /* Okay, now it's safe to reset */
+        SDL_ResetDisplayModes(driverdata->index);
+
+        /* The display has officially started over. */
+        driverdata->done = SDL_FALSE;
+    }
 
     driverdata->x = x;
     driverdata->y = y;
     driverdata->physical_width = physical_width;
     driverdata->physical_height = physical_height;
-    driverdata->placeholder.name = SDL_strdup(model);
+    if (driverdata->index == -1) {
+        driverdata->placeholder.name = SDL_strdup(model);
+    }
+
     driverdata->transform = transform;
+    #define TF_CASE(in, out) \
+        case WL_OUTPUT_TRANSFORM_##in: \
+            driverdata->orientation = SDL_ORIENTATION_##out; \
+            break;
+    if (driverdata->physical_width >= driverdata->physical_height) {
+        switch (transform) {
+            TF_CASE(NORMAL, LANDSCAPE)
+            TF_CASE(90, PORTRAIT)
+            TF_CASE(180, LANDSCAPE_FLIPPED)
+            TF_CASE(270, PORTRAIT_FLIPPED)
+            TF_CASE(FLIPPED, LANDSCAPE_FLIPPED)
+            TF_CASE(FLIPPED_90, PORTRAIT_FLIPPED)
+            TF_CASE(FLIPPED_180, LANDSCAPE)
+            TF_CASE(FLIPPED_270, PORTRAIT)
+        }
+    } else {
+        switch (transform) {
+            TF_CASE(NORMAL, PORTRAIT)
+            TF_CASE(90, LANDSCAPE)
+            TF_CASE(180, PORTRAIT_FLIPPED)
+            TF_CASE(270, LANDSCAPE_FLIPPED)
+            TF_CASE(FLIPPED, PORTRAIT_FLIPPED)
+            TF_CASE(FLIPPED_90, LANDSCAPE_FLIPPED)
+            TF_CASE(FLIPPED_180, PORTRAIT)
+            TF_CASE(FLIPPED_270, LANDSCAPE)
+        }
+    }
+    #undef TF_CASE
 }
 
 static void
@@ -322,6 +370,7 @@ display_handle_mode(void *data,
     SDL_DisplayMode mode;
 
     if (flags & WL_OUTPUT_MODE_CURRENT) {
+        /* Don't rotate this yet, handle_done will do it later */
         driverdata->width = width;
         driverdata->height = height;
         driverdata->refresh = refresh;
@@ -344,7 +393,11 @@ display_handle_mode(void *data,
     }
     mode.refresh_rate = refresh / 1000; /* mHz to Hz */
     mode.driverdata = driverdata->output;
-    SDL_AddDisplayMode(&driverdata->placeholder, &mode);
+    if (driverdata->index > -1) {
+        SDL_AddDisplayMode(SDL_GetDisplay(driverdata->index), &mode);
+    } else {
+        SDL_AddDisplayMode(&driverdata->placeholder, &mode);
+    }
 }
 
 static void
@@ -353,6 +406,7 @@ display_handle_done(void *data,
 {
     SDL_WaylandOutputData* driverdata = data;
     SDL_DisplayMode mode;
+    SDL_VideoDisplay *dpy;
 
     if (driverdata->done)
         return;
@@ -392,14 +446,28 @@ display_handle_done(void *data,
     }
     mode.refresh_rate = driverdata->refresh / 1000; /* mHz to Hz */
     mode.driverdata = driverdata->output;
-    SDL_AddDisplayMode(&driverdata->placeholder, &mode);
-    driverdata->placeholder.current_mode = mode;
-    driverdata->placeholder.desktop_mode = mode;
 
-    driverdata->placeholder.driverdata = driverdata;
-    SDL_AddVideoDisplay(&driverdata->placeholder, SDL_FALSE);
-    SDL_free(driverdata->placeholder.name);
-    SDL_zero(driverdata->placeholder);
+    if (driverdata->index > -1) {
+        dpy = SDL_GetDisplay(driverdata->index);
+    } else {
+        dpy = &driverdata->placeholder;
+    }
+
+    SDL_AddDisplayMode(dpy, &mode);
+    SDL_SetCurrentDisplayMode(dpy, &mode);
+    SDL_SetDesktopDisplayMode(dpy, &mode);
+
+    if (driverdata->index == -1) {
+        /* First time getting display info, create the VideoDisplay */
+        SDL_bool send_event = driverdata->videodata->initializing ? SDL_FALSE : SDL_TRUE;
+        driverdata->placeholder.orientation = driverdata->orientation;
+        driverdata->placeholder.driverdata = driverdata;
+        driverdata->index = SDL_AddVideoDisplay(&driverdata->placeholder, send_event);
+        SDL_free(driverdata->placeholder.name);
+        SDL_zero(driverdata->placeholder);
+    } else {
+        SDL_SendDisplayEvent(dpy, SDL_DISPLAYEVENT_ORIENTATION, driverdata->orientation);
+    }
 }
 
 static void
@@ -431,11 +499,43 @@ Wayland_add_display(SDL_VideoData *d, uint32_t id)
     }
     data = SDL_malloc(sizeof *data);
     SDL_zerop(data);
+    data->videodata = d;
     data->output = output;
+    data->registry_id = id;
     data->scale_factor = 1.0;
+    data->index = -1;
 
     wl_output_add_listener(output, &output_listener, data);
     SDL_WAYLAND_register_output(output);
+}
+
+static void
+Wayland_free_display(uint32_t id)
+{
+    int num_displays = SDL_GetNumVideoDisplays();
+    SDL_VideoDisplay *display;
+    SDL_WaylandOutputData *data;
+    int i;
+
+    for (i = 0; i < num_displays; i += 1) {
+        display = SDL_GetDisplay(i);
+        data = (SDL_WaylandOutputData *) display->driverdata;
+        if (data->registry_id == id) {
+            SDL_DelVideoDisplay(i);
+            wl_output_destroy(data->output);
+            SDL_free(data);
+
+            /* Update the index for all remaining displays */
+            num_displays -= 1;
+            for (; i < num_displays; i += 1) {
+                display = SDL_GetDisplay(i);
+                data = (SDL_WaylandOutputData *) display->driverdata;
+                data->index -= 1;
+            }
+
+            return;
+        }
+    }
 }
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
@@ -512,7 +612,7 @@ display_handle_global(void *data, struct wl_registry *registry, uint32_t id,
         d->idle_inhibit_manager = wl_registry_bind(d->registry, id, &zwp_idle_inhibit_manager_v1_interface, 1);
     } else if (SDL_strcmp(interface, "xdg_activation_v1") == 0) {
         d->activation_manager = wl_registry_bind(d->registry, id, &xdg_activation_v1_interface, 1);
-    } else if (strcmp(interface, "zwp_text_input_manager_v3") == 0) {
+    } else if (SDL_strcmp(interface, "zwp_text_input_manager_v3") == 0) {
         Wayland_add_text_input_manager(d, id, version);
     } else if (SDL_strcmp(interface, "wl_data_device_manager") == 0) {
         Wayland_add_data_device_manager(d, id, version);
@@ -534,7 +634,11 @@ display_handle_global(void *data, struct wl_registry *registry, uint32_t id,
 }
 
 static void
-display_remove_global(void *data, struct wl_registry *registry, uint32_t id) {}
+display_remove_global(void *data, struct wl_registry *registry, uint32_t id)
+{
+    /* We don't get an interface, just an ID, so assume it's a wl_output :shrug: */
+    Wayland_free_display(id);
+}
 
 static const struct wl_registry_listener registry_listener = {
     display_handle_global,
@@ -585,6 +689,8 @@ Wayland_VideoInit(_THIS)
     WAYLAND_wl_display_flush(data->display);
 
     Wayland_InitKeyboard(_this);
+
+    data->initializing = SDL_FALSE;
 
     return 0;
 }

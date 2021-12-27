@@ -30,6 +30,9 @@
 #include "../core/android/SDL_android.h"
 #include "../video/android/SDL_androidvideo.h"
 #endif
+#if SDL_VIDEO_DRIVER_RPI
+#include <unistd.h>
+#endif
 
 #include "SDL_sysvideo.h"
 #include "SDL_egl_c.h"
@@ -566,7 +569,7 @@ SDL_EGL_InitializeOffscreen(_THIS, int device)
     EGLint num_egl_devices = 0;
     const char *egl_device_hint;
 
-    if (_this->gl_config.driver_loaded != 1) {
+    if (_this->gl_config.driver_loaded <= 0) {
         return SDL_SetError("SDL_EGL_LoadLibraryOnly() has not been called or has failed.");
     }
 

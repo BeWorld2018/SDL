@@ -39,7 +39,6 @@ macro(CheckDLOPEN)
       set(HAVE_DLOPEN TRUE)
     endif()
   endif()
-
   if(HAVE_DLOPEN)
     if(_DLLIB)
       set(CMAKE_REQUIRED_LIBRARIES ${_DLLIB})
@@ -52,6 +51,14 @@ macro(CheckDLOPEN)
        }" HAVE_DLOPEN)
     set(CMAKE_REQUIRED_LIBRARIES)
   endif()
+endmacro()
+
+macro(CheckO_CLOEXEC)
+  check_c_source_compiles("
+    #include <fcntl.h>
+    int flag = O_CLOEXEC;
+    int main(void) {
+   }" HAVE_O_CLOEXEC)
 endmacro()
 
 # Requires:
@@ -144,7 +151,6 @@ macro(CheckPipewire)
         endif()
     endif()
 endmacro()
-
 
 # Requires:
 # - PkgCheckModules
@@ -412,10 +418,11 @@ macro(CheckX11)
     check_include_file(X11/extensions/Xinerama.h HAVE_XINERAMA_H)
     check_include_file(X11/extensions/XInput2.h HAVE_XINPUT2_H)
     check_include_file(X11/extensions/Xrandr.h HAVE_XRANDR_H)
-    check_include_file(X11/extensions/Xfixes.h HAVE_XFIXES_H)
+    check_include_file(X11/extensions/Xfixes.h HAVE_XFIXES_H_)
     check_include_file(X11/extensions/Xrender.h HAVE_XRENDER_H)
     check_include_file(X11/extensions/scrnsaver.h HAVE_XSS_H)
     check_include_file(X11/extensions/shape.h HAVE_XSHAPE_H)
+    check_include_files("X11/Xlib.h;X11/extensions/Xdbe.h" HAVE_XDBE_H)
     check_include_files("X11/Xlib.h;X11/extensions/xf86vmode.h" HAVE_XF86VM_H)
     check_include_files("X11/Xlib.h;X11/Xproto.h;X11/extensions/Xext.h" HAVE_XEXT_H)
 
@@ -489,6 +496,11 @@ macro(CheckX11)
         set(SDL_VIDEO_DRIVER_X11_XCURSOR 1)
       endif()
 
+      if(SDL_X11_XDBE AND HAVE_XDBE_H)
+        set(HAVE_X11_XDBE TRUE)
+        set(SDL_VIDEO_DRIVER_X11_XDBE 1)
+      endif()
+
       if(SDL_X11_XINERAMA AND HAVE_XINERAMA_H)
         set(HAVE_X11_XINERAMA TRUE)
         if(HAVE_X11_SHARED AND XINERAMA_LIB)
@@ -526,6 +538,15 @@ macro(CheckX11)
       endif()
 
       # check along with XInput2.h because we use Xfixes with XIBarrierReleasePointer
+      if(SDL_X11_XFIXES AND HAVE_XFIXES_H_ AND HAVE_XINPUT2_H)
+        check_c_source_compiles("
+            #include <X11/Xlib.h>
+            #include <X11/Xproto.h>
+            #include <X11/extensions/XInput2.h>
+            #include <X11/extensions/Xfixes.h>
+            BarrierEventID b;
+            int main(void) { }" HAVE_XFIXES_H)
+      endif()
       if(SDL_X11_XFIXES AND HAVE_XFIXES_H AND HAVE_XINPUT2_H)
         if(HAVE_X11_SHARED AND XFIXES_LIB)
           set(SDL_VIDEO_DRIVER_X11_DYNAMIC_XFIXES "\"${XFIXES_LIB_SONAME}\"")
@@ -625,11 +646,11 @@ macro(CheckWayland)
       endif()
       string(REPLACE "wayland-scanner " "" WAYLAND_SCANNER_VERSION ${WAYLAND_SCANNER_VERSION})
 
-      string(COMPARE GREATER_EQUAL ${WAYLAND_SCANNER_VERSION} "1.15.0" WAYLAND_SCANNER_1_15_FOUND)
-      if(WAYLAND_SCANNER_1_15_FOUND)
-        set(WAYLAND_SCANNER_CODE_MODE "private-code")
-      else()
+      string(COMPARE LESS ${WAYLAND_SCANNER_VERSION} "1.15.0" WAYLAND_SCANNER_PRE_1_15)
+      if(WAYLAND_SCANNER_PRE_1_15)
         set(WAYLAND_SCANNER_CODE_MODE "code")
+      else()
+        set(WAYLAND_SCANNER_CODE_MODE "private-code")
       endif()
     endif()
 
@@ -859,7 +880,7 @@ endmacro()
 # PTHREAD_CFLAGS
 # PTHREAD_LIBS
 macro(CheckPTHREAD)
-  if(SDL_PTHREADS)
+  if(SDL_THREADS AND SDL_PTHREADS)
     if(ANDROID)
       # the android libc provides built-in support for pthreads, so no
       # additional linking or compile flags are necessary
@@ -965,7 +986,13 @@ macro(CheckPTHREAD)
       check_include_files("pthread.h" HAVE_PTHREAD_H)
       check_include_files("pthread_np.h" HAVE_PTHREAD_NP_H)
       if (HAVE_PTHREAD_H)
-        check_symbol_exists(pthread_setname_np "pthread.h" HAVE_PTHREAD_SETNAME_NP)
+        check_c_source_compiles("
+            #define _GNU_SOURCE 1
+            #include <pthread.h>
+            int main(int argc, char **argv) {
+              pthread_setname_np(pthread_self(), \"\");
+              return 0;
+            }" HAVE_PTHREAD_SETNAME_NP)
         if (HAVE_PTHREAD_NP_H)
           check_symbol_exists(pthread_set_name_np "pthread.h;pthread_np.h" HAVE_PTHREAD_SET_NAME_NP)
         endif()
@@ -1172,8 +1199,6 @@ macro(CheckHIDAPI)
       file(GLOB HIDAPI_JOYSTICK_SOURCES ${SDL2_SOURCE_DIR}/src/joystick/hidapi/*.c)
       set(SOURCE_FILES ${SOURCE_FILES} ${HIDAPI_JOYSTICK_SOURCES})
     endif()
-  else()
-    set(SDL_HIDAPI_DISABLED 1)
   endif()
 endmacro()
 

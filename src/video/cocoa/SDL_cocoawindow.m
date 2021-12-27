@@ -55,12 +55,19 @@
 #ifndef MAC_OS_X_VERSION_10_12
 #define NSEventModifierFlagCapsLock NSAlphaShiftKeyMask
 #endif
+#ifndef NSAppKitVersionNumber10_13_2
+#define NSAppKitVersionNumber10_13_2    1561.2
+#endif
 #ifndef NSAppKitVersionNumber10_14
-#define NSAppKitVersionNumber10_14 1671
+#define NSAppKitVersionNumber10_14      1671
+#endif
+
+@interface NSWindow (SDL)
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 101000 /* Added in the 10.10 SDK */
+@property (readonly) NSRect contentLayoutRect;
 #endif
 
 /* This is available as of 10.13.2, but isn't in public headers */
-@interface NSWindow (SDL)
 @property (nonatomic) NSRect mouseConfinementRect;
 @end
 
@@ -391,7 +398,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-    if (@available(macOS 10.13.2, *)) {
+    if (NSAppKitVersionNumber >= NSAppKitVersionNumber10_13_2) {
         NSWindow *nswindow = data->nswindow;
         SDL_Rect mouse_rect;
 
@@ -1143,16 +1150,43 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
     return NO;  /* not a special area, carry on. */
 }
 
+static int
+Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * window, const Uint8 state, const Uint8 button)
+{
+    const SDL_MouseID mouseID = mouse->mouseID;
+    const int clicks = (int) [theEvent clickCount];
+    SDL_Window *focus = SDL_GetKeyboardFocus();
+    int rc;
+
+    // macOS will send non-left clicks to background windows without raising them, so we need to
+    //  temporarily adjust the mouse position when this happens, as `mouse` will be tracking
+    //  the position in the currently-focused window. We don't (currently) send a mousemove
+    //  event for the background window, this just makes sure the button is reported at the
+    //  correct position in its own event.
+    if ( focus && ([theEvent window] == ((SDL_WindowData *) focus->driverdata)->nswindow) ) {
+        rc = SDL_SendMouseButtonClicks(window, mouseID, state, button, clicks);
+    } else {
+        const int orig_x = mouse->x;
+        const int orig_y = mouse->y;
+        const NSPoint point = [theEvent locationInWindow];
+        mouse->x = (int) point.x;
+        mouse->y = (int) (window->h - point.y);
+        rc = SDL_SendMouseButtonClicks(window, mouseID, state, button, clicks);
+        mouse->x = orig_x;
+        mouse->y = orig_y;
+    }
+
+    return rc;
+}
+
 - (void)mouseDown:(NSEvent *)theEvent
 {
-    const SDL_Mouse *mouse = SDL_GetMouse();
+    SDL_Mouse *mouse = SDL_GetMouse();
     if (!mouse) {
         return;
     }
 
-    const SDL_MouseID mouseID = mouse->mouseID;
     int button;
-    int clicks;
 
     /* Ignore events that aren't inside the client area (i.e. title bar.) */
     if ([theEvent window]) {
@@ -1189,9 +1223,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         break;
     }
 
-    clicks = (int) [theEvent clickCount];
-
-    SDL_SendMouseButtonClicks(_data->window, mouseID, SDL_PRESSED, button, clicks);
+    Cocoa_SendMouseButtonClicks(mouse, theEvent, _data->window, SDL_PRESSED, button);
 }
 
 - (void)rightMouseDown:(NSEvent *)theEvent
@@ -1206,14 +1238,12 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 
 - (void)mouseUp:(NSEvent *)theEvent
 {
-    const SDL_Mouse *mouse = SDL_GetMouse();
+    SDL_Mouse *mouse = SDL_GetMouse();
     if (!mouse) {
         return;
     }
 
-    const SDL_MouseID mouseID = mouse->mouseID;
     int button;
-    int clicks;
 
     if ([self processHitTest:theEvent]) {
         SDL_SendWindowEvent(_data->window, SDL_WINDOWEVENT_HIT_TEST, 0, 0);
@@ -1240,9 +1270,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         break;
     }
 
-    clicks = (int) [theEvent clickCount];
-
-    SDL_SendMouseButtonClicks(_data->window, mouseID, SDL_RELEASED, button, clicks);
+    Cocoa_SendMouseButtonClicks(mouse, theEvent, _data->window, SDL_RELEASED, button);
 }
 
 - (void)rightMouseUp:(NSEvent *)theEvent
@@ -1280,7 +1308,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
     x = (int)point.x;
     y = (int)(window->h - point.y);
 
-    if (@available(macOS 10.13.2, *)) {
+    if (NSAppKitVersionNumber >= NSAppKitVersionNumber10_13_2) {
         /* Mouse grab is taken care of by the confinement rect */
     } else {
         CGPoint cgpoint;
@@ -1319,7 +1347,18 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 {
     /* probably a MacBook trackpad; make this look like a synthesized event.
        This is backwards from reality, but better matches user expectations. */
-    const BOOL istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
+    BOOL istrackpad = NO;
+    @try {
+        istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
+    }
+    @catch (NSException *e) {
+        /* if NSEvent type doesn't have subtype, such as NSEventTypeBeginGesture on
+         * macOS 10.5 to 10.10, then NSInternalInconsistencyException is thrown.
+         * This still prints a message to terminal so catching it's not an ideal solution.
+         *
+         * *** Assertion failure in -[NSEvent subtype]
+         */
+    }
 
     NSSet *touches = [theEvent touchesMatchingPhase:NSTouchPhaseAny inView:nil];
     const SDL_TouchID touchID = istrackpad ? SDL_MOUSE_TOUCHID : (SDL_TouchID)(intptr_t)[[touches anyObject] device];
@@ -1370,7 +1409,18 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 
     /* probably a MacBook trackpad; make this look like a synthesized event.
        This is backwards from reality, but better matches user expectations. */
-    const BOOL istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
+    BOOL istrackpad = NO;
+    @try {
+        istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
+    }
+    @catch (NSException *e) {
+        /* if NSEvent type doesn't have subtype, such as NSEventTypeBeginGesture on
+         * macOS 10.5 to 10.10, then NSInternalInconsistencyException is thrown.
+         * This still prints a message to terminal so catching it's not an ideal solution.
+         *
+         * *** Assertion failure in -[NSEvent subtype]
+         */
+    }
 
     for (NSTouch *touch in touches) {
         const SDL_TouchID touchId = istrackpad ? SDL_MOUSE_TOUCHID : (SDL_TouchID)(intptr_t)[touch device];

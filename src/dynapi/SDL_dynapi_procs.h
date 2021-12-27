@@ -63,7 +63,7 @@ SDL_DYNAPI_PROC(SDL_RWops*,SDL_RWFromFP,(void *a, SDL_bool b),(a,b),return)
 #endif
 
 #ifdef __WIN32__
-SDL_DYNAPI_PROC(int,SDL_RegisterApp,(char *a, Uint32 b, void *c),(a,b,c),return)
+SDL_DYNAPI_PROC(int,SDL_RegisterApp,(const char *a, Uint32 b, void *c),(a,b,c),return)
 SDL_DYNAPI_PROC(void,SDL_UnregisterApp,(void),(),)
 SDL_DYNAPI_PROC(int,SDL_Direct3D9GetAdapterIndex,(int a),(a),return)
 SDL_DYNAPI_PROC(IDirect3DDevice9*,SDL_RenderGetD3D9Device,(SDL_Renderer *a),(a),return)
@@ -883,7 +883,7 @@ SDL_DYNAPI_PROC(float,SDL_GameControllerGetSensorDataRate,(SDL_GameController *a
 SDL_DYNAPI_PROC(int,SDL_SetTextureUserData,(SDL_Texture *a, void *b),(a,b),return)
 SDL_DYNAPI_PROC(void*,SDL_GetTextureUserData,(SDL_Texture *a),(a),return)
 SDL_DYNAPI_PROC(int,SDL_RenderGeometry,(SDL_Renderer *a, SDL_Texture *b, const SDL_Vertex *c, int d, const int *e, int f),(a,b,c,d,e,f),return)
-SDL_DYNAPI_PROC(int,SDL_RenderGeometryRaw,(SDL_Renderer *a, SDL_Texture *b, const float *c, int d, const int *e, int f, const float *g, int h, int i, const void *j, int k, int l),(a,b,c,d,e,f,g,h,i,j,k,l),return)
+SDL_DYNAPI_PROC(int,SDL_RenderGeometryRaw,(SDL_Renderer *a, SDL_Texture *b, const float *c, int d, const SDL_Color *e, int f, const float *g, int h, int i, const void *j, int k, int l),(a,b,c,d,e,f,g,h,i,j,k,l),return)
 SDL_DYNAPI_PROC(int,SDL_RenderSetVSync,(SDL_Renderer *a, int b),(a,b),return)
 #if !SDL_DYNAPI_PROC_NO_VARARGS
 SDL_DYNAPI_PROC(int,SDL_asprintf,(char **a, SDL_PRINTF_FORMAT_STRING const char *b, ...),(a,b),return)
@@ -923,3 +923,4 @@ SDL_DYNAPI_PROC(SDL_bool,SDL_JoystickHasRumbleTriggers,(SDL_Joystick *a),(a),ret
 SDL_DYNAPI_PROC(SDL_bool,SDL_GameControllerHasRumble,(SDL_GameController *a),(a),return)
 SDL_DYNAPI_PROC(SDL_bool,SDL_GameControllerHasRumbleTriggers,(SDL_GameController *a),(a),return)
 SDL_DYNAPI_PROC(void,SDL_hid_ble_scan,(SDL_bool a),(a),)
+SDL_DYNAPI_PROC(int,SDL_PremultiplyAlpha,(int a, int b, Uint32 c, const void *d, int e, Uint32 f, void *g, int h),(a,b,c,d,e,f,g,h),return)

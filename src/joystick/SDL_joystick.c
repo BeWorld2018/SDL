@@ -343,6 +343,9 @@ SDL_JoystickGetDevicePlayerIndex(int device_index)
 static SDL_bool
 SDL_JoystickAxesCenteredAtZero(SDL_Joystick *joystick)
 {
+#ifdef __WINRT__
+    return SDL_TRUE;
+#else
     static Uint32 zero_centered_joysticks[] = {
         MAKE_VIDPID(0x0e8f, 0x3013),    /* HuiJia SNES USB adapter */
         MAKE_VIDPID(0x05a0, 0x3232),    /* 8Bitdo Zero Gamepad */
@@ -365,6 +368,7 @@ SDL_JoystickAxesCenteredAtZero(SDL_Joystick *joystick)
         }
     }
     return SDL_FALSE;
+#endif /* __WINRT__ */
 }
 
 /*
@@ -759,7 +763,7 @@ SDL_JoystickGetButton(SDL_Joystick *joystick, int button)
 SDL_bool
 SDL_JoystickGetAttached(SDL_Joystick *joystick)
 {
-    if (!SDL_PrivateJoystickValid(joystick)) {
+    if (!joystick) {
         return SDL_FALSE;
     }
 
@@ -1131,8 +1135,8 @@ SDL_JoystickQuit(void)
         SDL_JoystickClose(SDL_joysticks);
     }
 
-    /* Quit the joystick setup */
-    for (i = 0; i < SDL_arraysize(SDL_joystick_drivers); ++i) {
+    /* Quit drivers in reverse order to avoid breaking dependencies between drivers */
+    for (i = SDL_arraysize(SDL_joystick_drivers) - 1; i >= 0; --i) {
        SDL_joystick_drivers[i]->Quit();
     }
 
@@ -1709,7 +1713,7 @@ PrefixMatch(const char *a, const char *b)
 {
     int matchlen = 0;
     while (*a && *b) {
-        if (SDL_tolower(*a++) == SDL_tolower(*b++)) {
+        if (SDL_tolower((unsigned char) *a++) == SDL_tolower((unsigned char) *b++)) {
             ++matchlen;
         } else {
             break;
@@ -2642,18 +2646,18 @@ void SDL_JoystickGetGUIDString(SDL_JoystickGUID guid, char *pszGUID, int cbGUID)
  * Input  : c -
  * Output : unsigned char
  *-----------------------------------------------------------------------------*/
-static unsigned char nibble(char c)
+static unsigned char nibble(unsigned char c)
 {
     if ((c >= '0') && (c <= '9')) {
-        return (unsigned char)(c - '0');
+        return (c - '0');
     }
 
     if ((c >= 'A') && (c <= 'F')) {
-        return (unsigned char)(c - 'A' + 0x0a);
+        return (c - 'A' + 0x0a);
     }
 
     if ((c >= 'a') && (c <= 'f')) {
-        return (unsigned char)(c - 'a' + 0x0a);
+        return (c - 'a' + 0x0a);
     }
 
     /* received an invalid character, and no real way to return an error */
@@ -2677,7 +2681,7 @@ SDL_JoystickGUID SDL_JoystickGetGUIDFromString(const char *pchGUID)
 
     p = (Uint8 *)&guid;
     for (i = 0; (i < len) && ((p - (Uint8 *)&guid) < maxoutputbytes); i+=2, p++) {
-        *p = (nibble(pchGUID[i]) << 4) | nibble(pchGUID[i+1]);
+        *p = (nibble((unsigned char)pchGUID[i]) << 4) | nibble((unsigned char)pchGUID[i+1]);
     }
 
     return guid;
