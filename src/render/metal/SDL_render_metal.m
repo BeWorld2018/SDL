@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,6 +32,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 
 #ifdef __MACOSX__
+#import <AppKit/NSWindow.h>
 #import <AppKit/NSView.h>
 #endif
 
@@ -1107,56 +1108,6 @@ METAL_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL
 }
 
 static int
-METAL_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FPoint * points, int count)
-{
-    const SDL_Color color = {
-        cmd->data.draw.r,
-        cmd->data.draw.g,
-        cmd->data.draw.b,
-        cmd->data.draw.a
-    };
-
-    SDL_assert(count >= 2);  /* should have been checked at the higher level. */
-
-    const size_t vertlen = (2 * sizeof (float) + sizeof (SDL_Color)) * count;
-    float *verts = (float *) SDL_AllocateRenderVertices(renderer, vertlen, DEVICE_ALIGN(8), &cmd->data.draw.first);
-    if (!verts) {
-        return -1;
-    }
-    cmd->data.draw.count = count;
-
-    for (int i = 0; i < count; i++, points++) {
-        *(verts++) = points->x;
-        *(verts++) = points->y;
-        *((SDL_Color *)verts++) = color;
-    }
-
-    /* If the line segment is completely horizontal or vertical,
-       make it one pixel longer, to satisfy the diamond-exit rule.
-       We should probably do this for diagonal lines too, but we'd have to
-       do some trigonometry to figure out the correct pixel and generally
-       when we have problems with pixel perfection, it's for straight lines
-       that are missing a pixel that frames something and not arbitrary
-       angles. Maybe !!! FIXME for later, though. */
-
-    points -= 2;  /* update the last line. */
-    verts -= 2 + 1;
-
-    const float xstart = points[0].x;
-    const float ystart = points[0].y;
-    const float xend = points[1].x;
-    const float yend = points[1].y;
-
-    if (ystart == yend) {  /* horizontal line */
-        verts[0] += (xend > xstart) ? 1.0f : -1.0f;
-    } else if (xstart == xend) {  /* vertical line */
-        verts[1] += (yend > ystart) ? 1.0f : -1.0f;
-    }
-
-    return 0;
-}
-
-static int
 METAL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
         const float *xy, int xy_stride, const SDL_Color *color, int color_stride, const float *uv, int uv_stride,
         int num_vertices, const void *indices, int num_indices, int size_indices,
@@ -1421,15 +1372,17 @@ METAL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
                 break;
             }
 
-            case SDL_RENDERCMD_DRAW_POINTS:
-            case SDL_RENDERCMD_DRAW_LINES: {
+            case SDL_RENDERCMD_DRAW_POINTS: {
                 const size_t count = cmd->data.draw.count;
-                const MTLPrimitiveType primtype = (cmd->command == SDL_RENDERCMD_DRAW_POINTS) ? MTLPrimitiveTypePoint : MTLPrimitiveTypeLineStrip;
+                const MTLPrimitiveType primtype = MTLPrimitiveTypePoint;
                 if (SetDrawState(renderer, cmd, SDL_METAL_FRAGMENT_SOLID, CONSTANTS_OFFSET_HALF_PIXEL_TRANSFORM, mtlbufvertex, &statecache)) {
                     [data.mtlcmdencoder drawPrimitives:primtype vertexStart:0 vertexCount:count];
                 }
                 break;
             }
+            
+            case SDL_RENDERCMD_DRAW_LINES: /* unused */
+                break;
 
             case SDL_RENDERCMD_FILL_RECTS: /* unused */
                 break;
@@ -1565,7 +1518,11 @@ METAL_DestroyRenderer(SDL_Renderer * renderer)
 
         DestroyAllPipelines(data.allpipelines, data.pipelinescount);
 
-        SDL_Metal_DestroyView(data.mtlview);
+        /* Release the metal view instead of destroying it,
+           in case we want to use it later (recreating the renderer)
+         */
+        /* SDL_Metal_DestroyView(data.mtlview); */
+        CFBridgingRelease(data.mtlview);
     }
 
     SDL_free(renderer);
@@ -1608,6 +1565,33 @@ METAL_SetVSync(SDL_Renderer * renderer, const int vsync)
     return SDL_SetError("This Apple OS does not support displaySyncEnabled!");
 }
 
+static SDL_MetalView GetWindowView(SDL_Window *window)
+{
+    SDL_SysWMinfo info;
+
+    SDL_VERSION(&info.version);
+    if (SDL_GetWindowWMInfo(window, &info)) {
+#ifdef __MACOSX__
+        if (info.subsystem == SDL_SYSWM_COCOA) {
+            NSView *view = info.info.cocoa.window.contentView;
+            if (view.subviews.count > 0) {
+                view = view.subviews[0];
+                if (view.tag == SDL_METALVIEW_TAG) {
+                    return (SDL_MetalView)CFBridgingRetain(view);
+                }
+            }
+        }
+#else
+        if (info.subsystem == SDL_SYSWM_UIKIT) {
+            UIView *view = info.info.uikit.window.rootViewController.view;
+            if (view.tag == SDL_METALVIEW_TAG) {
+                return (SDL_MetalView)CFBridgingRetain(view);
+            }
+        }
+#endif
+    }
+    return nil;
+}
 
 static SDL_Renderer *
 METAL_CreateRenderer(SDL_Window * window, Uint32 flags)
@@ -1659,7 +1643,10 @@ METAL_CreateRenderer(SDL_Window * window, Uint32 flags)
         return NULL;
     }
 
-    view = SDL_Metal_CreateView(window);
+    view = GetWindowView(window);
+    if (view == nil) {
+        view = SDL_Metal_CreateView(window);
+    }
 
     if (view == NULL) {
 #if !__has_feature(objc_arc)
@@ -1679,7 +1666,11 @@ METAL_CreateRenderer(SDL_Window * window, Uint32 flags)
 #if !__has_feature(objc_arc)
         [mtldevice release];
 #endif
-        SDL_Metal_DestroyView(view);
+        /* Release the metal view instead of destroying it,
+           in case we want to use it later (recreating the renderer)
+         */
+        /* SDL_Metal_DestroyView(view); */
+        CFBridgingRelease(view);
         SDL_free(renderer);
         if (changed_window) {
             SDL_RecreateWindow(window, window_flags);
@@ -1847,7 +1838,6 @@ METAL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->QueueSetViewport = METAL_QueueSetViewport;
     renderer->QueueSetDrawColor = METAL_QueueSetDrawColor;
     renderer->QueueDrawPoints = METAL_QueueDrawPoints;
-    renderer->QueueDrawLines = METAL_QueueDrawLines;
     renderer->QueueGeometry = METAL_QueueGeometry;
     renderer->RunCommandQueue = METAL_RunCommandQueue;
     renderer->RenderReadPixels = METAL_RenderReadPixels;
