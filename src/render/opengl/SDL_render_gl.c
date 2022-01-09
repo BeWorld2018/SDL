@@ -942,6 +942,47 @@ GL_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FP
 }
 
 static int
+GL_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FPoint * points, int count)
+{
+    int i;
+    GLfloat prevx, prevy;
+    const size_t vertlen = (sizeof (GLfloat) * 2) * count;
+    GLfloat *verts = (GLfloat *) SDL_AllocateRenderVertices(renderer, vertlen, 0, &cmd->data.draw.first);
+
+    if (!verts) {
+        return -1;
+    }
+    cmd->data.draw.count = count;
+
+    /* 0.5f offset to hit the center of the pixel. */
+    prevx = 0.5f + points->x;
+    prevy = 0.5f + points->y;
+    *(verts++) = prevx;
+    *(verts++) = prevy;
+
+    /* bump the end of each line segment out a quarter of a pixel, to provoke
+       the diamond-exit rule. Without this, you won't just drop the last
+       pixel of the last line segment, but you might also drop pixels at the
+       edge of any given line segment along the way too. */
+    for (i = 1; i < count; i++) {
+        const GLfloat xstart = prevx;
+        const GLfloat ystart = prevy;
+        const GLfloat xend = points[i].x + 0.5f;  /* 0.5f to hit pixel center. */
+        const GLfloat yend = points[i].y + 0.5f;
+        /* bump a little in the direction we are moving in. */
+        const GLfloat deltax = xend - xstart;
+        const GLfloat deltay = yend - ystart;
+        const GLfloat angle = SDL_atan2f(deltay, deltax);
+        prevx = xend + (SDL_cosf(angle) * 0.25f);
+        prevy = yend + (SDL_sinf(angle) * 0.25f);
+        *(verts++) = prevx;
+        *(verts++) = prevy;
+    }
+
+    return 0;
+}
+
+static int
 GL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
         const float *xy, int xy_stride, const SDL_Color *color, int color_stride, const float *uv, int uv_stride,
         int num_vertices, const void *indices, int num_indices, int size_indices,
@@ -985,7 +1026,8 @@ GL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
 
         /* Not really a float, but it is still 4 bytes and will be cast to the
            right type in the graphics driver. */
-        *(verts++) = *(float*)((char*)color + j * color_stride);
+        SDL_memcpy(verts, ((char*)color + j * color_stride), sizeof(*color));
+        ++verts;
 
         if (texture) {
             float *uv_ = (float *)((char*)uv + j * uv_stride);
@@ -1069,7 +1111,7 @@ SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader 
         }
     }
 
-    vertex_array = cmd->command == SDL_RENDERCMD_DRAW_POINTS
+    vertex_array = cmd->command == SDL_RENDERCMD_DRAW_LINES
         || cmd->command == SDL_RENDERCMD_GEOMETRY;
     color_array = cmd->command == SDL_RENDERCMD_GEOMETRY;
     texture_array = cmd->data.draw.texture != NULL;
@@ -1147,6 +1189,7 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
 {
     /* !!! FIXME: it'd be nice to use a vertex buffer instead of immediate mode... */
     GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
+    size_t i;
 
     if (GL_ActivateRenderer(renderer) < 0) {
         return -1;
@@ -1237,15 +1280,25 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
                 const size_t count = cmd->data.draw.count;
                 const GLfloat *verts = (GLfloat *) (((Uint8 *) vertices) + cmd->data.draw.first);
                 SetDrawState(data, cmd, SHADER_SOLID);
-
-                /* SetDrawState handles glEnableClientState. */
-                data->glVertexPointer(2, GL_FLOAT, sizeof(float) * 2, verts);
-                data->glDrawArrays(GL_POINTS, 0, (GLsizei) count);
+                data->glBegin(GL_POINTS);
+                for (i = 0; i < count; i++, verts += 2) {
+                    data->glVertex2f(verts[0], verts[1]);
+                }
+                data->glEnd();
                 break;
             }
 
-            case SDL_RENDERCMD_DRAW_LINES: /* unused */
+            case SDL_RENDERCMD_DRAW_LINES: {
+                const GLfloat *verts = (GLfloat *) (((Uint8 *) vertices) + cmd->data.draw.first);
+                const size_t count = cmd->data.draw.count;
+                SDL_assert(count >= 2);
+                SetDrawState(data, cmd, SHADER_SOLID);
+
+                /* SetDrawState handles glEnableClientState. */
+                data->glVertexPointer(2, GL_FLOAT, sizeof(float) * 2, verts);
+                data->glDrawArrays(GL_LINE_STRIP, 0, (GLsizei) count);
                 break;
+            }
 
             case SDL_RENDERCMD_FILL_RECTS: /* unused */
                 break;
@@ -1643,6 +1696,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->QueueSetViewport = GL_QueueSetViewport;
     renderer->QueueSetDrawColor = GL_QueueSetViewport;  /* SetViewport and SetDrawColor are (currently) no-ops. */
     renderer->QueueDrawPoints = GL_QueueDrawPoints;
+    renderer->QueueDrawLines = GL_QueueDrawLines;
     renderer->QueueGeometry = GL_QueueGeometry;
     renderer->RunCommandQueue = GL_RunCommandQueue;
     renderer->RenderReadPixels = GL_RenderReadPixels;
