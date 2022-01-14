@@ -103,6 +103,8 @@ extern void AMIGA_SetWindowResizable (_THIS, SDL_Window * window, SDL_bool resiz
 extern int AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);
 extern int AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
 
+extern int AMIGA_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation);
+
 #endif /* _SDL_amigawindow_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

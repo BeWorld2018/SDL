@@ -160,7 +160,7 @@ AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 int
 AMIGA_GL_SetSwapInterval(_THIS, int interval)
 {
-	D("[%s]\n", __FUNCTION__);
+	//D("[%s]\n", __FUNCTION__);
 	return 0; // pretend to succeed
 }
 
@@ -169,7 +169,7 @@ AMIGA_GL_GetSwapInterval(_THIS)
 {
 	SDL_VideoData *data = _this->driverdata;
 
-	D("[%s]\n", __FUNCTION__);
+	//D("[%s]\n", __FUNCTION__);
 
 	// full screen double buffering is always vsynced
 	return data->CustomScreen != NULL ? 1 : 0;

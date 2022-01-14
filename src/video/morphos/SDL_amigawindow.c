@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,6 +22,7 @@
 
 #include "SDL_hints.h"
 #include "SDL_syswm.h"
+#include "SDL_timer.h"
 #include "SDL_version.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
@@ -736,24 +737,75 @@ AMIGA_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
 	AMIGA_RecreateWindow(_this, window);
 }
 
+static SDL_bool
+AMIGA_SetWindowOpacityPrivate(_THIS, struct Window * window, ULONG value)
+{
+	
+	LONG ret = SetAttrs(window, WA_Opacity, value, TAG_DONE);
+	if (ret) {
+		D("[%s] Failed to set window opaqueness to %d\n", __FUNCTION__, value);
+		return SDL_FALSE;
+	}
+	
+	return SDL_TRUE;
+}
+
 int
 AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 {
+	D("[%s] \n", __FUNCTION__);
+	
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-    LONG ret;
-
+	if (!data->win) return 0;
+	
     ULONG value = ((opacity) * (ULONG_MAX));
 
-    D("Setting window '%s' opaqueness to %lu\n", window->title, value);
+    return AMIGA_SetWindowOpacityPrivate(_this, data->win, value) ? 0 : -1;
+}
 
-    ret = SetAttrs(data->win, WA_Opacity, value, TAG_DONE);
+static void
+AMIGA_FlashOperationPrivate(_THIS, struct Window * window)
+{
+	ULONG value_old = 0;
+	
+	GetAttr(WA_Opacity, window, &value_old);
 
-    if (ret) {
-        D("Failed to set window opaqueness to %d\n", value);
-        return -1;
-    }
+	WindowToFront(window);
+	const Uint32 start = SDL_GetTicks();
+	ULONG elapsed = 0;
+	ULONG value = 0;
+	
+	while (TRUE) {
+		elapsed = SDL_GetTicks() - start;
+		if (elapsed > 200) break;
+		value = 128 + 127 * sinf(elapsed * 3.14159f / 50.0f) * (ULONG_MAX);
+		AMIGA_SetWindowOpacityPrivate(_this, window, value);	
+		SDL_Delay(1);
+	}
+	
+	ActivateWindow(window);
+	AMIGA_SetWindowOpacityPrivate(_this, window, value_old);
+}
 
-    return 0;
+int
+AMIGA_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation)
+{
+	D("[%s] \n", __FUNCTION__);
+	
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	if (!data->win) return 0;
+	
+	switch(operation)
+	{
+		case SDL_FLASH_BRIEFLY:
+		case SDL_FLASH_UNTIL_FOCUSED:
+			AMIGA_FlashOperationPrivate(_this, data->win);
+			break;
+		case SDL_FLASH_CANCEL:
+			break;
+	}
+	
+	return 0;
 }
 
 int
