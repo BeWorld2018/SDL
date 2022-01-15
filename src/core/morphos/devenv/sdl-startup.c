@@ -22,6 +22,7 @@
 
 #if defined(__NO_SDL_CONSTRUCTORS)
 extern struct Library *SDL2Base;
+extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
@@ -30,6 +31,7 @@ void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
+struct Library *OpenURLBase;
 GLContext      *__tglContext;
 
 void __SDL2_OpenLibError(ULONG version, const char *name)
