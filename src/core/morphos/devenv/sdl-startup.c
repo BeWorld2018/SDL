@@ -12,9 +12,11 @@
 #include <proto/muimaster.h>
 #include <proto/sdl2.h>
 #include <proto/tinygl.h>
+#include <proto/openurl.h>
 
 #include "SDL_error.h"
 #include "SDL_rwops.h"
+#include "SDL_version.h"
 
 #include "../SDL_amigaversion.h"
 
@@ -36,8 +38,14 @@ void __SDL2_OpenLibError(ULONG version, const char *name)
 
 	if (MUIMasterBase)
 	{
-		size_t args[2] = { version, (size_t)name };
-		MUI_RequestA(NULL, NULL, 0, "SDL 2 startup message", "Abort", "Need version %.10ld of %s.", &args);
+		size_t args[5] = { version, (size_t)name, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL};
+		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need version %.10ld of %s.\nYou can find %.10ld.%.10ld.%.10ld package on MorphOS-Storage.org.", &args);
+		if (ret == 0){
+			static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
+			if (OpenURLBase) {
+				URL_OpenA((STRPTR)"https://www.morphos-storage.net/?find=SDL_2", (struct TagItem*) URLTags);
+			}
+		}
 		CloseLibrary(MUIMasterBase);
 	}
 }
