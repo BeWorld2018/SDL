@@ -72,7 +72,7 @@ SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
 
     switch (priority) {
         case SDL_THREAD_PRIORITY_LOW:
-            pri = -5;
+            pri = -1;
             break;
         case SDL_THREAD_PRIORITY_HIGH:
             pri = 5;
