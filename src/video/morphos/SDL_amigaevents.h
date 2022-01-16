@@ -24,6 +24,8 @@
 #define _SDL_amigaevents_h
 
 extern void AMIGA_PumpEvents(_THIS);
+extern void AMIGA_SetVariable(const char* name, const char* value);
+extern char* AMIGA_GetVariable(const char* name);
 
 #endif /* _SDL_amigaevents_h */
 

@@ -58,6 +58,22 @@
 
 void AHIAUD_Mute(ULONG mute);
 
+char *
+AMIGA_GetVariable(const char* name)
+{
+	static char buffer[32];
+	LONG ret = GetVar(name, buffer, sizeof(buffer), GVF_GLOBAL_ONLY);
+	D("[%s] ret=%d - name=%s\n", __FUNCTION__, ret, name);
+	return buffer;	
+}
+
+void
+AMIGA_SetVariable(const char* name, const char* value)
+{
+	LONG ret = SetVar(name, value, -1, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR);
+	D("[%s] ret=%d - name=%s - value=%s\n", __FUNCTION__, ret, name, value);
+}
+
 static void
 AMIGA_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
 {
@@ -310,8 +326,11 @@ AMIGA_Joystick(struct Window *window)
 static void
 AMIGA_Priority(ULONG prio)
 {
-	LONG pri = prio ? -1 : 0;
-	NewSetTaskAttrsA(NULL, &pri, sizeof(pri), TASKINFOTYPE_PRI, NULL);	
+	
+	SDL_ThreadPriority Priority = prio ? SDL_THREAD_PRIORITY_LOW : SDL_THREAD_PRIORITY_NORMAL;
+	SDL_SetThreadPriority(Priority);
+	AMIGA_SetVariable("SDL_HINT_THREAD_PRIORITY_POLICY", (prio ? "-1" : "0"));
+	
 }
 
 static void
