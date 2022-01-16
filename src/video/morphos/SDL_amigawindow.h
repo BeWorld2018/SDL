@@ -28,6 +28,24 @@
 #endif
 
 #include <tgl/gl.h>
+#include <proto/gadtools.h>
+
+enum
+{
+	MID_PROJECT = 0x0010,
+	MID_ABOUT,
+	MID_HIDE,
+	MID_QUIT,
+	MID_MISC,
+	MID_MUTE,
+	MID_PRIORITY,
+	MID_SCALE,
+	MID_AUTO,
+	MID_NEAREST,
+	MID_LINEAR,
+	MID_JOYSTICK,
+	MID_ABOUTSYS
+};
 
 typedef struct
 {
