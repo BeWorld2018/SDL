@@ -477,7 +477,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 			if (data->menu) {
 				SetMenuStrip(data->win, data->menu);
 
-				char *priority = AMIGA_GetVariable("SDL_HINT_THREAD_PRIORITY_POLICY");
+				char *priority = SDL_getenv("SDL_THREAD_PRIORITY_POLICY");
 				if (strlen(priority)>0 && strcmp(priority, "-1")==0) {
 					SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
 					struct MenuItem *item = ItemAddress(data->menu, FULLMENUNUM(1, 1, 0));
@@ -747,6 +747,12 @@ AMIGA_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top)
 {
 	D("[%s]\n", __FUNCTION__);
 	AMIGA_RecreateWindow(_this, window);
+}
+
+int
+AMIGA_SetWindowHitTest(SDL_Window *window, SDL_bool enabled)
+{
+    return 0;  /* just succeed, the real work is done elsewhere. */
 }
 
 void

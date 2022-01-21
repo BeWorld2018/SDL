@@ -359,6 +359,8 @@ AMIGA_CreateDevice(int devindex)
 			device->GetWindowBordersSize = AMIGA_GetWindowBordersSize;
 			device->SetWindowOpacity = AMIGA_SetWindowOpacity;
 			device->FlashWindow = AMIGA_FlashWindow;
+			
+			 device->SetWindowHitTest = AMIGA_SetWindowHitTest;
 
 			device->free = AMIGA_DeleteDevice;
 
