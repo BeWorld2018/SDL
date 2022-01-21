@@ -313,7 +313,19 @@ AMIGA_Priority(ULONG prio)
 	SDL_ThreadPriority Priority = prio ? SDL_THREAD_PRIORITY_LOW : SDL_THREAD_PRIORITY_NORMAL;
 	SDL_SetThreadPriority(Priority);
 	SDL_setenv("SDL_THREAD_PRIORITY_POLICY", (prio ? "-1" : "0"), SDL_TRUE);
-}}
+}
+
+void GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check)
+{
+	struct MenuItem *subitem;
+	subitem = ItemAddress(mymenu, FULLMENUNUM(menu, item, sub));
+	if (subitem) {
+		if (check)
+			subitem->Flags |= CHECKED;
+		else
+			subitem->Flags &= ~CHECKED;
+	}
+}
 
 static void
 AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
@@ -340,6 +352,89 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 						case MID_PRIORITY:
 							AMIGA_Priority(item->Flags & CHECKED);
 							break;
+						case MID_RRAUTO:
+							GlobalMenu(data->menu, 1, 3, 1, 0);
+							GlobalMenu(data->menu, 1, 3, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+							SDL_setenv("SDL_RENDER_DRIVER", "", SDL_TRUE);
+							break;	
+						case MID_RRGL:
+							GlobalMenu(data->menu, 1, 3, 0, 0);
+							GlobalMenu(data->menu, 1, 3, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+							SDL_setenv("SDL_RENDER_DRIVER", "opengl", SDL_TRUE);
+							break;		
+						case MID_RRSOFT:
+							GlobalMenu(data->menu, 1, 3, 0, 0);
+							GlobalMenu(data->menu, 1, 3, 1, 0);
+							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+							SDL_setenv("SDL_RENDER_DRIVER", "software", SDL_TRUE);
+							break;								
+						case MID_AUTO:
+							GlobalMenu(data->menu, 1, 4, 1, 0);
+							GlobalMenu(data->menu, 1, 4, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "");
+							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "", SDL_TRUE);
+							break;
+						case MID_NEAREST:
+							GlobalMenu(data->menu, 1, 4, 0, 0);
+							GlobalMenu(data->menu, 1, 4, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "nearest", SDL_TRUE);
+							break;
+						case MID_LINEAR:
+							GlobalMenu(data->menu, 1, 4, 0, 0);
+							GlobalMenu(data->menu, 1, 4, 1, 0);
+							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "linear", SDL_TRUE);
+							break;
+						case MID_BAUTO:
+							GlobalMenu(data->menu, 1, 5, 1, 0);
+							GlobalMenu(data->menu, 1, 5, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
+							SDL_setenv("SDL_RENDER_BATCHING", "", SDL_TRUE);
+							break;	
+						case MID_BENABLE:
+							GlobalMenu(data->menu, 1, 5, 0, 0);
+							GlobalMenu(data->menu, 1, 5, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+							SDL_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
+							break;		
+						case MID_BDISABLE:
+							GlobalMenu(data->menu, 1, 5, 0, 0);
+							GlobalMenu(data->menu, 1, 5, 1, 0);
+							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+							SDL_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
+							break;	
+						
+						case MID_MDEF:
+							GlobalMenu(data->menu, 1, 6, 1, 0);
+							GlobalMenu(data->menu, 1, 6, 2, 0);
+						    GlobalMenu(data->menu, 1, 6, 3, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "");
+							SDL_setenv("SDL_RENDER_LINE_METHOD", "", SDL_TRUE);
+							break;	
+						case MID_MPOINT:
+							GlobalMenu(data->menu, 1, 6, 0, 0);
+							GlobalMenu(data->menu, 1, 6, 2, 0);
+							GlobalMenu(data->menu, 1, 6, 3, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
+							SDL_setenv("SDL_RENDER_LINE_METHOD", "1", SDL_TRUE);
+							break;		
+						case MID_MLINE:
+							GlobalMenu(data->menu, 1, 6, 0, 0);
+							GlobalMenu(data->menu, 1, 6, 1, 0);
+							GlobalMenu(data->menu, 1, 6, 3, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
+							SDL_setenv("SDL_RENDER_LINE_METHOD", "2", SDL_TRUE);
+							break;	
+						case MID_MGEO:
+							GlobalMenu(data->menu, 1, 6, 0, 0);
+							GlobalMenu(data->menu, 1, 6, 1, 0);
+							GlobalMenu(data->menu, 1, 6, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
+							SDL_setenv("SDL_RENDER_LINE_METHOD", "3", SDL_TRUE);
+							break;	
 						case MID_JOYSTICK:
 							AMIGA_Joystick(data->win);
 							break;	

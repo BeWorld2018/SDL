@@ -32,19 +32,17 @@
 
 enum
 {
-	MID_PROJECT = 0x0010,
-	MID_ABOUT,
+	MID_ABOUT = 0x0010,
+	MID_JOYSTICK,
+	MID_ABOUTSYS,
 	MID_HIDE,
 	MID_QUIT,
-	MID_MISC,
 	MID_MUTE,
 	MID_PRIORITY,
-	MID_SCALE,
-	MID_AUTO,
-	MID_NEAREST,
-	MID_LINEAR,
-	MID_JOYSTICK,
-	MID_ABOUTSYS
+	MID_RRAUTO, MID_RRGL, MID_RRSOFT,
+	MID_AUTO, MID_NEAREST, MID_LINEAR,
+	MID_BAUTO,	MID_BENABLE, MID_BDISABLE,	
+	MID_MDEF, MID_MPOINT, MID_MLINE, MID_MGEO
 };
 
 typedef struct
@@ -122,6 +120,7 @@ extern int AMIGA_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);
 extern int AMIGA_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
 
 extern int AMIGA_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation);
+extern int AMIGA_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
 
 #endif /* _SDL_amigawindow_h */
 

@@ -24,6 +24,7 @@
 #define _SDL_amigaevents_h
 
 extern void AMIGA_PumpEvents(_THIS);
+extern void GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check);
 
 #endif /* _SDL_amigaevents_h */
 

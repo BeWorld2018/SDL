@@ -50,18 +50,36 @@
 
 struct NewMenu SDL_NewMenu[] =
 {
-	{ NM_TITLE, (char *)"Project", 0, 0, 0, (APTR)MID_PROJECT },
+	{ NM_TITLE, (char *)"Project", 0, 0, 0, NULL },
 	{ NM_ITEM , (char *)"About...", (const STRPTR)"A", 0, 0, (APTR)MID_ABOUT },
+	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
+	{ NM_ITEM , (char *)"About Joystick", (const STRPTR)"J", 0, 0, (APTR)MID_JOYSTICK},
+	{ NM_ITEM , (char *)"About System", (const STRPTR)"S", 0, 0, (APTR)MID_ABOUTSYS},
 	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
 	{ NM_ITEM , (char *)"Hide", (const STRPTR)"H", 0, 0, (APTR)MID_HIDE },
 	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
 	{ NM_ITEM , (char *)"Quit", (const STRPTR)"Q", 0, 0, (APTR)MID_QUIT},
-	{ NM_TITLE, (char *)"Misc", 0, 0, 0, (APTR)MID_MISC },
+	{ NM_TITLE, (char *)"Options", 0, 0, 0, NULL },
 	{ NM_ITEM , (char *)"Mute Sound", (const STRPTR)"M", (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MUTE},
 	{ NM_ITEM , (char *)"Low CPU Priority", (const STRPTR)"P", (CHECKIT | MENUTOGGLE), 0, (APTR)MID_PRIORITY},
 	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
-	{ NM_ITEM , (char *)"About Joystick", (const STRPTR)"J", 0, 0, (APTR)MID_JOYSTICK},
-	{ NM_ITEM , (char *)"About System", (const STRPTR)"S", 0, 0, (APTR)MID_ABOUTSYS},
+	{ NM_ITEM, (char *)"HINT RENDER DRIVER", 0, 0, 0, NULL },
+	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRAUTO },
+	{ NM_SUB, (char *)"opengl", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRGL },
+	{ NM_SUB, (char *)"software", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRSOFT },
+	{ NM_ITEM, (char *)"HINT RENDER SCALER", 0, 0, 0, NULL},
+	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_AUTO },
+	{ NM_SUB, (char *)"Nearest", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_NEAREST },
+	{ NM_SUB, (char *)"Linear", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LINEAR },
+	{ NM_ITEM, (char *)"HINT RENDER BATCHING", 0, 0, 0, NULL },
+	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
+	{ NM_SUB, (char *)"Enable", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BENABLE },
+	{ NM_SUB, (char *)"Disable", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BDISABLE },
+	{ NM_ITEM, (char *)"HINT RENDER LINE METHOD", 0, 0, 0, NULL },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_MDEF },
+	{ NM_SUB, (char *)"Point API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MPOINT },
+	{ NM_SUB, (char *)"Line API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MLINE },
+	{ NM_SUB, (char *)"Geometry API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MGEO },
 	{ NM_END , NULL, NULL, 0, 0, NULL }
 };
 
@@ -480,9 +498,75 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 				char *priority = SDL_getenv("SDL_THREAD_PRIORITY_POLICY");
 				if (strlen(priority)>0 && strcmp(priority, "-1")==0) {
 					SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
-					struct MenuItem *item = ItemAddress(data->menu, FULLMENUNUM(1, 1, 0));
-					if (item) {					
-						item->Flags |= CHECKED;
+					GlobalMenu(data->menu, 1, 1, 0, 1);
+				}
+				char *renderdriver = SDL_getenv("SDL_RENDER_DRIVER");
+				if (strlen(renderdriver)>0) {
+					if (strcmp(renderdriver, "opengl")==0) {
+						GlobalMenu(data->menu, 1, 3, 0, 0);
+						GlobalMenu(data->menu, 1, 3, 1, 1);
+						GlobalMenu(data->menu, 1, 3, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+					}
+					if (strcmp(renderdriver, "software")==0) {
+						GlobalMenu(data->menu, 1, 3, 0, 0);
+						GlobalMenu(data->menu, 1, 3, 1, 0);
+						GlobalMenu(data->menu, 1, 3, 2, 1);
+						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+					}
+				}
+				char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
+				if (strlen(scale)>0) {
+					if (strcmp(scale, "nearest")==0) {
+						GlobalMenu(data->menu, 1, 4, 0, 0);
+						GlobalMenu(data->menu, 1, 4, 1, 1);
+						GlobalMenu(data->menu, 1, 4, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+					}
+					if (strcmp(scale, "linear")==0) {
+						GlobalMenu(data->menu, 1, 4, 0, 0);
+						GlobalMenu(data->menu, 1, 4, 1, 0);
+						GlobalMenu(data->menu, 1, 4, 2, 1);
+						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+					}
+				}
+				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
+				if (strlen(renderbatching)>0) {
+					if (strcmp(renderbatching, "0")==0) {
+						GlobalMenu(data->menu, 1, 5, 0, 0);
+						GlobalMenu(data->menu, 1, 5, 1, 1);
+						GlobalMenu(data->menu, 1, 5, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+					}
+					if (strcmp(renderbatching, "1")==0) {
+						GlobalMenu(data->menu, 1, 5, 0, 0);
+						GlobalMenu(data->menu, 1, 5, 1, 0);
+						GlobalMenu(data->menu, 1, 5, 2, 1);
+						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+					}
+				}
+				char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
+				if (strlen(renderline)>0) {
+					if (strcmp(renderline, "1")==0) {
+						GlobalMenu(data->menu, 1, 6, 0, 0);
+						GlobalMenu(data->menu, 1, 6, 1, 1);
+						GlobalMenu(data->menu, 1, 6, 2, 0);
+						GlobalMenu(data->menu, 1, 6, 3, 0);
+						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
+					}
+					if (strcmp(renderline, "2")==0) {
+						GlobalMenu(data->menu, 1, 6, 0, 0);
+						GlobalMenu(data->menu, 1, 6, 1, 0);
+						GlobalMenu(data->menu, 1, 6, 2, 1);
+						GlobalMenu(data->menu, 1, 6, 3, 0);
+						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
+					}
+					if (strcmp(renderline, "3")==0) {
+						GlobalMenu(data->menu, 1, 6, 0, 0);
+						GlobalMenu(data->menu, 1, 6, 1, 0);
+						GlobalMenu(data->menu, 1, 6, 2, 0);
+						GlobalMenu(data->menu, 1, 6, 3, 1);
+						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 					}
 				}
 			}
