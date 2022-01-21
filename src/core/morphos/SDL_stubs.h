@@ -842,4 +842,5 @@
 	STUB(SDL_GameControllerHasRumbleTriggers)
 	STUB(SDL_hid_ble_scan)
 	STUB(SDL_PremultiplyAlpha)
-	
+	STUB(SDL_getenv)
+	STUB(SDL_setenv)

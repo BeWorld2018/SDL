@@ -35,7 +35,7 @@
 	({ \
 		const char * __t__p0 = __p0;\
 		va_list  __t__p1;\
-		va_copy(__t__p1, __p1); \
+		va_copy(__t__p1, __p1);\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((int (*)(const char *, va_list ))*(void**)(__base - 40))(__t__p0, __t__p1));\
@@ -126,6 +126,24 @@
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((void (*)(void *))*(void**)(__base - 106))(__t__p0));\
+	})
+
+#define SDL_getenv(__p0) \
+	({ \
+		const char * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((char *(*)(const char *))*(void**)(__base - 4576))(__t__p0));\
+	})
+
+#define SDL_setenv(__p0, __p1, __p2) \
+	({ \
+		const char * __t__p0 = __p0;\
+		const char * __t__p1 = __p1;\
+		int  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const char *, const char *, int ))*(void**)(__base - 4582))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_qsort(__p0, __p1, __p2, __p3) \
@@ -512,7 +530,7 @@
 		const char * __t__p0 = __p0;\
 		const char * __t__p1 = __p1;\
 		va_list  __t__p2;\
-		va_copy(__t__p2, __p2); \
+		va_copy(__t__p2, __p2);\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((int (*)(const char *, const char *, va_list ))*(void**)(__base - 358))(__t__p0, __t__p1, __t__p2));\
@@ -524,7 +542,7 @@
 		size_t  __t__p1 = __p1;\
 		const char * __t__p2 = __p2;\
 		va_list  __t__p3;\
-		va_copy(__t__p3, __p3); \
+		va_copy(__t__p3, __p3);\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((int (*)(char *, size_t , const char *, va_list ))*(void**)(__base - 364))(__t__p0, __t__p1, __t__p2, __t__p3));\
@@ -2067,7 +2085,7 @@
 		SDL_LogPriority  __t__p1 = __p1;\
 		const char * __t__p2 = __p2;\
 		va_list  __t__p3;\
-		va_copy(__t__p3, __p3); \
+		va_copy(__t__p3, __p3);\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((void (*)(int , SDL_LogPriority , const char *, va_list ))*(void**)(__base - 1294))(__t__p0, __t__p1, __t__p2, __t__p3));\
@@ -6360,7 +6378,7 @@
 		char ** __t__p0 = __p0;\
 		const char * __t__p1 = __p1;\
 		va_list  __t__p2;\
-		va_copy(__t__p2, __p2); \
+		va_copy(__t__p2, __p2);\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((int (*)(char **, const char *, va_list ))*(void**)(__base - 4378))(__t__p0, __t__p1, __t__p2));\

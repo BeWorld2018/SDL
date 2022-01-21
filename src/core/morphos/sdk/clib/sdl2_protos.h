@@ -52,8 +52,8 @@ void *SDL_calloc(size_t nmemb, size_t size);
 void *SDL_realloc(void *mem, size_t size);
 void SDL_free(void *mem);
 
-//char *SDL_getenv(const char *name);
-//int SDL_setenv(const char *name, const char *value, int overwrite);
+char *SDL_getenv(const char *name);
+int SDL_setenv(const char *name, const char *value, int overwrite);
 
 void SDL_qsort(void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
 
