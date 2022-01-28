@@ -500,12 +500,12 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 				SetMenuStrip(data->win, data->menu);
 
 				char *priority = SDL_getenv("SDL_THREAD_PRIORITY_POLICY");
-				if (strlen(priority)>0 && strcmp(priority, "-1")==0) {
+				if (priority && strlen(priority)>0 && strcmp(priority, "-1")==0) {
 					SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
 					GlobalMenu(data->menu, 1, 1, 0, 1);
 				}
 				char *renderdriver = SDL_getenv("SDL_RENDER_DRIVER");
-				if (strlen(renderdriver)>0) {
+				if (renderdriver && strlen(renderdriver)>0) {
 					if (strcmp(renderdriver, "opengl")==0) {
 						GlobalMenu(data->menu, 1, 3, 0, 0);
 						GlobalMenu(data->menu, 1, 3, 1, 1);
@@ -520,7 +520,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 					}
 				}
 				char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
-				if (strlen(scale)>0) {
+				if (scale && strlen(scale)>0) {
 					if (strcmp(scale, "nearest")==0) {
 						GlobalMenu(data->menu, 1, 4, 0, 0);
 						GlobalMenu(data->menu, 1, 4, 1, 1);
@@ -535,7 +535,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 					}
 				}
 				char *logical = SDL_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
-				if (strlen(logical)>0) {
+				if (logical && strlen(logical)>0) {
 					if (strcmp(logical, "0")==0) {
 						GlobalMenu(data->menu, 1, 5, 0, 0);
 						GlobalMenu(data->menu, 1, 5, 1, 1);
@@ -550,7 +550,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 					}
 				}
 				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
-				if (strlen(renderbatching)>0) {
+				if (renderbatching && strlen(renderbatching)>0) {
 					if (strcmp(renderbatching, "0")==0) {
 						GlobalMenu(data->menu, 1, 6, 0, 0);
 						GlobalMenu(data->menu, 1, 6, 1, 1);
@@ -565,7 +565,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 					}
 				}
 				char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
-				if (strlen(renderline)>0) {
+				if (renderline && strlen(renderline)>0) {
 					if (strcmp(renderline, "1")==0) {
 						GlobalMenu(data->menu, 1, 7, 0, 0);
 						GlobalMenu(data->menu, 1, 7, 1, 1);
