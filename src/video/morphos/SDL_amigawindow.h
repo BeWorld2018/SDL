@@ -43,7 +43,8 @@ enum
 	MID_PRIORITY,
 	MID_RRENDER, MID_RRAUTO, MID_RRGL, MID_RRSOFT,
 	MID_RSCALER, MID_AUTO, MID_NEAREST, MID_LINEAR,
-	MID_RBATCHING, MID_BAUTO,	MID_BENABLE, MID_BDISABLE,
+	MID_LLOGICAL, MID_LAUTO, MID_LLETTER,MID_LOVERS,
+	MID_RBATCHING, MID_BAUTO, MID_BENABLE, MID_BDISABLE,
 	MID_RMETHOD, MID_MDEF, MID_MPOINT, MID_MLINE, MID_MGEO
 };
 
@@ -91,7 +92,6 @@ typedef struct
 
 extern void AMIGA_CloseWindows(_THIS);
 extern void AMIGA_OpenWindows(_THIS);
-
 
 extern int AMIGA_CreateWindow(_THIS, SDL_Window * window);
 extern int AMIGA_CreateWindowFrom(_THIS, SDL_Window * window, const void *data);

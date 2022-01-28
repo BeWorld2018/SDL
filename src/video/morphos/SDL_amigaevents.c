@@ -388,50 +388,67 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "linear", SDL_TRUE);
 							break;
-						case MID_BAUTO:
+						case MID_LAUTO:
 							GlobalMenu(data->menu, 1, 5, 1, 0);
 							GlobalMenu(data->menu, 1, 5, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "");
+							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "", SDL_TRUE);
+							break;
+						case MID_LLETTER:
+							GlobalMenu(data->menu, 1, 5, 0, 0);
+							GlobalMenu(data->menu, 1, 5, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
+							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "0", SDL_TRUE);
+							break;
+						case MID_LOVERS:
+							GlobalMenu(data->menu, 1, 5, 0, 0);
+							GlobalMenu(data->menu, 1, 5, 1, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
+							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "1", SDL_TRUE);
+							break;
+						case MID_BAUTO:
+							GlobalMenu(data->menu, 1, 6, 1, 0);
+							GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
 							SDL_setenv("SDL_RENDER_BATCHING", "", SDL_TRUE);
 							break;	
 						case MID_BENABLE:
-							GlobalMenu(data->menu, 1, 5, 0, 0);
-							GlobalMenu(data->menu, 1, 5, 2, 0);
+							GlobalMenu(data->menu, 1, 6, 0, 0);
+							GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
 							SDL_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
 							break;		
 						case MID_BDISABLE:
-							GlobalMenu(data->menu, 1, 5, 0, 0);
-							GlobalMenu(data->menu, 1, 5, 1, 0);
+							GlobalMenu(data->menu, 1, 6, 0, 0);
+							GlobalMenu(data->menu, 1, 6, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 							SDL_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
 							break;	
-						
 						case MID_MDEF:
-							GlobalMenu(data->menu, 1, 6, 1, 0);
-							GlobalMenu(data->menu, 1, 6, 2, 0);
-						    GlobalMenu(data->menu, 1, 6, 3, 0);
+							GlobalMenu(data->menu, 1, 7, 1, 0);
+							GlobalMenu(data->menu, 1, 7, 2, 0);
+						    GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "", SDL_TRUE);
 							break;	
 						case MID_MPOINT:
-							GlobalMenu(data->menu, 1, 6, 0, 0);
-							GlobalMenu(data->menu, 1, 6, 2, 0);
-							GlobalMenu(data->menu, 1, 6, 3, 0);
+							GlobalMenu(data->menu, 1, 7, 0, 0);
+							GlobalMenu(data->menu, 1, 7, 2, 0);
+							GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "1", SDL_TRUE);
 							break;		
 						case MID_MLINE:
-							GlobalMenu(data->menu, 1, 6, 0, 0);
-							GlobalMenu(data->menu, 1, 6, 1, 0);
-							GlobalMenu(data->menu, 1, 6, 3, 0);
+							GlobalMenu(data->menu, 1, 7, 0, 0);
+							GlobalMenu(data->menu, 1, 7, 1, 0);
+							GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "2", SDL_TRUE);
 							break;	
 						case MID_MGEO:
-							GlobalMenu(data->menu, 1, 6, 0, 0);
-							GlobalMenu(data->menu, 1, 6, 1, 0);
-							GlobalMenu(data->menu, 1, 6, 2, 0);
+							GlobalMenu(data->menu, 1, 7, 0, 0);
+							GlobalMenu(data->menu, 1, 7, 1, 0);
+							GlobalMenu(data->menu, 1, 7, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "3", SDL_TRUE);
 							break;	

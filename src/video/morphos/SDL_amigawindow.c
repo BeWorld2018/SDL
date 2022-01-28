@@ -71,6 +71,10 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_AUTO },
 	{ NM_SUB, (char *)"Nearest", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_NEAREST },
 	{ NM_SUB, (char *)"Linear", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LINEAR },
+	{ NM_ITEM, (char *)"HINT RENDER LOGICAL SIZE", 0, 0, 0, (APTR)MID_LLOGICAL},
+	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_LAUTO },
+	{ NM_SUB, (char *)"Letterbox / sidebars", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LLETTER },
+	{ NM_SUB, (char *)"Overscan", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LOVERS },
 	{ NM_ITEM, (char *)"HINT RENDER BATCHING", 0, 0, 0, (APTR)MID_RBATCHING },
 	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
 	{ NM_SUB, (char *)"Enable", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BENABLE },
@@ -422,7 +426,7 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 		if (!fullscreen) {
 			data->visualinfo = GetVisualInfoA(vd->WScreen, NULL);
 			if (data->visualinfo) {
-				data->menu = CreateMenusA(&SDL_NewMenu, NULL);
+				data->menu = CreateMenusA(SDL_NewMenu, NULL);
 				if (data->menu) {
 					LayoutMenusA(data->menu, data->visualinfo, NULL);
 				}
@@ -530,42 +534,57 @@ AMIGA_ShowWindow_Internal(_THIS, SDL_Window * window)
 						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 					}
 				}
-				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
-				if (strlen(renderbatching)>0) {
-					if (strcmp(renderbatching, "0")==0) {
+				char *logical = SDL_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
+				if (strlen(logical)>0) {
+					if (strcmp(logical, "0")==0) {
 						GlobalMenu(data->menu, 1, 5, 0, 0);
 						GlobalMenu(data->menu, 1, 5, 1, 1);
 						GlobalMenu(data->menu, 1, 5, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
 					}
-					if (strcmp(renderbatching, "1")==0) {
+					if (strcmp(logical, "1")==0) {
 						GlobalMenu(data->menu, 1, 5, 0, 0);
 						GlobalMenu(data->menu, 1, 5, 1, 0);
 						GlobalMenu(data->menu, 1, 5, 2, 1);
+						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
+					}
+				}
+				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
+				if (strlen(renderbatching)>0) {
+					if (strcmp(renderbatching, "0")==0) {
+						GlobalMenu(data->menu, 1, 6, 0, 0);
+						GlobalMenu(data->menu, 1, 6, 1, 1);
+						GlobalMenu(data->menu, 1, 6, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+					}
+					if (strcmp(renderbatching, "1")==0) {
+						GlobalMenu(data->menu, 1, 6, 0, 0);
+						GlobalMenu(data->menu, 1, 6, 1, 0);
+						GlobalMenu(data->menu, 1, 6, 2, 1);
 						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 					}
 				}
 				char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
 				if (strlen(renderline)>0) {
 					if (strcmp(renderline, "1")==0) {
-						GlobalMenu(data->menu, 1, 6, 0, 0);
-						GlobalMenu(data->menu, 1, 6, 1, 1);
-						GlobalMenu(data->menu, 1, 6, 2, 0);
-						GlobalMenu(data->menu, 1, 6, 3, 0);
+						GlobalMenu(data->menu, 1, 7, 0, 0);
+						GlobalMenu(data->menu, 1, 7, 1, 1);
+						GlobalMenu(data->menu, 1, 7, 2, 0);
+						GlobalMenu(data->menu, 1, 7, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
 					}
 					if (strcmp(renderline, "2")==0) {
-						GlobalMenu(data->menu, 1, 6, 0, 0);
-						GlobalMenu(data->menu, 1, 6, 1, 0);
-						GlobalMenu(data->menu, 1, 6, 2, 1);
-						GlobalMenu(data->menu, 1, 6, 3, 0);
+						GlobalMenu(data->menu, 1, 7, 0, 0);
+						GlobalMenu(data->menu, 1, 7, 1, 0);
+						GlobalMenu(data->menu, 1, 7, 2, 1);
+						GlobalMenu(data->menu, 1, 7, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 					}
 					if (strcmp(renderline, "3")==0) {
-						GlobalMenu(data->menu, 1, 6, 0, 0);
-						GlobalMenu(data->menu, 1, 6, 1, 0);
-						GlobalMenu(data->menu, 1, 6, 2, 0);
-						GlobalMenu(data->menu, 1, 6, 3, 1);
+						GlobalMenu(data->menu, 1, 7, 0, 0);
+						GlobalMenu(data->menu, 1, 7, 1, 0);
+						GlobalMenu(data->menu, 1, 7, 2, 0);
+						GlobalMenu(data->menu, 1, 7, 3, 1);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 					}
 				}

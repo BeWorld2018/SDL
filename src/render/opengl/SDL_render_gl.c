@@ -593,7 +593,10 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         renderdata->glTexImage2D(textype, 0, internalFormat, texture_w,
                                  texture_h, 0, format, type, NULL);
     }
+#ifndef __MORPHOS__
+	// MorphOS: cause white zone
     renderdata->glDisable(textype);
+#endif
     if (GL_CheckError("glTexImage2D()", renderer) < 0) {
         return -1;
     }
@@ -1242,9 +1245,7 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
     }
 
     data->drawstate.target = renderer->target;
-#ifdef __MORPHOS__
-	data->glEnable(GL_TEXTURE_2D);
-#endif
+
     if (!data->drawstate.target) {
         int w, h;
         SDL_GL_GetDrawableSize(renderer->window, &w, &h);
