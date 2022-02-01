@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -45,17 +45,29 @@ extern void *AmiGetGLProc(const char *proc);
 
 extern struct SDL_Library *SDL2Base;
 
+UWORD TinyGl_NewVersion = 0;
+
 int
 AMIGA_GL_LoadLibrary(_THIS, const char *path)
 {
-	D("[%s]\n", __FUNCTION__);
 
 	if (SDL2Base->MyTinyGLBase) {
 		if (!TinyGLBase)
-			TinyGLBase = OpenLibrary("tinygl.library", 52); // This is opened only once, closed only at final exit
+			TinyGLBase = OpenLibrary("tinygl.library", 52); 
 
 		if (TinyGLBase) {
+				UWORD TinyGl_Version = TinyGLBase->lib_Version;
+				UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
+				D("[%s] tinygl version %d . %d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
 				*SDL2Base->MyTinyGLBase = TinyGLBase;
+				TinyGl_NewVersion = 1;
+				if (TinyGl_Version < 52 ||	
+					(TinyGl_Version == 52 && TinyGl_Revision < 9))
+				{
+					// tingl < 52.9
+					TinyGl_NewVersion = 0;
+				}
+				
 				return 0;
 		}
 	}

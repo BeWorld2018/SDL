@@ -84,7 +84,7 @@ static SDL_Cursor *
 AMIGA_CreateSystemCursor(SDL_SystemCursor id)
 {
 	SDL_Cursor *cursor = SDL_malloc(sizeof(*cursor));
-	D("[%s]\n", __FUNCTION__);
+	//D("[%s]\n", __FUNCTION__);
 
 	if (cursor) {
 		size_t type = POINTERTYPE_NORMAL;
@@ -106,7 +106,6 @@ AMIGA_CreateSystemCursor(SDL_SystemCursor id)
 		}
 
 		cursor->driverdata = (APTR)type;
-		D("[%s] %ld to %ld\n", __FUNCTION__, id, type);
 	} else {
 		SDL_OutOfMemory();
 	}

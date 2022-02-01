@@ -114,7 +114,6 @@ SDL_setenv(const char *name, const char *value, int overwrite)
 int SDL_setenv(const char *name, const char *value, int overwrite)
 {
 	char dummy[2];
-	D("[%s] %s...\n", __FUNCTION__, name);
 	if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
 		return (-1);
 	}
@@ -122,9 +121,14 @@ int SDL_setenv(const char *name, const char *value, int overwrite)
 	if (!overwrite && GetVar(name, dummy, sizeof(dummy), GVF_GLOBAL_ONLY) != -1) {
 		return 0;
 	}
-
-	if (!SetVar(name, value, -1, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR)) {
-		return -1;
+	
+	if (SDL_strlen(value) > 0)
+	{		
+		if (!SetVar(name, value, -1, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR)) 
+			return -1;
+	
+	} else {
+		DeleteVar(name, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR);
 	}
 
 	return 0;
@@ -277,10 +281,8 @@ char *SDL_getenv(const char *name)
 		return value;
 	}
 
-	
 	if (GetVar((char *)name, dummy, sizeof(dummy), GVF_BINARY_VAR) == -1)
 	{
-		D("[%s] %s\n", __FUNCTION__, name);
 		return NULL;
 	}
 	

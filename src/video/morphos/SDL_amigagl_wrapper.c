@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,6 +30,8 @@
 #include <tgl/glu.h>
 #include <tgl/glut.h>
 #include <string.h>
+
+extern UWORD TinyGl_NewVersion;
 
 /* The GL API */
 
@@ -85,26 +87,26 @@ static void AmiglBlendFunc( GLenum sfactor, GLenum dfactor ) {
     glBlendFunc(sfactor, dfactor);
  }
  
-/*MorphOS 3.16 new functions */ 
- /*
+ 
 static void AmiglBlendColor( GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha ) {
-    glBlendColor(red, green, blue, alpha);
+	if (TinyGl_NewVersion)
+    	glBlendColor(red, green, blue, alpha); /*MorphOS 3.16 new functions */ 
 }
 
 static void AmiglBlendEquation( GLenum mode ) {
-    glBlendEquation(mode);
+	if (TinyGl_NewVersion)
+    	glBlendEquation(mode); /*MorphOS 3.16 new functions */ 
 }
 
 static void AmiglBlendEquationSeparate( GLenum modeRGB, GLenum modeAlpha ) {
-    glBlendEquationSeparate(modeRGB, modeAlpha);
+	if (TinyGl_NewVersion)
+    	glBlendEquationSeparate(modeRGB, modeAlpha); /*MorphOS 3.16 new functions */ 
 }
 
 static void AmiglBlendFuncSeparate( GLenum sfactorRGB, GLenum sfactorAlpha, GLenum dfactorRGB, GLenum dfactorAlpha ) {
-    glBlendFuncSeparate(sfactorRGB, sfactorAlpha, dfactorRGB, dfactorAlpha);
+	if (TinyGl_NewVersion)
+    	glBlendFuncSeparate(sfactorRGB, sfactorAlpha, dfactorRGB, dfactorAlpha); /*MorphOS 3.16 new functions */ 
 }
-*/
-
-/* */
 
 static void AmiglLogicOp( GLenum opcode ) {
     glLogicOp(opcode);
@@ -2620,10 +2622,10 @@ void *AmiGetGLProc(const char *proc)
      { "glColorMask", AmiglColorMask },
      { "glAlphaFunc", AmiglAlphaFunc },
      { "glBlendFunc", AmiglBlendFunc },
-	 /*{ "glBlendColor", AmiglBlendColor },  // MorphOS 3.16
+	 { "glBlendColor", AmiglBlendColor },  // Must have tinygl 52.9 minimum
 	 { "glBlendEquation", AmiglBlendEquation },
 	 { "glBlendEquationSeparate", AmiglBlendEquationSeparate },
-	 { "glBlendFuncSeparate", AmiglBlendFuncSeparate },*/
+	 { "glBlendFuncSeparate", AmiglBlendFuncSeparate },
      { "glLogicOp", AmiglLogicOp },
      { "glCullFace", AmiglCullFace },
      { "glFrontFace", AmiglFrontFace },

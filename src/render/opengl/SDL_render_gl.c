@@ -39,6 +39,7 @@
  */
 
 #ifdef __MORPHOS__
+extern UWORD TinyGl_NewVersion;
 #define RENDERER_CONTEXT_MAJOR 1
 #define RENDERER_CONTEXT_MINOR 2
 #else
@@ -247,7 +248,7 @@ GL_LoadFunctions(GL_RenderData * data)
 #define SDL_PROC(ret,func,params) data->func=func;
 #else
     int retval = 0;
-#if defined(__AMIGAOS4__) || defined(__MORPHOS__)
+#if defined(__MORPHOS__)
 #define SDL_PROC(ret,func,params) \
     do { \
         data->func = SDL_GL_GetProcAddress(#func); \
@@ -1057,8 +1058,8 @@ GL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
     return 0;
 }
 
-#if defined(__AMIGAOS4__) || defined(__MORPHOS__) 
-/* Hack: this is due to missing functionnality in MinGL / Warp3D / TinyGL */
+#if defined(__MORPHOS__)
+/* Hack from AOS4 version: this is due to missing functionnality in MinGL / Warp3D and old TinyGL */
 static void
 GlBlendModeHack(GL_RenderData * data, const SDL_BlendMode mode)
 {
@@ -1128,11 +1129,14 @@ SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader 
     }
 
     if (blend != data->drawstate.blend) {
-#if defined(__AMIGAOS4__) || defined(__MORPHOS__) 
-        GlBlendModeHack(data, blend);
-#else
-        if (blend == SDL_BLENDMODE_NONE) {
-            data->glDisable(GL_BLEND);
+#ifdef __MORPHOS__ /*MorphOS 3.16 new functions */ 
+		if (!TinyGl_NewVersion)
+			GlBlendModeHack(data, blend);
+        else
+		{
+#endif			
+		if (blend == SDL_BLENDMODE_NONE) {
+			 data->glDisable(GL_BLEND);
         } else {
             data->glEnable(GL_BLEND);
             data->glBlendFuncSeparate(GetBlendFunc(SDL_GetBlendModeSrcColorFactor(blend)),
@@ -1141,6 +1145,8 @@ SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader 
                                       GetBlendFunc(SDL_GetBlendModeDstAlphaFactor(blend)));
             data->glBlendEquation(GetBlendEquation(SDL_GetBlendModeColorOperation(blend)));
         }
+#ifdef __MORPHOS__
+		}
 #endif
         data->drawstate.blend = blend;
     }
