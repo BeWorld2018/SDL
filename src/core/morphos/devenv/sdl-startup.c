@@ -26,8 +26,7 @@ extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
-//void _INIT_4_TinyGLBase(void) __attribute__((alias("__CSTP_init_TinyGLBase")));
-//void _EXIT_4_TinyGLBase(void) __attribute__((alias("__DSTP_cleanup_TinyGLBase")));
+UWORD TinyGl_NewVersion = 0;
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
@@ -54,20 +53,6 @@ void __SDL2_OpenLibError(ULONG version, const char *name)
 
 static const char libname[] = "sdl2.library";
 static BPTR OldLock, NewLock;
-
-/*static CONSTRUCTOR_P(init_TinyGLBase, 101)
-{
-	CONST_STRPTR tglname = "tinygl.library";
-
-	TinyGLBase = OpenLibrary(tglname, 50);
-
-	if (TinyGLBase)
-		SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
-	else
-		__SDL2_OpenLibError(50, tglname);
-
-	return (TinyGLBase == NULL);
-}*/
 
 static CONSTRUCTOR_P(init_SDL2Base, 100)
 {
