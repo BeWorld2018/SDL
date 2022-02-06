@@ -220,7 +220,11 @@ SDL_PROC_UNUSED(void, glIndexubv, (const GLubyte * c))
 SDL_PROC_UNUSED(void, glInitNames, (void))
 SDL_PROC_UNUSED(void, glInterleavedArrays,
                 (GLenum format, GLsizei stride, const GLvoid * pointer))
+#ifdef __MORPHOS__
+SDL_PROC(GLboolean, glIsEnabled, (GLenum cap))
+#else
 SDL_PROC_UNUSED(GLboolean, glIsEnabled, (GLenum cap))
+#endif
 SDL_PROC_UNUSED(GLboolean, glIsList, (GLuint list))
 SDL_PROC_UNUSED(GLboolean, glIsTexture, (GLuint texture))
 SDL_PROC_UNUSED(void, glLightModelf, (GLenum pname, GLfloat param))

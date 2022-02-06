@@ -464,6 +464,9 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     GL_RenderData *renderdata = (GL_RenderData *) renderer->driverdata;
     const GLenum textype = renderdata->textype;
     GL_TextureData *data;
+#ifdef __MORPHOS__
+    GLboolean textypeenabled;
+#endif
     GLint internalFormat;
     GLenum format, type;
     int texture_w, texture_h;
@@ -547,6 +550,9 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     data->format = format;
     data->formattype = type;
     scaleMode = (texture->scaleMode == SDL_ScaleModeNearest) ? GL_NEAREST : GL_LINEAR;
+#ifdef __MORPHOS__
+    textypeenabled = renderdata->glIsEnabled(textype);
+#endif
     renderdata->glEnable(textype);
     renderdata->glBindTexture(textype, data->texture);
     renderdata->glTexParameteri(textype, GL_TEXTURE_MIN_FILTER, scaleMode);
@@ -594,8 +600,11 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         renderdata->glTexImage2D(textype, 0, internalFormat, texture_w,
                                  texture_h, 0, format, type, NULL);
     }
-#ifndef __MORPHOS__
-	// MorphOS: cause white zone
+#ifdef __MORPHOS__
+    if (!textypeenabled) {
+        renderdata->glDisable(textype);
+    }
+#else
     renderdata->glDisable(textype);
 #endif
     if (GL_CheckError("glTexImage2D()", renderer) < 0) {
