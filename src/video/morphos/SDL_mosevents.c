@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,13 +24,13 @@
 #include "../SDL_sysvideo.h"
 #include "../../events/SDL_events_c.h"
 #include "../../events/SDL_mouse_c.h"
-#include "../../events/scancodes_amiga.h"
+#include "../../events/scancodes_morphos.h"
 #include "../../core/morphos/SDL_library.h"
 
-#include "SDL_amigavideo.h"
-#include "SDL_amigawindow.h"
-#include "SDL_amigaopengl.h"
-#include "SDL_amigamouse.h"
+#include "SDL_mosvideo.h"
+#include "SDL_moswindow.h"
+#include "SDL_mosopengl.h"
+#include "SDL_mosmouse.h"
 
 #include "SDL_timer.h"
 #include "SDL_syswm.h"
@@ -59,7 +59,7 @@
 void AHIAUD_Mute(ULONG mute);
 
 static void
-AMIGA_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
 {
 	int state = (m->Code & IECODE_UP_PREFIX) ? SDL_RELEASED : SDL_PRESSED;
 
@@ -77,32 +77,20 @@ AMIGA_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *d
 }
 
 static int
-AMIGA_TranslateUnicode(struct IntuiMessage *m, char *buffer)
+MOS_TranslateUnicode(struct IntuiMessage *m, char *buffer)
 {
 	int length;
 
-#ifdef __MORPHOS__
 	WCHAR keycode;
 
 	GetAttr(IMSGA_UCS4, m, (ULONG *)&keycode);
 	length = UTF8_Encode(keycode, buffer);
-#else
-	struct InputEvent ie;
-
-	ie.ie_Class = IECLASS_RAWKEY;
-	ie.ie_SubClass = 0;
-	ie.ie_Code  = m->Code & ~(IECODE_UP_PREFIX);
-	ie.ie_Qualifier = m->Qualifier;
-	ie.ie_EventAddress = NULL;
-
-	length = MapRawKey(&ie, buffer, sizeof(buffer), 0);
-#endif
 
 	return length;
 }
 
 static void
-AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 {
 	SDL_Scancode s;
 	UWORD code = m->Code;
@@ -134,11 +122,11 @@ AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 			break;
 
 		default:
-			if (rawkey < sizeof(amiga_scancode_table) / sizeof(amiga_scancode_table[0])) {
-				s = amiga_scancode_table[rawkey];
+			if (rawkey < sizeof(morphos_scancode_table) / sizeof(morphos_scancode_table[0])) {
+				s = morphos_scancode_table[rawkey];
 				if (m->Code <= 127) {
 					char text[10];
-					int length = AMIGA_TranslateUnicode(m, text);
+					int length = MOS_TranslateUnicode(m, text);
 					SDL_SendKeyboardKey(SDL_PRESSED, s);
 					if (length > 0) {
 						text[length] = '\0';
@@ -153,7 +141,7 @@ AMIGA_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 }
 
 static void
-AMIGA_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
+MOS_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 {
 	if (!SDL_GetRelativeMouseMode()) {
 		struct Screen *s = data->win->WScreen;
@@ -170,7 +158,7 @@ AMIGA_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 }
 
 static void
-AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
+MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 {
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 	if(data->window) {
@@ -180,7 +168,7 @@ AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 			if (SDL_GetKeyboardFocus() != data->window)
 				SDL_SetKeyboardFocus(data->window);
 			SDL_SetMouseFocus(data->window);
-			AMIGA_MouseMove(_this, m, data);
+			MOS_MouseMove(_this, m, data);
 		} else {
 			if (SDL_GetKeyboardFocus() == data->window)
 				SDL_SetKeyboardFocus(NULL);
@@ -191,7 +179,7 @@ AMIGA_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 }
 
 static void
-AMIGA_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
+MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 {
 	struct Window *w = data->win;
 
@@ -205,23 +193,23 @@ AMIGA_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 		data->curr_w = w->Width;
 		data->curr_h = w->Height;
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
-		AMIGA_GL_ResizeContext(_this, data->window);
+		MOS_GL_ResizeContext(_this, data->window);
 	}
 }
 
-static void AMIGA_GadgetEvent(_THIS, const struct IntuiMessage *m)
+static void MOS_GadgetEvent(_THIS, const struct IntuiMessage *m)
 {
 	D("[%s]\n", __FUNCTION__);
 
 	switch (((struct Gadget *)m->IAddress)->GadgetID) {
 		case ETI_Iconify:
-			AMIGA_HideApp(_this, TRUE);
+			MOS_HideApp(_this, TRUE);
 			break;
-		/*case ETI_Jump:
-			D("[%s] JUMP TO *\n", __FUNCTION__);
-			SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-			SDL_SetWindowFullscreen(data->window, data->winflags);
-			break;*/
+		case ETI_Jump:
+			D("[%s] ETI_JUMP\n", __FUNCTION__);
+			//SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+			//SDL_SetWindowFullscreen(data->window, data->winflags);
+			break;
 	}
 }
 
@@ -229,7 +217,7 @@ static const char porters[] = "Bruno Peloille (BeWorld)\nSzilard Biro (BSzili)\n
 static const char bases[] = "SDL 2.0.3 sources by Ilkka Lehtoranta";
 
 static void
-AMIGA_AboutSDL(struct Window *window)
+MOS_AboutSDL(struct Window *window)
 {
 	struct EasyStruct es;
 	es.es_StructSize   = sizeof(struct EasyStruct);
@@ -242,7 +230,7 @@ AMIGA_AboutSDL(struct Window *window)
 }
 
 static void
-AMIGA_AboutSystem(struct Window *window)
+MOS_AboutSystem(struct Window *window)
 {
 	struct EasyStruct es;
 	es.es_StructSize   = sizeof(struct EasyStruct);
@@ -261,7 +249,7 @@ AMIGA_AboutSystem(struct Window *window)
 }
 
 static void
-AMIGA_Joystick(struct Window *window)
+MOS_Joystick(struct Window *window)
 {
 	char text1[2000] = "";
 	char text2[254] = "";
@@ -308,14 +296,15 @@ AMIGA_Joystick(struct Window *window)
 }
 
 static void
-AMIGA_Priority(ULONG prio)
+MOS_Priority(ULONG prio)
 {
 	SDL_ThreadPriority Priority = prio ? SDL_THREAD_PRIORITY_LOW : SDL_THREAD_PRIORITY_NORMAL;
 	SDL_SetThreadPriority(Priority);
 	SDL_setenv("SDL_THREAD_PRIORITY_POLICY", (prio ? "-1" : "0"), SDL_TRUE);
 }
 
-void GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check)
+void 
+MOS_GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check)
 {
 	struct MenuItem *subitem;
 	subitem = ItemAddress(mymenu, FULLMENUNUM(menu, item, sub));
@@ -328,7 +317,7 @@ void GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD c
 }
 
 static void
-AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
+MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
 {
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 
@@ -338,125 +327,125 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
 				if (item) {
 					switch ((ULONG)GTMENUITEM_USERDATA(item)) {
 						case MID_ABOUT:
-							AMIGA_AboutSDL(data->win);
+							MOS_AboutSDL(data->win);
 							break;
 						case MID_QUIT:
 							SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
 							break;
 						case MID_HIDE:
-							AMIGA_HideApp(_this, TRUE);
+							MOS_HideApp(_this, TRUE);
 							break;
 						case MID_MUTE:
 							AHIAUD_Mute(item->Flags & CHECKED);
 							break;
 						case MID_PRIORITY:
-							AMIGA_Priority(item->Flags & CHECKED);
+							MOS_Priority(item->Flags & CHECKED);
 							break;
 						case MID_RRAUTO:
-							GlobalMenu(data->menu, 1, 3, 1, 0);
-							GlobalMenu(data->menu, 1, 3, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 							SDL_setenv("SDL_RENDER_DRIVER", "", SDL_TRUE);
 							break;	
 						case MID_RRGL:
-							GlobalMenu(data->menu, 1, 3, 0, 0);
-							GlobalMenu(data->menu, 1, 3, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 							SDL_setenv("SDL_RENDER_DRIVER", "opengl", SDL_TRUE);
 							break;		
 						case MID_RRSOFT:
-							GlobalMenu(data->menu, 1, 3, 0, 0);
-							GlobalMenu(data->menu, 1, 3, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 							SDL_setenv("SDL_RENDER_DRIVER", "software", SDL_TRUE);
 							break;								
 						case MID_AUTO:
-							GlobalMenu(data->menu, 1, 4, 1, 0);
-							GlobalMenu(data->menu, 1, 4, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "", SDL_TRUE);
 							break;
 						case MID_NEAREST:
-							GlobalMenu(data->menu, 1, 4, 0, 0);
-							GlobalMenu(data->menu, 1, 4, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "nearest", SDL_TRUE);
 							break;
 						case MID_LINEAR:
-							GlobalMenu(data->menu, 1, 4, 0, 0);
-							GlobalMenu(data->menu, 1, 4, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "linear", SDL_TRUE);
 							break;
 						case MID_LAUTO:
-							GlobalMenu(data->menu, 1, 5, 1, 0);
-							GlobalMenu(data->menu, 1, 5, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "", SDL_TRUE);
 							break;
 						case MID_LLETTER:
-							GlobalMenu(data->menu, 1, 5, 0, 0);
-							GlobalMenu(data->menu, 1, 5, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "0", SDL_TRUE);
 							break;
 						case MID_LOVERS:
-							GlobalMenu(data->menu, 1, 5, 0, 0);
-							GlobalMenu(data->menu, 1, 5, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "1", SDL_TRUE);
 							break;
 						case MID_BAUTO:
-							GlobalMenu(data->menu, 1, 6, 1, 0);
-							GlobalMenu(data->menu, 1, 6, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
 							SDL_setenv("SDL_RENDER_BATCHING", "", SDL_TRUE);
 							break;	
 						case MID_BENABLE:
-							GlobalMenu(data->menu, 1, 6, 0, 0);
-							GlobalMenu(data->menu, 1, 6, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
 							SDL_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
 							break;		
 						case MID_BDISABLE:
-							GlobalMenu(data->menu, 1, 6, 0, 0);
-							GlobalMenu(data->menu, 1, 6, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 							SDL_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
 							break;	
 						case MID_MDEF:
-							GlobalMenu(data->menu, 1, 7, 1, 0);
-							GlobalMenu(data->menu, 1, 7, 2, 0);
-						    GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
+						    MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "", SDL_TRUE);
 							break;	
 						case MID_MPOINT:
-							GlobalMenu(data->menu, 1, 7, 0, 0);
-							GlobalMenu(data->menu, 1, 7, 2, 0);
-							GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "1", SDL_TRUE);
 							break;		
 						case MID_MLINE:
-							GlobalMenu(data->menu, 1, 7, 0, 0);
-							GlobalMenu(data->menu, 1, 7, 1, 0);
-							GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "2", SDL_TRUE);
 							break;	
 						case MID_MGEO:
-							GlobalMenu(data->menu, 1, 7, 0, 0);
-							GlobalMenu(data->menu, 1, 7, 1, 0);
-							GlobalMenu(data->menu, 1, 7, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "3", SDL_TRUE);
 							break;	
 						case MID_JOYSTICK:
-							AMIGA_Joystick(data->win);
+							MOS_Joystick(data->win);
 							break;	
 						case MID_ABOUTSYS:
-							AMIGA_AboutSystem(data->win);
+							MOS_AboutSystem(data->win);
 						default:
 							break;
 					}
@@ -474,37 +463,37 @@ AMIGA_DispatchEvent(_THIS, struct IntuiMessage *m)
          break;
 
 		case IDCMP_MOUSEMOVE:
-			AMIGA_MouseMove(_this, m, data);
+			MOS_MouseMove(_this, m, data);
 			break;
 
 		case IDCMP_MOUSEBUTTONS:
-			AMIGA_DispatchMouseButtons(m, data);
+			MOS_DispatchMouseButtons(m, data);
 			break;
 
 		case IDCMP_RAWKEY:
-			AMIGA_DispatchRawKey(m, data);
+			MOS_DispatchRawKey(m, data);
 			break;
 
 		case IDCMP_ACTIVEWINDOW:
-			AMIGA_HandleActivation(_this, m, SDL_TRUE);
+			MOS_HandleActivation(_this, m, SDL_TRUE);
 			break;
 
 		case IDCMP_INACTIVEWINDOW:
-			AMIGA_HandleActivation(_this, m, SDL_FALSE);
+			MOS_HandleActivation(_this, m, SDL_FALSE);
 			break;
 
 		case IDCMP_CHANGEWINDOW:
-			AMIGA_ChangeWindow(_this, m, data);
+			MOS_ChangeWindow(_this, m, data);
 			break;
 
 		case IDCMP_GADGETUP:
-			AMIGA_GadgetEvent(_this, m);
+			MOS_GadgetEvent(_this, m);
 			break;
 	}
 }
 
 static void
-AMIGA_CheckBrokerMsg(_THIS)
+MOS_CheckBrokerMsg(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	CxMsg *msg;
@@ -524,11 +513,11 @@ AMIGA_CheckBrokerMsg(_THIS)
 					break;
 
 				case CXCMD_APPEAR:
-					AMIGA_ShowApp(_this);
+					MOS_ShowApp(_this);
 					break;
 
 				case CXCMD_DISAPPEAR:
-					AMIGA_HideApp(_this, TRUE);
+					MOS_HideApp(_this, TRUE);
 					break;
 			}
 		}
@@ -536,7 +525,7 @@ AMIGA_CheckBrokerMsg(_THIS)
 }
 
 static void
-AMIGA_CheckScreenEvent(_THIS)
+MOS_CheckScreenEvent(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
@@ -548,11 +537,11 @@ AMIGA_CheckScreenEvent(_THIS)
 
 			switch ((size_t)snm->snm_Value) {
 				case FALSE:
-					AMIGA_HideApp(_this, FALSE);
+					MOS_HideApp(_this, FALSE);
 					break;
 
 				case TRUE:
-					AMIGA_ShowApp(_this);
+					MOS_ShowApp(_this);
 					break;
 			}
 		}
@@ -565,7 +554,7 @@ AMIGA_CheckScreenEvent(_THIS)
 }
 
 static void
-AMIGA_CheckWBEvents(_THIS)
+MOS_CheckWBEvents(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct AppMessage *msg;
@@ -591,7 +580,7 @@ AMIGA_CheckWBEvents(_THIS)
 				}
 				break;
 			case AMTYPE_APPICON:
-				AMIGA_ShowApp(_this);
+				MOS_ShowApp(_this);
 				break;
 			default:
 				//D("[%s] Unknown AppMsg %d %p\n", __FUNCTION__, msg->am_Type, (APTR)msg->am_UserData);
@@ -602,7 +591,7 @@ AMIGA_CheckWBEvents(_THIS)
 }
 
 void
-AMIGA_PumpEvents(_THIS)
+MOS_PumpEvents(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct IntuiMessage *m;
@@ -617,7 +606,7 @@ AMIGA_PumpEvents(_THIS)
 			if  (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
 				check_mousecoord = TRUE;
 
-			AMIGA_DispatchEvent(_this, m);
+			MOS_DispatchEvent(_this, m);
 			ReplyMsg((struct Message *)m);
 		}
 
@@ -635,7 +624,7 @@ AMIGA_PumpEvents(_THIS)
 				
 				if (data->CurrentPointer) {
 					if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
-						SDL_AmigaCursor *ac = (SDL_AmigaCursor *)data->CurrentPointer;
+						SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
 						if (ac->Pointer.mouseptr)
 							SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
 					}
@@ -652,13 +641,13 @@ AMIGA_PumpEvents(_THIS)
 	}
 
 	if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)
-		AMIGA_CheckScreenEvent(_this);
+		MOS_CheckScreenEvent(_this);
 
 	if (sigs & data->BrokerSig)
-		AMIGA_CheckBrokerMsg(_this);
+		MOS_CheckBrokerMsg(_this);
 
 	if (sigs & data->WBSig)
-		AMIGA_CheckWBEvents(_this);
+		MOS_CheckWBEvents(_this);
 
 	if (sigs & SIGBREAKF_CTRL_C)
 		SDL_SendAppEvent(SDL_QUIT);

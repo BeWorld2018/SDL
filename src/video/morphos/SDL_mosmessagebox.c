@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,7 +30,7 @@
 
 
 int
-AMIGA_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
+MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 {
 	struct Library *MUIMasterBase = OpenLibrary("muimaster.library", 0);
 	int rc = -1;
@@ -38,8 +38,8 @@ AMIGA_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 	D("[%s]\n", __FUNCTION__);
 
 	if (MUIMasterBase) {
-		char *title = AMIGA_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
-		char *message = AMIGA_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+		char *title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+		char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
 		if (message) {
 			size_t i, tlen = 1;
@@ -66,7 +66,7 @@ AMIGA_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 
 				*buf = '\0';
 
-				rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL" : title, btxt, message, NULL);
+				rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL2" : title, btxt, message, NULL);
 
 				if (rc == 0)
 					rc = mbd->numbuttons - 1;

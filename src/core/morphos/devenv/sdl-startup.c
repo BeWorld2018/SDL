@@ -18,7 +18,7 @@
 #include "SDL_rwops.h"
 #include "SDL_version.h"
 
-#include "../SDL_amigaversion.h"
+#include "../SDL_mosversion.h"
 
 #if defined(__NO_SDL_CONSTRUCTORS)
 extern struct Library *SDL2Base;
@@ -26,7 +26,6 @@ extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
-UWORD TinyGl_NewVersion = 0;
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
@@ -101,6 +100,8 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 
 #include "sdl-stubs.c"
 
+UWORD TinyGl_NewVersion = 0;
+
 /* SDL_RWops() replacement
  *
  * Functions to read/write stdio file pointers. Will link with libc stdio.
@@ -110,19 +111,19 @@ static Sint64 stdio_size(struct SDL_RWops *context)
 {
 	Sint64 size, offset;
 
-	offset = ftello64(context->hidden.amigaio.fp.libc);
-	fseeko64(context->hidden.amigaio.fp.libc, 0, SEEK_END);
-	size = ftello64(context->hidden.amigaio.fp.libc);
-	fseeko64(context->hidden.amigaio.fp.libc, offset, SEEK_SET);
+	offset = ftello64(context->hidden.morphosio.fp.libc);
+	fseeko64(context->hidden.morphosio.fp.libc, 0, SEEK_END);
+	size = ftello64(context->hidden.morphosio.fp.libc);
+	fseeko64(context->hidden.morphosio.fp.libc, offset, SEEK_SET);
 
 	return size;
 }
 
 static Sint64 stdio_seek(SDL_RWops *context, Sint64 offset, int whence)
 {
-	if (fseeko64(context->hidden.amigaio.fp.libc, offset, whence) == 0 )
+	if (fseeko64(context->hidden.morphosio.fp.libc, offset, whence) == 0 )
 	{
-		return ftello64(context->hidden.amigaio.fp.libc);
+		return ftello64(context->hidden.morphosio.fp.libc);
 	}
 	else
 	{
@@ -132,9 +133,9 @@ static Sint64 stdio_seek(SDL_RWops *context, Sint64 offset, int whence)
 }
 static size_t stdio_read(SDL_RWops *context, void *ptr, size_t size, size_t maxnum)
 {
-	size_t nread = fread(ptr, size, maxnum, context->hidden.amigaio.fp.libc);
+	size_t nread = fread(ptr, size, maxnum, context->hidden.morphosio.fp.libc);
 
-	if (nread == 0 && ferror((FILE *)context->hidden.amigaio.fp.libc) )
+	if (nread == 0 && ferror((FILE *)context->hidden.morphosio.fp.libc) )
 	{
 		SDL_Error(SDL_EFREAD);
 	}
@@ -143,9 +144,9 @@ static size_t stdio_read(SDL_RWops *context, void *ptr, size_t size, size_t maxn
 }
 static size_t stdio_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
 {
-	size_t nwrote = fwrite(ptr, size, num, context->hidden.amigaio.fp.libc);
+	size_t nwrote = fwrite(ptr, size, num, context->hidden.morphosio.fp.libc);
 
-	if (nwrote == 0 && ferror((FILE *)context->hidden.amigaio.fp.libc) )
+	if (nwrote == 0 && ferror((FILE *)context->hidden.morphosio.fp.libc) )
 	{
 		SDL_Error(SDL_EFWRITE);
 	}
@@ -156,10 +157,10 @@ static int stdio_close(struct SDL_RWops *context)
 {
 	if ( context )
 	{
-		if ( context->hidden.amigaio.autoclose )
+		if ( context->hidden.morphosio.autoclose )
 		{
 			/* WARNING:  Check the return value here! */
-			fclose(context->hidden.amigaio.fp.libc);
+			fclose(context->hidden.morphosio.fp.libc);
 		}
 		SDL_FreeRW(context);
 	}
@@ -178,7 +179,7 @@ void *SDL_GL_GetProcAddress(const char *proc)
 
 	func = AmiGetGLProc(proc);
 
-	D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
+	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
 
 	return func;
 }

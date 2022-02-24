@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,8 +22,8 @@
 
 #include "../SDL_sysvideo.h"
 
-#include "SDL_amigashape.h"
-#include "SDL_amigawindow.h"
+#include "SDL_mosshape.h"
+#include "SDL_moswindow.h"
 
 #include <intuition/extensions.h>
 #include <proto/graphics.h>
@@ -31,7 +31,7 @@
 
 
 SDL_WindowShaper*
-AMIGA_CreateShaper(SDL_Window *window)
+MOS_CreateShaper(SDL_Window *window)
 {
 	SDL_WindowShaper *result;
 
@@ -50,7 +50,7 @@ AMIGA_CreateShaper(SDL_Window *window)
 }
 
 int
-AMIGA_ResizeWindowShape(SDL_Window* window)
+MOS_ResizeWindowShape(SDL_Window* window)
 {
 	SDL_WindowShaper *shaper = window->shaper;
 
@@ -61,7 +61,7 @@ AMIGA_ResizeWindowShape(SDL_Window* window)
 }
 
 static void
-AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowShapeMode mode)
+MOS_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowShapeMode mode)
 {
 	Uint32 y, bpr = shape->format->BytesPerPixel, pitch;
 	const Uint8 *pixels;
@@ -150,7 +150,7 @@ AMIGA_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowS
 }
 
 int
-AMIGA_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowShapeMode *mode)
+MOS_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowShapeMode *mode)
 {
 	SDL_WindowData *data = shaper->window->driverdata;
 	struct Region *old = data->region;
@@ -161,7 +161,7 @@ AMIGA_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowSha
 	if (region) {
 		data->region = region;
 
-		AMIGA_ShapeToRegion(region, shape, shaper->mode);
+		MOS_ShapeToRegion(region, shape, shaper->mode);
 
 		if (data->win) {
 			size_t tags[] = { TRANSPCONTROL_REGION, (size_t)region, TAG_DONE };

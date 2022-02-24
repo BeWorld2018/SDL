@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -23,22 +23,22 @@
 
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigaopengl_h
-#define _SDL_amigaopengl_h
+#ifndef _SDL_mosopengl_h
+#define _SDL_mosopengl_h
 
 /* OpenGL functions */
-extern int AMIGA_GL_LoadLibrary(_THIS, const char *path);
-extern void *AMIGA_GL_GetProcAddress(_THIS, const char *proc);
-extern void AMIGA_GL_UnloadLibrary(_THIS);
-extern SDL_GLContext AMIGA_GL_CreateContext(_THIS, SDL_Window * window);
-extern int AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context);
-extern void AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h);
-extern int AMIGA_GL_SetSwapInterval(_THIS, int interval);
-extern int AMIGA_GL_GetSwapInterval(_THIS);
-extern int AMIGA_GL_SwapWindow(_THIS, SDL_Window * window);
-extern void AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context);
+extern int MOS_GL_LoadLibrary(_THIS, const char *path);
+extern void *MOS_GL_GetProcAddress(_THIS, const char *proc);
+extern void MOS_GL_UnloadLibrary(_THIS);
+extern SDL_GLContext MOS_GL_CreateContext(_THIS, SDL_Window * window);
+extern int MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context);
+extern void MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h);
+extern int MOS_GL_SetSwapInterval(_THIS, int interval);
+extern int MOS_GL_GetSwapInterval(_THIS);
+extern int MOS_GL_SwapWindow(_THIS, SDL_Window * window);
+extern void MOS_GL_DeleteContext(_THIS, SDL_GLContext context);
 
 /* Non-SDL functions */
-extern int AMIGA_GL_ResizeContext(_THIS, SDL_Window *window);
+extern int MOS_GL_ResizeContext(_THIS, SDL_Window *window);
 
-#endif /* _SDL_amigaopengl_h */
+#endif /* _SDL_mosopengl_h */

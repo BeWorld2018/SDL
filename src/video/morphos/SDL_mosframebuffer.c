@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,15 +20,19 @@
 */
 #include "../../SDL_internal.h"
 
-#include "SDL_amigavideo.h"
+#include "SDL_mosvideo.h"
 
 #include <cybergraphx/cybergraphics.h>
 #include <intuition/intuition.h>
 #include <proto/cybergraphics.h>
 
+#ifndef MIN
+#   define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
 
 void
-AMIGA_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
+MOS_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
@@ -38,7 +42,7 @@ AMIGA_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
 }
 
 int
-AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
+MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
                             void ** pixels, int *pitch)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
@@ -48,7 +52,7 @@ AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
 	int bpr;
 
 	/* Free the old framebuffer surface */
-	AMIGA_DestroyWindowFramebuffer(_this, window);
+	MOS_DestroyWindowFramebuffer(_this, window);
 
 	switch (vd->sdlpixfmt) {
 		case SDL_PIXELFORMAT_INDEX8:
@@ -79,12 +83,8 @@ AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
 	return 0;
 }
 
-#ifndef MIN
-#   define MIN(x,y) ((x)<(y)?(x):(y))
-#endif
-
 int
-AMIGA_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
+MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	if (data && data->win && data->fb) {

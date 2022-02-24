@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@
 #include <proto/exec.h>
 #include <proto/gadtools.h>
 
-#include "SDL_amigaversion.h"
+#include "SDL_mosversion.h"
 #include "SDL_library.h"
 #include "SDL_startup.h"
 
@@ -63,7 +63,6 @@ struct Library       *ThreadPoolBase = NULL;
 struct Library       *DynLoadBase = NULL;
 struct Library       *OpenURLBase = NULL;
 struct Library       *GadToolsBase = NULL;
-//SDL_JOYSTICK_AMIGA
 // struct Library		*LowLevelBase = NULL;
 
 struct timerequest   GlobalTimeReq;
@@ -312,7 +311,7 @@ BPTR LIB_Close(void)
 
 		REMOVE(&ChildBase->TaskContext.TaskNode.Node);
 
-		AMIGA_Cleanup(ChildBase);
+		MOS_Cleanup(ChildBase);
 		FreeVecTaskPooled((APTR)((ULONG)(ChildBase) - (ULONG)(ChildBase->Library.lib_NegSize)));
 	}
 
@@ -422,9 +421,9 @@ struct Library *LIB_Open(void)
 
 			childbase->DataSeg = (char *)mem + R13_OFFSET;
 
-			if (AMIGA_Startup(childbase) == 0)
+			if (MOS_Startup(childbase) == 0)
 			{
-				AMIGA_Cleanup(childbase);
+				MOS_Cleanup(childbase);
 				FreeVecTaskPooled(newbase);
 				childbase = 0;
 				goto error;

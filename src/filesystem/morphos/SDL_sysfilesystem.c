@@ -20,7 +20,7 @@
 */
 #include "../../SDL_internal.h"
 
-#ifdef SDL_FILESYSTEM_AMIGA
+#ifdef SDL_FILESYSTEM_MORPHOS
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /* System dependent filesystem routines                                */
@@ -51,7 +51,7 @@ SDL_GetBasePath(void)
 
 			if (NameFromLock(lock, tmp, len))
 			{
-				path = AMIGA_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
+				path = MOS_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
 				SDL_free(tmp);
 				break;
 			}
@@ -122,7 +122,7 @@ SDL_GetPrefPath(const char *org, const char *app)
 				if ((lock = CreateDir(tmp)))
 					UnLock(lock);
 
-				path = AMIGA_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
+				path = MOS_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
 
 				SDL_free(tmp);
 			}
@@ -136,6 +136,6 @@ SDL_GetPrefPath(const char *org, const char *app)
 	return path;
 }
 
-#endif /* SDL_FILESYSTEM_AMIGA */
+#endif /* SDL_FILESYSTEM_MORPHOS */
 
 /* vi: set ts=4 sw=4 expandtab: */

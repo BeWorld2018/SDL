@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -52,7 +52,7 @@ APTR libnix_mempool;
 	Startup/Cleanup
 **********************************************************************/
 
-int SAVEDS AMIGA_Startup(struct SDL_Library *LibBase)
+int SAVEDS MOS_Startup(struct SDL_Library *LibBase)
 {
 	struct CTDT *ctdt = LibBase->ctdtlist, *last_ctdt = LibBase->last_ctdt;
 
@@ -78,7 +78,7 @@ int SAVEDS AMIGA_Startup(struct SDL_Library *LibBase)
 	return 1;
 }
 
-VOID SAVEDS AMIGA_Cleanup(struct SDL_Library *LibBase)
+VOID SAVEDS MOS_Cleanup(struct SDL_Library *LibBase)
 {
 	extern void SDL_Quit_REAL();
 	struct CTDT *ctdt = LibBase->ctdtlist, *last_ctdt = LibBase->last_ctdt;

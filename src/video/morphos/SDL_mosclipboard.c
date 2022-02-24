@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -159,13 +159,13 @@ STATIC void clipboard_close(struct IOClipReq *io)
 }
 
 int
-AMIGA_SetClipboardText(_THIS, const char *text)
+MOS_SetClipboardText(_THIS, const char *text)
 {
 	APTR ctx;
 	int rc = -1;
 
 	if ((ctx = clipboard_open())) {
-		char *stext = AMIGA_ConvertText(text, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+		char *stext = MOS_ConvertText(text, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
 		if (stext) {
 			int ulen = strlen(text);
@@ -186,7 +186,7 @@ AMIGA_SetClipboardText(_THIS, const char *text)
 }
 
 char *
-AMIGA_GetClipboardText(_THIS)
+MOS_GetClipboardText(_THIS)
 {
 	struct IFFHandle *clip = AllocIFF();
 	char *text = NULL;
@@ -214,7 +214,7 @@ AMIGA_GetClipboardText(_THIS)
 									if (tmp) {
 										ReadChunkBytes(clip, tmp, size);
 										tmp[size] = '\0';
-										text = AMIGA_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
+										text = MOS_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
 										SDL_free(tmp);
 									}
 								}
@@ -252,10 +252,10 @@ AMIGA_GetClipboardText(_THIS)
 }
 
 SDL_bool
-AMIGA_HasClipboardText(_THIS)
+MOS_HasClipboardText(_THIS)
 {
 	SDL_bool result = SDL_FALSE;
-	char *text = AMIGA_GetClipboardText(_this);
+	char *text = MOS_GetClipboardText(_this);
 
 	if (text) {
 		result = text[0] != '\0' ? SDL_TRUE : SDL_FALSE;

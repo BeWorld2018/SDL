@@ -26,17 +26,17 @@
 #include "../SDL_pixels_c.h"
 #include "SDL_hints.h"
 
-#include "SDL_amigaclipboard.h"
-#include "SDL_amigaevents.h"
-#include "SDL_amigaframebuffer.h"
-#include "SDL_amigakeyboard.h"
-#include "SDL_amigamodes.h"
-#include "SDL_amigamouse.h"
-#include "SDL_amigashape.h"
-#include "SDL_amigavideo.h"
-#include "SDL_amigawindow.h"
-#include "SDL_amigamessagebox.h"
-#include "SDL_amigaopengl.h"
+#include "SDL_mosclipboard.h"
+#include "SDL_mosevents.h"
+#include "SDL_mosframebuffer.h"
+#include "SDL_moskeyboard.h"
+#include "SDL_mosmodes.h"
+#include "SDL_mosmouse.h"
+#include "SDL_mosshape.h"
+#include "SDL_mosvideo.h"
+#include "SDL_moswindow.h"
+#include "SDL_mosmessagebox.h"
+#include "SDL_mosopengl.h"
 
 #include <exec/execbase.h>
 #include <intuition/pointerclass.h>
@@ -49,7 +49,7 @@
 #include <proto/wb.h>
 
 void
-AMIGA_CloseDisplay(_THIS)
+MOS_CloseDisplay(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s]\n", __FUNCTION__);
@@ -87,20 +87,20 @@ size_t getv(APTR obj, size_t attr)
 }
 
 void
-AMIGA_HideApp(_THIS, size_t with_app_icon)
+MOS_HideApp(_THIS, size_t with_app_icon)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s] %siconify\n", __FUNCTION__, with_app_icon ? "" : "no ");
 
-	AMIGA_CloseWindows(_this);
-	AMIGA_CloseDisplay(_this);
+	MOS_CloseWindows(_this);
+	MOS_CloseDisplay(_this);
 
 	if (with_app_icon && data->AppIcon)
 		data->AppIconRef = AddAppIconA(0, 0, FilePart(data->FullAppName), &data->WBPort, 0, data->AppIcon, NULL);
 }
 
 void
-AMIGA_ShowApp(_THIS)
+MOS_ShowApp(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s]\n", __FUNCTION__);
@@ -115,39 +115,40 @@ AMIGA_ShowApp(_THIS)
 			ReplyMsg(msg);
 	}
 
-	AMIGA_OpenWindows(_this);
-	AMIGA_GL_ResizeContext(_this, _this->current_glwin);
+	MOS_OpenWindows(_this);
+	MOS_GL_ResizeContext(_this, _this->current_glwin);
 }
 
 static int
-AMIGA_VideoInit(_THIS)
+MOS_VideoInit(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
 
-	if (AMIGA_InitModes(_this) < 0)
+	if (MOS_InitModes(_this) < 0)
 		return SDL_SetError("Failed to initialize modes");
 
-	AMIGA_InitKeyboard(_this);
-	AMIGA_InitMouse(_this);
+	MOS_InitKeyboard(_this);
+	MOS_InitMouse(_this);
 
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "ENV:gamecontrollerdb.txt");
+	//SDL_SetHint(SDL_HINT_POLL_SENTINEL, SDL_FALSE);
 
 	return 0;
 }
 
 static void
-AMIGA_VideoQuit(_THIS)
+MOS_VideoQuit(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
 
-	AMIGA_CloseWindows(_this);
-	AMIGA_CloseDisplay(_this);
-	AMIGA_QuitMouse(_this);
+	MOS_CloseWindows(_this);
+	MOS_CloseDisplay(_this);
+	MOS_QuitMouse(_this);
 }
 
 static void
-AMIGA_DeleteDevice(SDL_VideoDevice * device)
+MOS_DeleteDevice(SDL_VideoDevice * device)
 {
 	SDL_VideoData *data = (SDL_VideoData *) device->driverdata;
 	D("[%s]\n", __FUNCTION__);
@@ -168,7 +169,7 @@ AMIGA_DeleteDevice(SDL_VideoDevice * device)
 }
 
 void
-AMIGA_SuspendScreenSaver(_THIS)
+MOS_SuspendScreenSaver(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	LONG suspend = _this->suspend_screensaver;
@@ -185,7 +186,7 @@ AMIGA_SuspendScreenSaver(_THIS)
 }
 
 static
-CONST_STRPTR AMIGA_GetTaskName()
+CONST_STRPTR MOS_GetTaskName()
 {
 	struct Process *task = (struct Process *)FindTask(NULL);
 	STRPTR name = "SDL";
@@ -227,7 +228,7 @@ CONST_STRPTR AMIGA_GetTaskName()
 }
 
 static void
-AMIGA_InitPort(struct MsgPort *port)
+MOS_InitPort(struct MsgPort *port)
 {
 	port->mp_Node.ln_Name = "SDL";
 	port->mp_Flags = PA_SIGNAL;
@@ -237,7 +238,7 @@ AMIGA_InitPort(struct MsgPort *port)
 }
 
 static void
-AMIGA_InitBroker(SDL_VideoData *data)
+MOS_InitBroker(SDL_VideoData *data)
 {
 	D("[%s]\n", __FUNCTION__);
 	
@@ -257,7 +258,7 @@ AMIGA_InitBroker(SDL_VideoData *data)
 }
 
 static SDL_VideoDevice *
-AMIGA_CreateDevice(int devindex)
+MOS_CreateDevice(int devindex)
 {
 	/* Initialize all variables that we clean on shutdown */
 	SDL_VideoDevice *device = (SDL_VideoDevice *) SDL_calloc(1, sizeof(SDL_VideoDevice));
@@ -269,10 +270,10 @@ AMIGA_CreateDevice(int devindex)
 		device->driverdata = data;
 
 		if (data) {
-			AMIGA_InitPort(&data->ScreenNotifyPort);
-			AMIGA_InitPort(&data->BrokerPort);
-			AMIGA_InitPort(&data->WBPort);
-			AMIGA_InitPort(&data->WinPort);
+			MOS_InitPort(&data->ScreenNotifyPort);
+			MOS_InitPort(&data->BrokerPort);
+			MOS_InitPort(&data->WBPort);
+			MOS_InitPort(&data->WinPort);
 
 			data->ScrNotifySig = 1 << data->ScreenNotifyPort.mp_SigBit;
 			data->BrokerSig = 1 << data->BrokerPort.mp_SigBit;
@@ -283,7 +284,7 @@ AMIGA_CreateDevice(int devindex)
 
 			NEWLIST(&data->windowlist);
 
-			data->FullAppName = AMIGA_GetTaskName();
+			data->FullAppName = MOS_GetTaskName();
 			data->AppIcon = GetDiskObject((STRPTR)data->FullAppName);
 
 			if (data->AppIcon == NULL)
@@ -295,74 +296,74 @@ AMIGA_CreateDevice(int devindex)
 				data->AppIcon->do_Type = 0;
 			}
 
-			AMIGA_InitBroker(data);
+			MOS_InitBroker(data);
 
 			data->VideoDevice = device;
 
 			/* Set the function pointers */
-			device->VideoInit = AMIGA_VideoInit;
-			device->VideoQuit = AMIGA_VideoQuit;
-			device->GetDisplayModes = AMIGA_GetDisplayModes;
-			device->GetDisplayBounds = AMIGA_GetDisplayBounds;;
-			device->SetDisplayMode = AMIGA_SetDisplayMode;
-			device->SuspendScreenSaver = AMIGA_SuspendScreenSaver;
-			device->PumpEvents = AMIGA_PumpEvents;
+			device->VideoInit = MOS_VideoInit;
+			device->VideoQuit = MOS_VideoQuit;
+			device->GetDisplayModes = MOS_GetDisplayModes;
+			device->GetDisplayBounds = MOS_GetDisplayBounds;;
+			device->SetDisplayMode = MOS_SetDisplayMode;
+			device->SuspendScreenSaver = MOS_SuspendScreenSaver;
+			device->PumpEvents = MOS_PumpEvents;
 
-			device->CreateSDLWindow = AMIGA_CreateWindow;
-			device->CreateSDLWindowFrom = AMIGA_CreateWindowFrom;
-			device->SetWindowTitle = AMIGA_SetWindowTitle;
-			device->SetWindowIcon = AMIGA_SetWindowIcon;
-			device->SetWindowPosition = AMIGA_SetWindowPosition;
-			device->SetWindowSize = AMIGA_SetWindowSize;
-			device->SetWindowMinimumSize = AMIGA_SetWindowMinimumSize;
-			device->SetWindowMaximumSize = AMIGA_SetWindowMaximumSize;
-			device->ShowWindow = AMIGA_ShowWindow;
-			device->HideWindow = AMIGA_HideWindow;
-			device->RaiseWindow = AMIGA_RaiseWindow;
-			device->MaximizeWindow = AMIGA_MaximizeWindow;
-			device->MinimizeWindow = AMIGA_MinimizeWindow;
-			device->RestoreWindow = AMIGA_RestoreWindow;
-			device->SetWindowBordered = AMIGA_SetWindowBordered;
-			device->SetWindowAlwaysOnTop = AMIGA_SetWindowAlwaysOnTop;
-			device->SetWindowFullscreen = AMIGA_SetWindowFullscreen;
- 			device->SetWindowGammaRamp = AMIGA_SetWindowGammaRamp;
-			device->SetWindowMouseGrab = AMIGA_SetWindowGrab;
-			//device->SetWindowKeyboardGrab = AMIGA_SetWindowGrab;
-			device->DestroyWindow = AMIGA_DestroyWindow;
-			device->CreateWindowFramebuffer = AMIGA_CreateWindowFramebuffer;
-			device->UpdateWindowFramebuffer = AMIGA_UpdateWindowFramebuffer;
-			device->DestroyWindowFramebuffer = AMIGA_DestroyWindowFramebuffer;
-			device->GetWindowWMInfo = AMIGA_GetWindowWMInfo;
+			device->CreateSDLWindow = MOS_CreateWindow;
+			device->CreateSDLWindowFrom = MOS_CreateWindowFrom;
+			device->SetWindowTitle = MOS_SetWindowTitle;
+			device->SetWindowIcon = MOS_SetWindowIcon;
+			device->SetWindowPosition = MOS_SetWindowPosition;
+			device->SetWindowSize = MOS_SetWindowSize;
+			device->SetWindowMinimumSize = MOS_SetWindowMinimumSize;
+			device->SetWindowMaximumSize = MOS_SetWindowMaximumSize;
+			device->ShowWindow = MOS_ShowWindow;
+			device->HideWindow = MOS_HideWindow;
+			device->RaiseWindow = MOS_RaiseWindow;
+			device->MaximizeWindow = MOS_MaximizeWindow;
+			device->MinimizeWindow = MOS_MinimizeWindow;
+			device->RestoreWindow = MOS_RestoreWindow;
+			device->SetWindowBordered = MOS_SetWindowBordered;
+			device->SetWindowAlwaysOnTop = MOS_SetWindowAlwaysOnTop;
+			device->SetWindowFullscreen = MOS_SetWindowFullscreen;
+ 			device->SetWindowGammaRamp = MOS_SetWindowGammaRamp;
+			device->SetWindowMouseGrab = MOS_SetWindowGrab;
+			//device->SetWindowKeyboardGrab = MOS_SetWindowGrab;
+			device->DestroyWindow = MOS_DestroyWindow;
+			device->CreateWindowFramebuffer = MOS_CreateWindowFramebuffer;
+			device->UpdateWindowFramebuffer = MOS_UpdateWindowFramebuffer;
+			device->DestroyWindowFramebuffer = MOS_DestroyWindowFramebuffer;
+			device->GetWindowWMInfo = MOS_GetWindowWMInfo;
 
-			device->shape_driver.CreateShaper = AMIGA_CreateShaper;
-			device->shape_driver.SetWindowShape = AMIGA_SetWindowShape;
-			device->shape_driver.ResizeWindowShape = AMIGA_ResizeWindowShape;
+			device->shape_driver.CreateShaper = MOS_CreateShaper;
+			device->shape_driver.SetWindowShape = MOS_SetWindowShape;
+			device->shape_driver.ResizeWindowShape = MOS_ResizeWindowShape;
 
-			device->GL_LoadLibrary = AMIGA_GL_LoadLibrary;
-			device->GL_GetProcAddress = AMIGA_GL_GetProcAddress;
-			device->GL_UnloadLibrary = AMIGA_GL_UnloadLibrary;
-			device->GL_CreateContext = AMIGA_GL_CreateContext;
-			device->GL_MakeCurrent = AMIGA_GL_MakeCurrent;
-			device->GL_GetDrawableSize = AMIGA_GL_GetDrawableSize;
-			device->GL_SetSwapInterval = AMIGA_GL_SetSwapInterval;
-			device->GL_GetSwapInterval = AMIGA_GL_GetSwapInterval;
-			device->GL_SwapWindow = AMIGA_GL_SwapWindow;
-			device->GL_DeleteContext = AMIGA_GL_DeleteContext;
+			device->GL_LoadLibrary = MOS_GL_LoadLibrary;
+			device->GL_GetProcAddress = MOS_GL_GetProcAddress;
+			device->GL_UnloadLibrary = MOS_GL_UnloadLibrary;
+			device->GL_CreateContext = MOS_GL_CreateContext;
+			device->GL_MakeCurrent = MOS_GL_MakeCurrent;
+			device->GL_GetDrawableSize = MOS_GL_GetDrawableSize;
+			device->GL_SetSwapInterval = MOS_GL_SetSwapInterval;
+			device->GL_GetSwapInterval = MOS_GL_GetSwapInterval;
+			device->GL_SwapWindow = MOS_GL_SwapWindow;
+			device->GL_DeleteContext = MOS_GL_DeleteContext;
 
-			device->SetClipboardText = AMIGA_SetClipboardText;
-			device->GetClipboardText = AMIGA_GetClipboardText;
-			device->HasClipboardText = AMIGA_HasClipboardText;
+			device->SetClipboardText = MOS_SetClipboardText;
+			device->GetClipboardText = MOS_GetClipboardText;
+			device->HasClipboardText = MOS_HasClipboardText;
 
-			//device->ShowMessageBox = AMIGA_ShowMessageBox;
+			//device->ShowMessageBox = MOS_ShowMessageBox;
 
-			device->SetWindowResizable = AMIGA_SetWindowResizable;
-			device->GetWindowBordersSize = AMIGA_GetWindowBordersSize;
-			device->SetWindowOpacity = AMIGA_SetWindowOpacity;
-			device->FlashWindow = AMIGA_FlashWindow;
+			device->SetWindowResizable = MOS_SetWindowResizable;
+			device->GetWindowBordersSize = MOS_GetWindowBordersSize;
+			device->SetWindowOpacity = MOS_SetWindowOpacity;
+			device->FlashWindow = MOS_FlashWindow;
 			
-			 device->SetWindowHitTest = AMIGA_SetWindowHitTest;
+			 device->SetWindowHitTest = MOS_SetWindowHitTest;
 
-			device->free = AMIGA_DeleteDevice;
+			device->free = MOS_DeleteDevice;
 
 			return device;
 		}
@@ -376,7 +377,7 @@ AMIGA_CreateDevice(int devindex)
 
 VideoBootStrap MORPHOS_bootstrap = {
 	"mos", "SDL MorphOS video driver",
-	AMIGA_CreateDevice
+	MOS_CreateDevice
 };
 
 /* vim: set ts=4 sw=4 expandtab: */

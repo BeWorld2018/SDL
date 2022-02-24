@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,11 +22,11 @@
 
 #include "../SDL_sysvideo.h"
 #include "../../events/SDL_keyboard_c.h"
-#include "../../events/scancodes_amiga.h"
+#include "../../events/scancodes_morphos.h"
 
 #include <proto/keymap.h>
 
-static SDL_Keycode AMIGA_MapRawKey(UWORD code)
+static SDL_Keycode MOS_MapRawKey(UWORD code)
 {
     struct InputEvent ie;
     WORD res;
@@ -45,7 +45,7 @@ static SDL_Keycode AMIGA_MapRawKey(UWORD code)
         return 0;
 }
 
-static void AMIGA_UpdateKeymap(_THIS)
+static void MOS_UpdateKeymap(_THIS)
 {
     int i;
     SDL_Scancode scancode;
@@ -53,9 +53,9 @@ static void AMIGA_UpdateKeymap(_THIS)
 
     SDL_GetDefaultKeymap(keymap);
 
-    for (i = 0; i < SDL_arraysize(amiga_scancode_table); i++) {
+    for (i = 0; i < SDL_arraysize(morphos_scancode_table); i++) {
         /* Make sure this scancode is a valid character scancode */
-        scancode = amiga_scancode_table[i];
+        scancode = morphos_scancode_table[i];
         if (scancode == SDL_SCANCODE_UNKNOWN)
             continue;
 
@@ -68,15 +68,15 @@ static void AMIGA_UpdateKeymap(_THIS)
             continue;
         }
 
-        keymap[scancode] = AMIGA_MapRawKey(i);
+        keymap[scancode] = MOS_MapRawKey(i);
     }
 
     SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES);
 }
 
-void AMIGA_InitKeyboard(_THIS)
+void MOS_InitKeyboard(_THIS)
 {
-    AMIGA_UpdateKeymap(_this);
+    MOS_UpdateKeymap(_this);
   
     SDL_SetScancodeName(SDL_SCANCODE_APPLICATION, "Menu");
     SDL_SetScancodeName(SDL_SCANCODE_LGUI, "Left Command");

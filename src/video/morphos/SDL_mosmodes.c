@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,9 +20,8 @@
 */
 #include "../../SDL_internal.h"
 
-
-#include "SDL_amigamodes.h"
-#include "SDL_amigavideo.h"
+#include "SDL_mosmodes.h"
+#include "SDL_mosvideo.h"
 
 #include <machine/endian.h>
 
@@ -37,7 +36,7 @@
 #include <proto/exec.h>
 
 static Uint32
-AMIGA_SDLPixelFormatToDepth(Uint32 pixfmt)
+MOS_SDLPixelFormatToDepth(Uint32 pixfmt)
 {
 	switch (pixfmt) {
 		case SDL_PIXELFORMAT_INDEX8:
@@ -63,7 +62,7 @@ AMIGA_SDLPixelFormatToDepth(Uint32 pixfmt)
 }
 
 static Uint32
-AMIGA_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
+MOS_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
 {
 	D("[%s]\n", __FUNCTION__);
 
@@ -96,7 +95,7 @@ AMIGA_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
 }
 
 static int
-AMIGA_GetRefreshRate(struct Screen *s)
+MOS_GetRefreshRate(struct Screen *s)
 {
 	ULONG modeid = getv(s, SA_DisplayID);
 	APTR handle = FindDisplayInfo(modeid);
@@ -135,7 +134,7 @@ static const struct
 };
 
 int
-AMIGA_InitModes(_THIS)
+MOS_InitModes(_THIS)
 {
 	Uint32 pixfmt = SDL_PIXELFORMAT_BGRA8888;
 	int width = 1920, height = 1080, dispcount = 0;
@@ -164,7 +163,7 @@ AMIGA_InitModes(_THIS)
 		width = s->Width;
 		height = s->Height;
 
-		pixfmt = AMIGA_GetSDLPixelFormat(getv(s, SA_PixelFormat), SDL_PIXELFORMAT_ARGB8888);
+		pixfmt = MOS_GetSDLPixelFormat(getv(s, SA_PixelFormat), SDL_PIXELFORMAT_ARGB8888);
 		mon = (APTR)getv(s, SA_MonitorObject);
 
 		UnlockPubScreen(NULL, s);
@@ -177,7 +176,7 @@ AMIGA_InitModes(_THIS)
 			mode.format = pixfmt;
 			mode.w = width;
 			mode.h = height;
-			mode.refresh_rate = AMIGA_GetRefreshRate(s);
+			mode.refresh_rate = MOS_GetRefreshRate(s);
 			mode.driverdata = SDL_malloc(4);
 
 			display.desktop_mode = mode;
@@ -240,7 +239,7 @@ AMIGA_InitModes(_THIS)
 }
 
 static int
-AMIGA_CheckMonitor(APTR mon, ULONG id)
+MOS_CheckMonitor(APTR mon, ULONG id)
 {
 	IPTR tags[] = { GMLA_DisplayID, id, TAG_DONE };
 	Object **monlist = GetMonitorList((struct TagItem *)&tags);
@@ -264,7 +263,7 @@ AMIGA_CheckMonitor(APTR mon, ULONG id)
 }
 
 void
-AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
+MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 {
 	SDL_DisplayModeData *md = sdl_display->driverdata;
 	D("[%s]\n", __FUNCTION__);
@@ -287,7 +286,7 @@ AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 					if (GetCyberIDAttr(CYBRIDATTR_PIXFMT, nextid) == pixfmt) {
 						//D("[%s] id 0x%08lx matches to pixfmt %ld\n", __FUNCTION__, nextid, pixfmt);
 
-						if (AMIGA_CheckMonitor(md->monitor, nextid)) {
+						if (MOS_CheckMonitor(md->monitor, nextid)) {
 							mode.w = GetCyberIDAttr(CYBRIDATTR_WIDTH, nextid);
 							mode.h = GetCyberIDAttr(CYBRIDATTR_HEIGHT, nextid);
 							mode.driverdata = sdl_display->desktop_mode.driverdata ? SDL_malloc(4) : NULL;
@@ -306,7 +305,7 @@ AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 }
 
 int
-AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
+MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct Screen *screen;
@@ -406,14 +405,14 @@ AMIGA_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 }
 
 int
-AMIGA_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
+MOS_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
 	D("[%s]\n", __FUNCTION__);
 
-	AMIGA_CloseWindows(_this);
-	AMIGA_CloseDisplay(_this);
+	MOS_CloseWindows(_this);
+	MOS_CloseDisplay(_this);
 
 	data->sdlpixfmt = mode->format;
 	data->ScrMonName = NULL;
@@ -421,21 +420,21 @@ AMIGA_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
 	// NULL means non-WB mode
 	data->ScrWidth = mode->w;
 	data->ScrHeight = mode->h;
-	data->ScrDepth = AMIGA_SDLPixelFormatToDepth(mode->format);
+	data->ScrDepth = MOS_SDLPixelFormatToDepth(mode->format);
 
 	if (mode->driverdata == NULL) {
 		data->ScrMonName = display->name;
 		D("[%s] Use monitor %s\n", __FUNCTION__, data->ScrMonName);
 	}
 
-	//AMIGA_GetScreen(_this);
-	//AMIGA_OpenWindows(_this);
+	//MOS_GetScreen(_this);
+	//MOS_OpenWindows(_this);
 
 	return 0;
 }
 
 int
-AMIGA_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect)
+MOS_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect)
 {
 	
 	rect->x = 0;

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -142,8 +142,7 @@ asm(
 void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units)
 {
 	#if HAVE_ALTIVEC_H
-
-	if (units >= 32 && HasAltiVec)
+	if (HasAltiVec && units >= 32)
 	{
 		IPTR p1, p2;
 

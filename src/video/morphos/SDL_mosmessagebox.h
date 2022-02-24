@@ -20,26 +20,11 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigamodes_h
-#define _SDL_amigamodes_h
+#ifndef _SDL_mosmessagebox_h
+#define _SDL_mosmessagebox_h
 
-#include "../SDL_sysvideo.h"
+extern int MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid);
 
-#ifndef EXEC_TYPES_H
-#include <exec/types.h>
-#endif
-
-typedef struct
-{
-	APTR monitor;
-} SDL_DisplayModeData;
-
-extern int AMIGA_InitModes(_THIS);
-extern void AMIGA_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display);
-extern int AMIGA_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
-extern int AMIGA_GetScreen(_THIS, BYTE FullScreen, SDL_bool support3d);
-extern int AMIGA_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect);
-
-#endif /* _SDL_amigamodes_h */
+#endif /* _SDL_mosmessagebox_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

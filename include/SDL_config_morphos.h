@@ -145,8 +145,9 @@
 /* Enable SENSOR */
 #define SDL_SENSOR_DUMMY    1
 
-/* Enable AMIGA (lowlevel.library) JOYSTICK/GAMEPAD */
+/* Enable lowlevel.library JOYSTICK/GAMEPAD */
 //#define SDL_JOYSTICK_AMIGA     1
+
 /* Enable MORPHOS SENSORS JOYSTICK/GAMEPAD */
 #define SDL_JOYSTICK_MORPHOS   1  
 
@@ -156,14 +157,11 @@
 /* Enable thread support */
 #define SDL_THREAD_MORPHOS    1
 
-/* Enable timer support */
-#define SDL_TIMERS_AMIGA 1
-
 /* Enable video driver */
 #define SDL_VIDEO_DRIVER_MORPHOS 1
 
 /* Enable filesystem driver */
-#define SDL_FILESYSTEM_AMIGA  1
+#define SDL_FILESYSTEM_MORPHOS  1
 
 /* Enable system power support */
 #define SDL_POWER_MORPHOS 1

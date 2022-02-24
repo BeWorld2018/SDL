@@ -28,8 +28,8 @@
 #include "SDL_error.h"
 #include "SDL_syswm.h"
 #include "../SDL_sysvideo.h"
-#include "SDL_amigavideo.h"
-#include "SDL_amigawindow.h"
+#include "SDL_mosvideo.h"
+#include "SDL_moswindow.h"
 #include "../../core/morphos/SDL_library.h"
 
 #include <proto/exec.h>
@@ -48,7 +48,7 @@ extern struct SDL_Library *SDL2Base;
 UWORD TinyGl_NewVersion = 0;
 
 int
-AMIGA_GL_LoadLibrary(_THIS, const char *path)
+MOS_GL_LoadLibrary(_THIS, const char *path)
 {
 
 	if (SDL2Base->MyTinyGLBase) {
@@ -62,9 +62,9 @@ AMIGA_GL_LoadLibrary(_THIS, const char *path)
 				*SDL2Base->MyTinyGLBase = TinyGLBase;
 				TinyGl_NewVersion = 1;
 				if (TinyGl_Version < 52 ||	
-					(TinyGl_Version == 52 && TinyGl_Revision < 9))
+					(TinyGl_Version == 52 && TinyGl_Revision < 10))
 				{
-					// tingl < 52.9
+					// tingl < 52.10
 					TinyGl_NewVersion = 0;
 				}
 				
@@ -77,17 +77,17 @@ AMIGA_GL_LoadLibrary(_THIS, const char *path)
 }
 
 void *
-AMIGA_GL_GetProcAddress(_THIS, const char *proc)
+MOS_GL_GetProcAddress(_THIS, const char *proc)
 {
 	void *func = NULL;
 	func = AmiGetGLProc(proc);
-	D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
+	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
 
 	return func;
 }
 
 void
-AMIGA_GL_UnloadLibrary(_THIS)
+MOS_GL_UnloadLibrary(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
 
@@ -98,11 +98,11 @@ AMIGA_GL_UnloadLibrary(_THIS)
 }
 
 SDL_GLContext
-AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
+MOS_GL_CreateContext(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
-	BYTE fullscreen = data->winflags & SDL_AMIGA_WINDOW_FULLSCREEN;
+	BYTE fullscreen = data->winflags & SDL_MOS_WINDOW_FULLSCREEN;
 
 	GLContext *glcont = GLInit();
 	D("[%s] new context 0x%08lx\n", __FUNCTION__, glcont);
@@ -144,7 +144,7 @@ AMIGA_GL_CreateContext(_THIS, SDL_Window * window)
 }
 
 int
-AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
+MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
 
@@ -156,7 +156,7 @@ AMIGA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 }
 
 void
-AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
+MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 {
 	if (window) {
 		SDL_WindowData * data = window->driverdata;
@@ -170,37 +170,36 @@ AMIGA_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 }
 
 int
-AMIGA_GL_SetSwapInterval(_THIS, int interval)
+MOS_GL_SetSwapInterval(_THIS, int interval)
 {
-	//D("[%s]\n", __FUNCTION__);
 	return 0; // pretend to succeed
+	
 }
 
 int
-AMIGA_GL_GetSwapInterval(_THIS)
+MOS_GL_GetSwapInterval(_THIS)
 {
 	SDL_VideoData *data = _this->driverdata;
 
-	//D("[%s]\n", __FUNCTION__);
-
 	// full screen double buffering is always vsynced
 	return data->CustomScreen != NULL ? 1 : 0;
+	
 }
 
 int
-AMIGA_GL_SwapWindow(_THIS, SDL_Window * window)
+MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
-	//D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	if (!data->win && data->__tglContext)
 		return -1;
 	// TODO check the window context
 	GLASwapBuffers(data->__tglContext);
 	return 0;
+	
 }
 
 void
-AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
+MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
 
@@ -229,7 +228,7 @@ AMIGA_GL_DeleteContext(_THIS, SDL_GLContext context)
 }
 
 int
-AMIGA_GL_ResizeContext(_THIS, SDL_Window *window)
+MOS_GL_ResizeContext(_THIS, SDL_Window *window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;

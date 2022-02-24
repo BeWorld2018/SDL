@@ -558,7 +558,7 @@ windows_file_close(SDL_RWops * context)
 
 #ifdef __MORPHOS__
 static int
-amiga_file_open(SDL_RWops *context, const char *filename, const char *mode)
+morphos_file_open(SDL_RWops *context, const char *filename, const char *mode)
 {
     int flag_r, flag_w, flag_p, flag_a;
     int rc = -1;
@@ -591,28 +591,28 @@ amiga_file_open(SDL_RWops *context, const char *filename, const char *mode)
 
         fh = Open(filename, mode);
 
-        context->hidden.amigaio.Writable = (flag_w || flag_a || flag_p) ? 1 : 0;
-        context->hidden.amigaio.Readable = (flag_r || flag_p) ? 1 : 0;
+        context->hidden.morphosio.Writable = (flag_w || flag_a || flag_p) ? 1 : 0;
+        context->hidden.morphosio.Readable = (flag_r || flag_p) ? 1 : 0;
 
-        context->hidden.amigaio.autoclose = 1;
-        context->hidden.amigaio.fp.dos = fh;
+        context->hidden.morphosio.autoclose = 1;
+        context->hidden.morphosio.fp.dos = fh;
 
         if (fh)
         {
             rc = 0;
 
-            context->hidden.amigaio.AppendMode = 0;
-            context->hidden.amigaio.NoSeek = 0;
-            context->hidden.amigaio.IsAtEnd = 0;
+            context->hidden.morphosio.AppendMode = 0;
+            context->hidden.morphosio.NoSeek = 0;
+            context->hidden.morphosio.IsAtEnd = 0;
 
             if (flag_a)
             {
-                context->hidden.amigaio.AppendMode = 1;
+                context->hidden.morphosio.AppendMode = 1;
 
                 if (!flag_p)
                 {
-                    context->hidden.amigaio.NoSeek = 1;
-                    context->hidden.amigaio.IsAtEnd = 1;
+                    context->hidden.morphosio.NoSeek = 1;
+                    context->hidden.morphosio.IsAtEnd = 1;
                     Seek(fh, 0, OFFSET_END);
                 }
             }
@@ -623,46 +623,46 @@ amiga_file_open(SDL_RWops *context, const char *filename, const char *mode)
 }
 
 static Sint64 SDLCALL
-amiga_file_size(SDL_RWops * context)
+morphos_file_size(SDL_RWops * context)
 {
     struct FileInfoBlock fib;
 
-    if (ExamineFH64(context->hidden.amigaio.fp.dos, &fib, TAG_DONE))
+    if (ExamineFH64(context->hidden.morphosio.fp.dos, &fib, TAG_DONE))
         return fib.fib_Size64;
 
     return -1;
 }
 
 static Sint64 SDLCALL
-amiga_file_seek(SDL_RWops *context, Sint64 offset, int whence)
+morphos_file_seek(SDL_RWops *context, Sint64 offset, int whence)
 {
     Sint64 rc = -1;
 
-    if (!context->hidden.amigaio.NoSeek)
+    if (!context->hidden.morphosio.NoSeek)
     {
         LONG how = OFFSET_BEGINNING;
 
         switch (whence)
         {
-				case RW_SEEK_SET: how = OFFSET_BEGINNING; break;
+			case RW_SEEK_SET: how = OFFSET_BEGINNING; break;
             case RW_SEEK_CUR: how = OFFSET_CURRENT; break;
             case RW_SEEK_END: how = OFFSET_END; break;
 
-				default: return SDL_SetError("Unknown value for 'whence'");
+			default: return SDL_SetError("Unknown value for 'whence'");
         }
 
-        context->hidden.amigaio.IsAtEnd = 0;
+        context->hidden.morphosio.IsAtEnd = 0;
 
-        if (Seek64(context->hidden.amigaio.fp.dos, offset, how) == -1)
+        if (Seek64(context->hidden.morphosio.fp.dos, offset, how) == -1)
         {
             SDL_Error(SDL_EFSEEK);
         }
         else
         {
             if (how == OFFSET_END && offset == 0)
-                context->hidden.amigaio.IsAtEnd = 1;
+                context->hidden.morphosio.IsAtEnd = 1;
 
-            rc = Seek64(context->hidden.amigaio.fp.dos, 0, OFFSET_CURRENT);
+            rc = Seek64(context->hidden.morphosio.fp.dos, 0, OFFSET_CURRENT);
         }
     }
 
@@ -670,14 +670,13 @@ amiga_file_seek(SDL_RWops *context, Sint64 offset, int whence)
 }
 
 static size_t SDLCALL
-amiga_file_read(SDL_RWops *context, void *ptr, size_t size, size_t maxnum)
+morphos_file_read(SDL_RWops *context, void *ptr, size_t size, size_t maxnum)
 {
     size_t rsize = size * maxnum, result;
-    //D("[%s]\n", __FUNCTION__);
 
-    if (context->hidden.amigaio.Readable)
+    if (context->hidden.morphosio.Readable)
     {
-        if ((result = Read(context->hidden.amigaio.fp.dos, ptr, rsize)) != rsize)
+        if ((result = Read(context->hidden.morphosio.fp.dos, ptr, rsize)) != rsize)
         {
             SDL_Error(SDL_EFWRITE);
         }
@@ -691,29 +690,29 @@ amiga_file_read(SDL_RWops *context, void *ptr, size_t size, size_t maxnum)
 }
 
 static size_t SDLCALL
-amiga_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
+morphos_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
 {
     size_t wnum = 0;
     //D("[%s]\n", __FUNCTION__);
 
-    if (context->hidden.amigaio.Writable)
+    if (context->hidden.morphosio.Writable)
     {
         size_t wsize, result;
 
-        if (context->hidden.amigaio.AppendMode && !context->hidden.amigaio.IsAtEnd)
+        if (context->hidden.morphosio.AppendMode && !context->hidden.morphosio.IsAtEnd)
         {
-            if (Seek(context->hidden.amigaio.fp.dos, 0, OFFSET_END) == -1)
+            if (Seek(context->hidden.morphosio.fp.dos, 0, OFFSET_END) == -1)
             {
                 SDL_Error(SDL_EFWRITE);
                 return 0;
             }
 
-            context->hidden.amigaio.IsAtEnd = 1;
+            context->hidden.morphosio.IsAtEnd = 1;
         }
 
         wsize = size * num;
 
-        if ((result = Write(context->hidden.amigaio.fp.dos, (APTR)ptr, wsize)) != wsize)
+        if ((result = Write(context->hidden.morphosio.fp.dos, (APTR)ptr, wsize)) != wsize)
         {
             SDL_Error(SDL_EFWRITE);
         }
@@ -725,12 +724,12 @@ amiga_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
 }
 
 static int SDLCALL
-amiga_file_close(SDL_RWops *context)
+morphos_file_close(SDL_RWops *context)
 {
-    if (context->hidden.amigaio.fp.dos != 0)
+    if (context->hidden.morphosio.fp.dos != 0)
     {
-        if (context->hidden.amigaio.autoclose)
-            Close(context->hidden.amigaio.fp.dos);
+        if (context->hidden.morphosio.autoclose)
+            Close(context->hidden.morphosio.fp.dos);
 
         SDL_FreeRW(context);
     }
@@ -757,8 +756,8 @@ SDL_RWops * SDL_RWFromFP_clib_REAL(void *fp,
         rwops->write = write;
         rwops->close = close;
         rwops->type = SDL_RWOPS_STDFILE;
-        rwops->hidden.amigaio.fp.libc = fp;
-        rwops->hidden.amigaio.autoclose = autoclose;
+        rwops->hidden.morphosio.fp.libc = fp;
+        rwops->hidden.morphosio.autoclose = autoclose;
     }
     return(rwops);
 }
@@ -1051,19 +1050,19 @@ SDL_RWFromFile(const char *file, const char *mode)
     if (!rwops)
         return NULL; /* SDL_SetError already setup by SDL_AllocRW() */
 
-    rwops->size  = amiga_file_size;
-    rwops->seek  = amiga_file_seek;
-    rwops->read  = amiga_file_read;
-    rwops->write = amiga_file_write;
-    rwops->close = amiga_file_close;
-    rwops->type = SDL_RWOPS_AMIGAFILE;
+    rwops->size  = morphos_file_size;
+    rwops->seek  = morphos_file_seek;
+    rwops->read  = morphos_file_read;
+    rwops->write = morphos_file_write;
+    rwops->close = morphos_file_close;
+    rwops->type = SDL_RWOPS_MORPHOSFILE;
 
-    char *mpath = AMIGA_ConvertPath(file);
+    char *mpath = MOS_ConvertPath(file);
     int rc = -1;
 
     if (mpath)
     {
-        rc = amiga_file_open(rwops,file,mode);
+        rc = morphos_file_open(rwops,file,mode);
         SDL_free(mpath);
     }
 

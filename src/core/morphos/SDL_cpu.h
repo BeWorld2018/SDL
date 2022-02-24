@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_CORE_AMIGA_MISC_H
-#define SDL_CORE_AMIGA_MISC_H
+#ifndef SDL_CORE_MORPHOS_CPU_H
+#define SDL_CORE_MORPHOS_CPU_H
 
 #include "../../SDL_internal.h"
 
@@ -31,4 +31,4 @@
 extern void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units);
 extern void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units);
 
-#endif /* SDL_CORE_AMIGA_MISC_H */
+#endif /* SDL_CORE_MORPHOS_CPU_H */

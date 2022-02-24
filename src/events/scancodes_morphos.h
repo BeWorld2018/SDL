@@ -25,7 +25,7 @@
    - AmigaOS wiki
 */
 /* *INDENT-OFF* */
-static SDL_Scancode const amiga_scancode_table[] = {
+static SDL_Scancode const morphos_scancode_table[] = {
     /*  0 */    SDL_SCANCODE_GRAVE,
     /*  1 */    SDL_SCANCODE_1,
     /*  2 */    SDL_SCANCODE_2,

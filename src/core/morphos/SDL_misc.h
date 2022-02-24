@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_CORE_AMIGA_MISC_H
-#define SDL_CORE_AMIGA_MISC_H
+#ifndef SDL_CORE_MORPHOS_MISC_H
+#define SDL_CORE_MORPHOS_MISC_H
 
 #include "../../SDL_internal.h"
 
@@ -28,7 +28,7 @@
 #include <exec/types.h>
 #endif
 
-extern char *AMIGA_ConvertText(const char *src, LONG srcmib, LONG dstmib);
-extern char *AMIGA_ConvertPath(const char *fn);
+extern char *MOS_ConvertText(const char *src, LONG srcmib, LONG dstmib);
+extern char *MOS_ConvertPath(const char *fn);
 
-#endif /* SDL_CORE_AMIGA_MISC_H */
+#endif /* SDL_CORE_MORPHOS_MISC_H */

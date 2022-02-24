@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -19,10 +19,10 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_CORE_AMIGA_STARTUP_H
-#define SDL_CORE_AMIGA_STARTUP_H
+#ifndef SDL_CORE_MORPHOS_STARTUP_H
+#define SDL_CORE_MORPHOS_STARTUP_H
 
-extern int AMIGA_Startup(struct SDL_Library *LibBase);
-extern VOID AMIGA_Cleanup(struct SDL_Library *LibBase);
+extern int MOS_Startup(struct SDL_Library *LibBase);
+extern VOID MOS_Cleanup(struct SDL_Library *LibBase);
 
-#endif /* SDL_CORE_AMIGA_STARTUP_H */
+#endif /* SDL_CORE_MORPHOS_STARTUP_H */

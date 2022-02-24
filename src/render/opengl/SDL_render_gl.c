@@ -1847,6 +1847,10 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
         renderer->info.max_texture_height = value;
     }
 
+	//D("GL_ARB_texture_non_power_of_two: %s\n", data->GL_ARB_texture_non_power_of_two_supported ? "ENABLED" : "DISABLED");
+	//D("GL_ARB_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_ARB_texture_rectangle") ? "ENABLED" : "DISABLED");
+	//D("GL_EXT_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_EXT_texture_rectangle") ? "ENABLED" : "DISABLED");
+	
     /* Check for multitexture support */
     if (SDL_GL_ExtensionSupported("GL_ARB_multitexture")) {
         data->glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC) SDL_GL_GetProcAddress("glActiveTextureARB");
@@ -1855,11 +1859,15 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
             data->glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &data->num_texture_units);
         }
     }
-
+	//D("GL_ARB_multitexture_supported: %s\n", data->GL_ARB_multitexture_supported ? "ENABLED" : "DISABLED");
+	
     /* Check for shader support */
     if (SDL_GetHintBoolean(SDL_HINT_RENDER_OPENGL_SHADERS, SDL_TRUE)) {
         data->shaders = GL_CreateShaderContext();
     }
+	
+	//D("OpenGL shaders: %s\n", data->shaders ? "ENABLED" : "DISABLED");
+	
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL shaders: %s",
                 data->shaders ? "ENABLED" : "DISABLED");
 
@@ -1891,6 +1899,8 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     }
     data->framebuffers = NULL;
 
+	//D("GL_EXT_framebuffer_object: %s\n", data->GL_EXT_framebuffer_object_supported ? "ENABLED" : "DISABLED");
+		
     /* Set up parameters for rendering */
     data->glMatrixMode(GL_MODELVIEW);
     data->glLoadIdentity();

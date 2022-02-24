@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,17 +20,11 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigashape_h
-#define _SDL_amigashape_h
+#ifndef _SDL_moskeyboard_h
+#define _SDL_moskeyboard_h
 
-typedef struct
-{
-} SDL_ShapeData;
+extern void MOS_InitKeyboard(_THIS);
 
-extern SDL_WindowShaper *AMIGA_CreateShaper(SDL_Window *window);
-extern int AMIGA_ResizeWindowShape(SDL_Window* window);
-extern int AMIGA_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowShapeMode *shape_mode);
-
-#endif /* _SDL_amigashape_h */
+#endif /* _SDL_moskeyboard_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

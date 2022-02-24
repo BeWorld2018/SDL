@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,9 +20,17 @@
 */
 #include "../../SDL_internal.h"
 
+#ifndef _SDL_mosshape_h
+#define _SDL_mosshape_h
 
-extern int AMIGA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** pixels, int *pitch);
-extern int AMIGA_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects);
-extern void AMIGA_DestroyWindowFramebuffer(_THIS, SDL_Window * window);
+typedef struct
+{
+} SDL_ShapeData;
+
+extern SDL_WindowShaper *MOS_CreateShaper(SDL_Window *window);
+extern int MOS_ResizeWindowShape(SDL_Window* window);
+extern int MOS_SetWindowShape(SDL_WindowShaper *shaper, SDL_Surface *shape, SDL_WindowShapeMode *shape_mode);
+
+#endif /* _SDL_mosshape_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

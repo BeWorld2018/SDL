@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,16 +20,16 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigavideo_h
-#define _SDL_amigavideo_h
+#ifndef _SDL_mosvideo_h
+#define _SDL_mosvideo_h
 
 #include "SDL_keycode.h"
 
 #include "../SDL_sysvideo.h"
 #include "../../events/SDL_mouse_c.h"
 
-#include "SDL_amigaclipboard.h"
-#include "SDL_amigawindow.h"
+#include "SDL_mosclipboard.h"
+#include "SDL_moswindow.h"
 
 #ifndef EXEC_PORTS_H
 #include <exec/ports.h>
@@ -85,10 +85,10 @@ typedef struct SDL_VideoData
 } SDL_VideoData;
 
 extern size_t getv(APTR obj, size_t attr);
-extern void AMIGA_CloseDisplay(_THIS);
-extern void AMIGA_HideApp(_THIS, size_t with_app_icon);
-extern void AMIGA_ShowApp(_THIS);
+extern void MOS_CloseDisplay(_THIS);
+extern void MOS_HideApp(_THIS, size_t with_app_icon);
+extern void MOS_ShowApp(_THIS);
 
-#endif /* _SDL_amigavideo_h */
+#endif /* _SDL_mosvideo_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

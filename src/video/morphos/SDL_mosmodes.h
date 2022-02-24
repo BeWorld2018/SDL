@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,29 +20,26 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigamouse_h
-#define _SDL_amigamouse_h
+#ifndef _SDL_mosmodes_h
+#define _SDL_mosmodes_h
 
-#include "SDL_amigavideo.h"
-#include <proto/intuition.h>
+#include "../SDL_sysvideo.h"
 
-#define IS_SYSTEM_CURSOR(cursor) (cursor == NULL || ((size_t)(cursor)->driverdata) < POINTERTYPE_NUMTYPES)
-
-struct SDL_AmigaPointerData
-{
-	Object *mouseptr;
-	int offx, offy;
-};
+#ifndef EXEC_TYPES_H
+#include <exec/types.h>
+#endif
 
 typedef struct
 {
-	struct SDL_Cursor Cursor;
-	struct SDL_AmigaPointerData Pointer;
-} SDL_AmigaCursor;
+	APTR monitor;
+} SDL_DisplayModeData;
 
-extern void AMIGA_InitMouse(_THIS);
-extern void AMIGA_QuitMouse(_THIS);
+extern int MOS_InitModes(_THIS);
+extern void MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display);
+extern int MOS_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
+extern int MOS_GetScreen(_THIS, BYTE FullScreen, SDL_bool support3d);
+extern int MOS_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect);
 
-#endif /* _SDL_amigamouse_h */
+#endif /* _SDL_mosmodes_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

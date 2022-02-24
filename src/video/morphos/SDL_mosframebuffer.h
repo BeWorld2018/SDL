@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,13 +20,12 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigaclipboard_h
-#define _SDL_amigaclipboard_h
+#ifndef _SDL_mosframebuffer_h
+#define _SDL_mosframebuffer_h
 
-extern int AMIGA_SetClipboardText(_THIS, const char *text);
-extern char *AMIGA_GetClipboardText(_THIS);
-extern SDL_bool AMIGA_HasClipboardText(_THIS);
+extern int MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** pixels, int *pitch);
+extern int MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects);
+extern void MOS_DestroyWindowFramebuffer(_THIS, SDL_Window * window);
 
-#endif /* _SDL_amigaclipboard_h */
-
+#endif /* _SDL_mosframebuffer_h */
 /* vi: set ts=4 sw=4 expandtab: */

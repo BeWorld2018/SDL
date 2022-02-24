@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,11 +20,29 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef _SDL_amigamessagebox_h
-#define _SDL_amigamessagebox_h
+#ifndef _SDL_mosmouse_h
+#define _SDL_mosmouse_h
 
-extern int AMIGA_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid);
+#include "SDL_mosvideo.h"
+#include <proto/intuition.h>
 
-#endif /* _SDL_amigamessagebox_h */
+#define IS_SYSTEM_CURSOR(cursor) (cursor == NULL || ((size_t)(cursor)->driverdata) < POINTERTYPE_NUMTYPES)
+
+struct SDL_MOSPointerData
+{
+	Object *mouseptr;
+	int offx, offy;
+};
+
+typedef struct
+{
+	struct SDL_Cursor Cursor;
+	struct SDL_MOSPointerData Pointer;
+} SDL_MOSCursor;
+
+extern void MOS_InitMouse(_THIS);
+extern void MOS_QuitMouse(_THIS);
+
+#endif /* _SDL_mosmouse_h */
 
 /* vi: set ts=4 sw=4 expandtab: */

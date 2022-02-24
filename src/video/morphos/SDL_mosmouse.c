@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,8 +20,8 @@
 */
 #include "../../SDL_internal.h"
 
-#include "SDL_amigamouse.h"
-#include "SDL_amigavideo.h"
+#include "SDL_mosmouse.h"
+#include "SDL_mosvideo.h"
 
 #include "../../events/SDL_mouse_c.h"
 #include "SDL_hints.h"
@@ -36,13 +36,13 @@
 #include <dos/rdargs.h>
 
 static SDL_Cursor *
-AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
+MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
-	SDL_AmigaCursor *cursor = SDL_malloc(sizeof(*cursor));
+	SDL_MOSCursor *cursor = SDL_malloc(sizeof(*cursor));
 	D("[%s]\n", __FUNCTION__);
 
 	if (cursor) {
-		SDL_AmigaCursor *ac = SDL_malloc(sizeof(*ac));
+		SDL_MOSCursor *ac = SDL_malloc(sizeof(*ac));
 		struct BitMap *bmp;
 
 		cursor->Cursor.next = NULL;
@@ -81,7 +81,7 @@ AMIGA_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 }
 
 static SDL_Cursor *
-AMIGA_CreateSystemCursor(SDL_SystemCursor id)
+MOS_CreateSystemCursor(SDL_SystemCursor id)
 {
 	SDL_Cursor *cursor = SDL_malloc(sizeof(*cursor));
 	//D("[%s]\n", __FUNCTION__);
@@ -114,22 +114,19 @@ AMIGA_CreateSystemCursor(SDL_SystemCursor id)
 }
 
 static void
-AMIGA_FreeCursor(SDL_Cursor *cursor)
+MOS_FreeCursor(SDL_Cursor *cursor)
 {
 	D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
 
-	if (!IS_SYSTEM_CURSOR(cursor)) {
-		//FreeBitMap(((SDL_AmigaCursor *)cursor)->Pointer.bmp);
-		if (((SDL_AmigaCursor *)cursor)->Pointer.mouseptr)
-			DisposeObject(((SDL_AmigaCursor *)cursor)->Pointer.mouseptr);
-
-	}
+	if (!IS_SYSTEM_CURSOR(cursor))
+		if (((SDL_MOSCursor *)cursor)->Pointer.mouseptr)
+			DisposeObject(((SDL_MOSCursor *)cursor)->Pointer.mouseptr);
 
 	SDL_free(cursor);
 }
 
 static int
-AMIGA_ShowCursor(SDL_Cursor * cursor)
+MOS_ShowCursor(SDL_Cursor * cursor)
 {
 	SDL_VideoDevice *video = SDL_GetVideoDevice();
 	SDL_VideoData *data = (SDL_VideoData *)video->driverdata;
@@ -148,7 +145,7 @@ AMIGA_ShowCursor(SDL_Cursor * cursor)
 			
 		}
 	} else {
-		SDL_AmigaCursor *ac = (SDL_AmigaCursor *)cursor;
+		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
 		SDL_WindowData *wd;
 
 		ForeachNode(&data->windowlist, wd)
@@ -163,7 +160,7 @@ AMIGA_ShowCursor(SDL_Cursor * cursor)
 }
 
 static void
-AMIGA_WarpMouse(SDL_Window * window, int x, int y)
+MOS_WarpMouse(SDL_Window * window, int x, int y)
 {
 	SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
 	struct Window *win;
@@ -213,9 +210,10 @@ AMIGA_WarpMouse(SDL_Window * window, int x, int y)
 }
 
 static int
-AMIGA_SetRelativeMouseMode(SDL_bool enabled)
+MOS_SetRelativeMouseMode(SDL_bool enabled)
 {
 	D("[%s]\n", __FUNCTION__);
+	
 	SDL_VideoDevice *video = SDL_GetVideoDevice();
 	SDL_VideoData *data = (SDL_VideoData *)video->driverdata;
 	SDL_WindowData *wd;
@@ -237,11 +235,10 @@ AMIGA_SetRelativeMouseMode(SDL_bool enabled)
 }
 
 static Uint32
-AMIGA_GetDoubleClickTimeInMillis(_THIS)
+MOS_GetDoubleClickTimeInMillis(_THIS)
 {
     Uint32 interval = 500;
 
-#ifdef __MORPHOS__
     struct RDArgs rda;
     SDL_memset(&rda, 0, sizeof(rda));
     rda.RDA_Source.CS_Buffer = (STRPTR)SDL_LoadFile("ENV:sys/mouse.conf", (size_t *)&rda.RDA_Source.CS_Length);
@@ -255,50 +252,29 @@ AMIGA_GetDoubleClickTimeInMillis(_THIS)
         }
         SDL_free(rda.RDA_Source.CS_Buffer);
     }
-#else
-    struct IFFHandle *iffhandle;
-    if ((iffhandle = AllocIFF())) {
-        if ((iffhandle->iff_Stream = (ULONG)Open("ENV:Sys/input.prefs", MODE_OLDFILE))) {
-            InitIFFasDOS(iffhandle);
-            if (!OpenIFF(iffhandle, IFFF_READ)) {
-                PropChunk(iffhandle, ID_PREF, ID_INPT);
-                while (!ParseIFF(iffhandle, IFFPARSE_STEP)) {
-                    struct StoredProperty *sp;
-                    if ((sp = FindProp(iffhandle, ID_PREF, ID_INPT))) {
-                        struct InputPrefs *ip = (struct InputPrefs *)sp->sp_Data;
-                        interval = ip->ip_DoubleClick.tv_secs * 1000 + ip->ip_DoubleClick.tv_micro / 1000;
-                        break;
-                    }
-                }
-                CloseIFF(iffhandle);
-            }
-            Close(iffhandle->iff_Stream);
-        }
-        FreeIFF(iffhandle);
-    }
-#endif
+
     return interval;
 }
 
 void
-AMIGA_InitMouse(_THIS)
+MOS_InitMouse(_THIS)
 {
 	SDL_Mouse *mouse = SDL_GetMouse();
 	char buffer[16];
 
-	mouse->CreateCursor = AMIGA_CreateCursor;
-	mouse->CreateSystemCursor = AMIGA_CreateSystemCursor;
-	mouse->ShowCursor = AMIGA_ShowCursor;
-	mouse->FreeCursor = AMIGA_FreeCursor;
-	mouse->WarpMouse = AMIGA_WarpMouse;
-	mouse->SetRelativeMouseMode = AMIGA_SetRelativeMouseMode;
+	mouse->CreateCursor = MOS_CreateCursor;
+	mouse->CreateSystemCursor = MOS_CreateSystemCursor;
+	mouse->ShowCursor = MOS_ShowCursor;
+	mouse->FreeCursor = MOS_FreeCursor;
+	mouse->WarpMouse = MOS_WarpMouse;
+	mouse->SetRelativeMouseMode = MOS_SetRelativeMouseMode;
 
-	SDL_SetDefaultCursor(AMIGA_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW));
-	SDL_SetHint(SDL_HINT_MOUSE_DOUBLE_CLICK_TIME,  SDL_uitoa(AMIGA_GetDoubleClickTimeInMillis(_this), buffer, 10));
+	SDL_SetDefaultCursor(MOS_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW));
+	SDL_SetHint(SDL_HINT_MOUSE_DOUBLE_CLICK_TIME,  SDL_uitoa(MOS_GetDoubleClickTimeInMillis(_this), buffer, 10));
 }
 
 void
-AMIGA_QuitMouse(_THIS)
+MOS_QuitMouse(_THIS)
 {
 	SDL_Mouse *mouse = SDL_GetMouse();
 	//D("[%s]\n", __FUNCTION__);

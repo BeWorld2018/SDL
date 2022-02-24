@@ -154,7 +154,7 @@ static SDL_VideoDevice *_this = NULL;
         return retval; \
     }
 
-#if defined(__AMIGAOS4__) || defined(__MORPHOS__)
+#if defined(__MORPHOS__)
 /* Let's have only one kind of full screen */
 #define FULLSCREEN_MASK (SDL_WINDOW_FULLSCREEN)
 #else
@@ -1243,7 +1243,7 @@ SDL_SetWindowDisplayMode(SDL_Window * window, const SDL_DisplayMode * mode)
                 SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED, fullscreen_mode.w, fullscreen_mode.h);
 #endif
             }
-#if defined(__AMIGAOS4__) || defined(__MORPHOS__)
+#if defined(__MORPHOS__)
             // Force window on new screen
             _this->SetWindowFullscreen(_this, window, SDL_GetDisplayForWindow(window), SDL_TRUE);
 #endif
@@ -3048,9 +3048,7 @@ SDL_OnWindowFocusGained(SDL_Window * window)
 static SDL_bool
 ShouldMinimizeOnFocusLoss(SDL_Window * window)
 {
-#ifndef __MORPHOS__
     const char *hint;
-#endif
 
     if (!(window->flags & SDL_WINDOW_FULLSCREEN) || window->is_destroying) {
         return SDL_FALSE;
@@ -3073,7 +3071,6 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
     }
 #endif
 
-#ifndef __MORPHOS__
     /* Real fullscreen windows should minimize on focus loss so the desktop video mode is restored */
     hint = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
     if (!hint || !*hint || SDL_strcasecmp(hint, "auto") == 0) {
@@ -3083,7 +3080,6 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
             return SDL_TRUE;
         }
     }
-#endif
 
     return SDL_GetHintBoolean(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 }
@@ -4273,7 +4269,7 @@ SDL_IsScreenKeyboardShown(SDL_Window *window)
 #include "x11/SDL_x11messagebox.h"
 #endif
 #if SDL_VIDEO_DRIVER_MORPHOS
-#include "morphos/SDL_amigamessagebox.h"
+#include "morphos/SDL_mosmessagebox.h"
 #endif
 #if SDL_VIDEO_DRIVER_WAYLAND
 #include "wayland/SDL_waylandmessagebox.h"
@@ -4395,7 +4391,7 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
 #if SDL_VIDEO_DRIVER_MORPHOS
     if (retval == -1 &&
         SDL_MessageboxValidForDriver(messageboxdata, SDL_SYSWM_MORPHOS) &&
-        AMIGA_ShowMessageBox(messageboxdata, buttonid) == 0) {
+        MOS_ShowMessageBox(messageboxdata, buttonid) == 0) {
         retval = 0;
     }
 #endif

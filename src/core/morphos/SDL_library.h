@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_CORE_AMIGA_LIBRARY_H
-#define SDL_CORE_AMIGA_LIBRARY_H
+#ifndef SDL_CORE_MORPHOS_LIBRARY_H
+#define SDL_CORE_MORPHOS_LIBRARY_H
 
 #include "../../SDL_internal.h"
 
@@ -99,4 +99,4 @@ struct SDL_Library
 
 extern BYTE HasAltiVec;
 
-#endif /* SDL_CORE_AMIGA_LIBRARY_H */
+#endif /* SDL_CORE_MORPHOS_LIBRARY_H */
