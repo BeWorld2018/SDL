@@ -156,8 +156,7 @@ SDL_InitSubSystem(Uint32 flags)
     Uint32 flags_initialized = 0;
 
     if (!SDL_MainIsReady) {
-        SDL_SetError("Application didn't initialize properly, did you include SDL_main.h in the file containing your main() function?");
-        return -1;
+        return SDL_SetError("Application didn't initialize properly, did you include SDL_main.h in the file containing your main() function?");
     }
 
     /* Clear the error message */
@@ -211,7 +210,7 @@ SDL_InitSubSystem(Uint32 flags)
 
     /* Initialize the timer subsystem */
     if ((flags & SDL_INIT_TIMER)){
-#if !SDL_TIMERS_DISABLED
+#if !SDL_TIMERS_DISABLED && !SDL_TIMER_DUMMY
         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_TIMER)) {
             if (SDL_TimerInit() < 0) {
                 goto quit_and_error;
@@ -405,7 +404,7 @@ SDL_QuitSubSystem(Uint32 flags)
     }
 #endif
 
-#if !SDL_TIMERS_DISABLED
+#if !SDL_TIMERS_DISABLED && !SDL_TIMER_DUMMY
     if ((flags & SDL_INIT_TIMER)) {
         if (SDL_PrivateShouldQuitSubsystem(SDL_INIT_TIMER)) {
             SDL_TimerQuit();

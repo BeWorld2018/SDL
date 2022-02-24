@@ -1897,7 +1897,7 @@ SDL_GetJoystickGameControllerType(const char *name, Uint16 vendor, Uint16 produc
             0x12ab, /* Unknown */
             0x1430, /* RedOctane */
             0x146b, /* BigBen */
-            0x1532, /* Razer Sabertooth */
+            0x1532, /* Razer */
             0x15e4, /* Numark */
             0x162e, /* Joytech */
             0x1689, /* Razer Onza */
@@ -1926,7 +1926,7 @@ SDL_GetJoystickGameControllerType(const char *name, Uint16 vendor, Uint16 produc
             0x0738, /* Mad Catz */
             0x0e6f, /* PDP */
             0x0f0d, /* Hori */
-            0x1532, /* Razer Wildcat */
+            0x1532, /* Razer */
             0x20d6, /* PowerA */
             0x24c6, /* PowerA */
             0x2e24, /* Hyperkin */
@@ -2164,6 +2164,7 @@ static SDL_bool SDL_IsJoystickProductWheel(Uint32 vidpid)
         MAKE_VIDPID(0x046d, 0xc261),    /* Logitech G920 (initial mode) */
         MAKE_VIDPID(0x046d, 0xc262),    /* Logitech G920 (active mode) */
         MAKE_VIDPID(0x046d, 0xc26e),    /* Logitech G923 */
+        MAKE_VIDPID(0x046d, 0xca03),    /* Logitech Momo Racing */
         MAKE_VIDPID(0x044f, 0xb65d),    /* Thrustmaster Wheel FFB */
         MAKE_VIDPID(0x044f, 0xb66d),    /* Thrustmaster Wheel FFB */
         MAKE_VIDPID(0x044f, 0xb677),    /* Thrustmaster T150 */
@@ -2453,9 +2454,22 @@ SDL_bool SDL_ShouldIgnoreJoystick(const char *name, SDL_JoystickGUID guid)
         /* Additional entries                                            */
         /*****************************************************************/
 
-        MAKE_VIDPID(0x04d9, 0x8009),  /* OBINLB USB-HID Keyboard */
-        MAKE_VIDPID(0x0b05, 0x1958),  /* ROG Chakram Mouse */
+        MAKE_VIDPID(0x04d9, 0x8008),  /* OBINLB USB-HID Keyboard (Anne Pro II) */
+        MAKE_VIDPID(0x04d9, 0x8009),  /* OBINLB USB-HID Keyboard (Anne Pro II) */
+        MAKE_VIDPID(0x04d9, 0xa292),  /* OBINLB USB-HID Keyboard (Anne Pro II) */
+        MAKE_VIDPID(0x04d9, 0xa293),  /* OBINLB USB-HID Keyboard (Anne Pro II) */
+        MAKE_VIDPID(0x1532, 0x0266),  /* Razer Huntman V2 Analog, non-functional DInput device */
+        MAKE_VIDPID(0x1532, 0x0282),  /* Razer Huntman Mini Analog, non-functional DInput device */
         MAKE_VIDPID(0x26ce, 0x01a2),  /* ASRock LED Controller */
+    };
+
+    static Uint32 rog_chakram_list[] = {
+        MAKE_VIDPID(0x0b05, 0x1958),  /* ROG Chakram Core Mouse */
+        MAKE_VIDPID(0x0b05, 0x18e3),  /* ROG Chakram (wired) Mouse */
+        MAKE_VIDPID(0x0b05, 0x18e5),  /* ROG Chakram (wireless) Mouse */
+        MAKE_VIDPID(0x0b05, 0x1a18),  /* ROG Chakram X (wired) Mouse */
+        MAKE_VIDPID(0x0b05, 0x1a1a),  /* ROG Chakram X (wireless) Mouse */
+        MAKE_VIDPID(0x0b05, 0x1a1c),  /* ROG Chakram X (Bluetooth) Mouse */
     };
 
     unsigned int i;
@@ -2471,6 +2485,13 @@ SDL_bool SDL_ShouldIgnoreJoystick(const char *name, SDL_JoystickGUID guid)
     for (i = 0; i < SDL_arraysize(joystick_blacklist); ++i) {
         if (id == joystick_blacklist[i]) {
             return SDL_TRUE;
+        }
+    }
+    if (!SDL_GetHintBoolean(SDL_HINT_JOYSTICK_ROG_CHAKRAM, SDL_FALSE)) {
+        for (i = 0; i < SDL_arraysize(rog_chakram_list); ++i) {
+            if (id == rog_chakram_list[i]) {
+                return SDL_TRUE;
+            }
         }
     }
 
