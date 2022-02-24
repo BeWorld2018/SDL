@@ -134,7 +134,7 @@ AHIAUD_ThreadInit(_THIS)
 }
 
 static int
-AHIAUD_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
+AHIAUD_OpenDevice(_THIS, const char *devname)
 {
 	MOSAudioData *hidden;
 	SDL_AudioFormat test_format;
@@ -304,7 +304,7 @@ AHIAUD_CaptureFromDevice(_THIS, void *buffer, int buflen)
     return copyLen;
 }
 
-static int
+static SDL_bool
 AHIAUD_Init(SDL_AudioDriverImpl * impl)
 {
 	/* Set the function pointers */
@@ -317,13 +317,13 @@ AHIAUD_Init(SDL_AudioDriverImpl * impl)
 	impl->GetDeviceBuf = AHIAUD_GetDeviceBuf;
 	impl->CloseDevice = AHIAUD_CloseDevice;
 
-	impl->HasCaptureSupport = 1;
-	impl->OnlyHasDefaultOutputDevice = 1;
-	impl->OnlyHasDefaultCaptureDevice = 1;
+	impl->HasCaptureSupport = SDL_TRUE;
+	impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
+	impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
 	
-	return 1;   /* this audio target is available. */
+	return SDL_TRUE;   /* this audio target is available. */
 }
 
 AudioBootStrap AHIAUD_bootstrap = {
-    "ahi", "MorphOS AHI audio driver", AHIAUD_Init, 0
+    "ahi", "MorphOS AHI audio driver", AHIAUD_Init, SDL_FALSE 
 };
