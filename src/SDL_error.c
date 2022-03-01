@@ -51,7 +51,8 @@ SDL_SetError(SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
 }
 
 #ifdef __MORPHOS__
-int SDL_VSetError(const char *fmt, va_list ap) 
+int
+SDL_VSetError(const char *fmt, va_list ap)
 {
 	D("[%s] %s\n", __FUNCTION__, fmt);
 	return SDL_SetError(fmt);

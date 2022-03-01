@@ -3002,7 +3002,9 @@ SDL_OnWindowFocusGained(SDL_Window * window)
 static SDL_bool
 ShouldMinimizeOnFocusLoss(SDL_Window * window)
 {
+#ifndef __MORPHOS__
     const char *hint;
+#endif
 
     if (!(window->flags & SDL_WINDOW_FULLSCREEN) || window->is_destroying) {
         return SDL_FALSE;
@@ -3025,6 +3027,7 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
     }
 #endif
 
+#ifndef __MORPHOS__
     /* Real fullscreen windows should minimize on focus loss so the desktop video mode is restored */
     hint = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
     if (!hint || !*hint || SDL_strcasecmp(hint, "auto") == 0) {
@@ -3034,6 +3037,7 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
             return SDL_TRUE;
         }
     }
+#endif
 
     return SDL_GetHintBoolean(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 }
