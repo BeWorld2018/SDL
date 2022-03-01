@@ -844,3 +844,6 @@
 	STUB(SDL_PremultiplyAlpha)
 	STUB(SDL_getenv)
 	STUB(SDL_setenv)
+
+	STUB(SDL_GetTouchName)
+	

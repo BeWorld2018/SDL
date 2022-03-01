@@ -834,7 +834,7 @@ SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 void SDL_hid_ble_scan(SDL_bool active);
 int SDL_PremultiplyAlpha(int width, int height, Uint32 src_format, const void * src, int src_pitch, Uint32 dst_format, void * dst, int dst_pitch);
-
+const char* SDL_GetTouchName(int index);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

@@ -6680,4 +6680,12 @@
 		(((int (*)(int , int , Uint32 , const void *, int , Uint32 , void *, int ))*(void**)(__base - 4570))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5, __t__p6, __t__p7));\
 	})
 
+#define SDL_GetTouchName(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(int ))*(void**)(__base - 4588))(__t__p0));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
