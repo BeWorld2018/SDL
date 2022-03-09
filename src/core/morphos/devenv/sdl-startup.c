@@ -22,14 +22,14 @@
 
 #if defined(__NO_SDL_CONSTRUCTORS)
 extern struct Library *SDL2Base;
-extern struct Library *OpenURLBase;
+//extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
-struct Library *OpenURLBase;
+//struct Library *OpenURLBase;
 GLContext      *__tglContext;
 
 void __SDL2_OpenLibError(ULONG version, const char *name)
@@ -39,11 +39,13 @@ void __SDL2_OpenLibError(ULONG version, const char *name)
 	if (MUIMasterBase)
 	{
 		size_t args[5] = { version, (size_t)name, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL};
-		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need version %.10ld of %s.\nYou can find %.10ld.%.10ld.%.10ld package on MorphOS-Storage.org.", &args);
+		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need version %.10ld of %s.\nYou can find last package on MorphOS-Storage.net.", &args);
 		if (ret == 0){
 			static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
+			struct Library *OpenURLBase = OpenLibrary("openurl.library", 0);
 			if (OpenURLBase) {
 				URL_OpenA((STRPTR)"https://www.morphos-storage.net/?find=SDL_2", (struct TagItem*) URLTags);
+				CloseLibrary(OpenURLBase);
 			}
 		}
 		CloseLibrary(MUIMasterBase);
