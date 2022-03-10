@@ -32,14 +32,14 @@ struct Library *TinyGLBase;
 //struct Library *OpenURLBase;
 GLContext      *__tglContext;
 
-void __SDL2_OpenLibError(ULONG version, const char *name)
+void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
 {
 	struct Library *MUIMasterBase = OpenLibrary("muimaster.library", 0);
 
 	if (MUIMasterBase)
 	{
-		size_t args[5] = { version, (size_t)name, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL};
-		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need version %.10ld of %s.\nYou can find last package on MorphOS-Storage.net.", &args);
+		size_t args[5] = { version, revision, (size_t)name};
+		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need minimum version %.10ld.%.10ld of %s .\nYou can find last SDL2 package on MorphOS-Storage.net.", &args);
 		if (ret == 0){
 			static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
 			struct Library *OpenURLBase = OpenLibrary("openurl.library", 0);
@@ -61,22 +61,39 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 
 	if (base)
 	{
-		NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
-
-		if(NewLock)
+		
+		UWORD version = base->lib_Version;
+		UWORD revision = base->lib_Revision;
+		if (version < VERSION || (version == VERSION && revision < REVISION))
 		{
-			SDL2Base = base;
-			SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
-			OldLock = CurrentDir(NewLock);
-		}
-		else
-		{
+			
 			CloseLibrary(base);
+		
+			__SDL2_OpenLibError(VERSION, libname, REVISION);
+			
+		} else {
+		
+		
+			NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
+
+			if(NewLock)
+			{
+				SDL2Base = base;
+				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
+				OldLock = CurrentDir(NewLock);
+			}
+			else
+			{
+				
+			}
 		}
+		
+		CloseLibrary(base);
+		
 	}
 	else
 	{
-		__SDL2_OpenLibError(VERSION, libname);
+		__SDL2_OpenLibError(VERSION, libname, REVISION);
 	}
 
 	return (base == NULL);
