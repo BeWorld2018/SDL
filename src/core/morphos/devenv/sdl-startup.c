@@ -22,14 +22,12 @@
 
 #if defined(__NO_SDL_CONSTRUCTORS)
 extern struct Library *SDL2Base;
-//extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
-//struct Library *OpenURLBase;
 GLContext      *__tglContext;
 
 void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
@@ -61,35 +59,24 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 
 	if (base)
 	{
-		
 		UWORD version = base->lib_Version;
 		UWORD revision = base->lib_Revision;
 		if (version < VERSION || (version == VERSION && revision < REVISION))
 		{
-			
 			CloseLibrary(base);
-		
+			base = NULL;
 			__SDL2_OpenLibError(VERSION, libname, REVISION);
 			
-		} else {
-		
-		
+		} else {	
 			NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
-
 			if(NewLock)
 			{
 				SDL2Base = base;
 				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
 				OldLock = CurrentDir(NewLock);
 			}
-			else
-			{
-				
-			}
 		}
-		
-		CloseLibrary(base);
-		
+		CloseLibrary(base);		
 	}
 	else
 	{
@@ -102,7 +89,6 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 {
 	struct Library *base = SDL2Base;
-
 	if (base)
 	{
 		if (NewLock)
@@ -111,7 +97,6 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 			//UnLock(NewLock);
 			UnLock(CurrentDir(OldLock));
 		}
-
 		CloseLibrary(base);
 	}
 }
