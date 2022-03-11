@@ -36,7 +36,8 @@ void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
 
 	if (MUIMasterBase)
 	{
-		size_t args[5] = { version, revision, (size_t)name};
+		if (!revision) revision = 0;
+		size_t args[3] = { version, revision, (size_t)name};
 		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need minimum version %.10ld.%.10ld of %s .\nYou can find last SDL2 package on MorphOS-Storage.net.", &args);
 		if (ret == 0){
 			static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
@@ -67,7 +68,9 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 			base = NULL;
 			__SDL2_OpenLibError(VERSION, libname, REVISION);
 			
-		} else {	
+		} 
+		else 
+		{	
 			NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
 			if(NewLock)
 			{
@@ -75,8 +78,12 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
 				OldLock = CurrentDir(NewLock);
 			}
+			else
+			{
+				CloseLibrary(base);
+			}
 		}
-		CloseLibrary(base);		
+				
 	}
 	else
 	{
