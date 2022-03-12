@@ -293,10 +293,20 @@ SDL_MORPHOS_JoystickRumbleTriggers(SDL_Joystick * joystick, Uint16 left_rumble, 
     return SDL_Unsupported();
 }
 
-static SDL_bool
-SDL_MORPHOS_JoystickHasLED(SDL_Joystick * joystick)
+static Uint32
+SDL_MORPHOS_JoystickGetCapabilities(SDL_Joystick * joystick)
 {
-    return SDL_FALSE;
+    Uint32 result = 0;
+	struct joystick_hwdata *hwdata = joystick->hwdata;
+	if (hwdata) 
+	{
+		if (hwdata->numRumbles)
+		{
+        	result |= SDL_JOYCAP_RUMBLE;
+		}
+    }
+
+    return result;
 }
 
 static int
@@ -473,7 +483,7 @@ SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
     SDL_MORPHOS_JoystickOpen,
     SDL_MORPHOS_JoystickRumble,
     SDL_MORPHOS_JoystickRumbleTriggers,
-    SDL_MORPHOS_JoystickHasLED,
+    SDL_MORPHOS_JoystickGetCapabilities,
     SDL_MORPHOS_JoystickSetLED,
 	SDL_MORPHOS_JoystickSendEffect,
 	SDL_MORPHOS_JoystickSetSensorsEnabled,
