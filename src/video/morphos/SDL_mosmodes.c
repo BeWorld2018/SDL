@@ -35,6 +35,26 @@
 #include <proto/screennotify.h>
 #include <proto/exec.h>
 
+static int
+MOS_GetRefreshRate(struct Screen *s)
+{
+	ULONG modeid = getv(s, SA_DisplayID);
+	APTR handle = FindDisplayInfo(modeid);
+	ULONG freq = 60;
+
+	D("[%s]\n", __FUNCTION__);
+
+	if (handle) {
+		struct MonitorInfo mi;
+
+		if (GetDisplayInfoData(handle, (UBYTE *)&mi, sizeof(mi), DTAG_MNTR, 0) >= sizeof(mi))
+			if (mi.TotalRows)
+				freq = (ULONG)(1000000000L / ((FLOAT)mi.TotalColorClocks * 280.0 * (FLOAT)mi.TotalRows / 1000.0) + 5.0);
+	}
+
+	return freq;
+}
+
 static Uint32
 MOS_SDLPixelFormatToDepth(Uint32 pixfmt)
 {
@@ -92,26 +112,6 @@ MOS_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
 		case PIXFMT_RGBA32 : return SDL_PIXELFORMAT_RGBA8888;
 		default            : return SDL_PIXELFORMAT_BGRA8888;
 	}
-}
-
-static int
-MOS_GetRefreshRate(struct Screen *s)
-{
-	ULONG modeid = getv(s, SA_DisplayID);
-	APTR handle = FindDisplayInfo(modeid);
-	ULONG freq = 60;
-
-	D("[%s]\n", __FUNCTION__);
-
-	if (handle) {
-		struct MonitorInfo mi;
-
-		if (GetDisplayInfoData(handle, (UBYTE *)&mi, sizeof(mi), DTAG_MNTR, 0) >= sizeof(mi))
-			if (mi.TotalRows)
-				freq = (ULONG)(1000000000L / ((FLOAT)mi.TotalColorClocks * 280.0 * (FLOAT)mi.TotalRows / 1000.0) + 5.0);
-	}
-
-	return freq;
 }
 
 #define MAX_SDL_PIXEL_FORMATS 10
@@ -176,7 +176,7 @@ MOS_InitModes(_THIS)
 			mode.format = pixfmt;
 			mode.w = width;
 			mode.h = height;
-			mode.refresh_rate = MOS_GetRefreshRate(s);
+			mode.refresh_rate = (int)MOS_GetRefreshRate(s) / 1000;
 			mode.driverdata = SDL_malloc(4);
 
 			display.desktop_mode = mode;
