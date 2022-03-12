@@ -22,14 +22,12 @@
 
 #if defined(__NO_SDL_CONSTRUCTORS)
 extern struct Library *SDL2Base;
-//extern struct Library *OpenURLBase;
 #else
 int _INIT_4_SDL2Base(void) __attribute__((alias("__CSTP_init_SDL2Base")));
 void _EXIT_4_SDL2Base(void) __attribute__((alias("__DSTP_cleanup_SDL2Base")));
 
 struct Library *SDL2Base;
 struct Library *TinyGLBase;
-//struct Library *OpenURLBase;
 GLContext      *__tglContext;
 
 void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
@@ -38,7 +36,8 @@ void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
 
 	if (MUIMasterBase)
 	{
-		size_t args[5] = { version, revision, (size_t)name};
+		if (!revision) revision = 0;
+		size_t args[3] = { version, revision, (size_t)name};
 		LONG ret = MUI_RequestA(NULL, NULL, 0, "SDL2 startup message", "_Ok|_MorphOS-Storage", "You need minimum version %.10ld.%.10ld of %s .\nYou can find last SDL2 package on MorphOS-Storage.net.", &args);
 		if (ret == 0){
 			static const struct TagItem URLTags[] = {{TAG_DONE, (ULONG) NULL}};
@@ -61,21 +60,18 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 
 	if (base)
 	{
-		
 		UWORD version = base->lib_Version;
 		UWORD revision = base->lib_Revision;
 		if (version < VERSION || (version == VERSION && revision < REVISION))
 		{
-			
 			CloseLibrary(base);
-		
+			base = NULL;
 			__SDL2_OpenLibError(VERSION, libname, REVISION);
 			
-		} else {
-		
-		
+		} 
+		else 
+		{	
 			NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
-
 			if(NewLock)
 			{
 				SDL2Base = base;
@@ -84,12 +80,10 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 			}
 			else
 			{
-				
+				CloseLibrary(base);
 			}
 		}
-		
-		CloseLibrary(base);
-		
+				
 	}
 	else
 	{
@@ -102,7 +96,6 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 {
 	struct Library *base = SDL2Base;
-
 	if (base)
 	{
 		if (NewLock)
@@ -111,7 +104,6 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 			//UnLock(NewLock);
 			UnLock(CurrentDir(OldLock));
 		}
-
 		CloseLibrary(base);
 	}
 }
