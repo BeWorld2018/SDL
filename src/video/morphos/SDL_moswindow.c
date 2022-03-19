@@ -374,22 +374,30 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 	if (data->win == NULL && (data->sdlflags & SDL_WINDOW_MINIMIZED) == 0) {
 		struct Screen *scr;
 		size_t flags = WFLG_SIMPLE_REFRESH | WFLG_REPORTMOUSE | WFLG_ACTIVATE;
-		size_t w = window->w, h = window->h, max_w = window->max_w, max_h = window->max_h;
+		size_t w = window->w, h = window->h;
 		size_t min_w = window->min_w, min_h = window->min_h;
 		size_t left = window->x, top = window->y;
+
 		int maxheight, barheight = 0;
 		BYTE fullscreen = data->winflags & SDL_MOS_WINDOW_FULLSCREEN;
+		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
 
 		data->winflags |= SDL_MOS_WINDOW_SHOWN;
-
-		D("[%s] initial sizes %ld/%ld and %ld/%ld\n", __FUNCTION__, w, h, max_w, max_h);
-
+		
 		if (vd->WScreen == NULL)
 			MOS_GetScreen(vd->VideoDevice, vd->FullScreen, (window->flags & SDL_WINDOW_OPENGL) != 0);
-
+		
+		
 		scr = vd->WScreen;
+		
+		size_t max_w = window->max_w ? window->max_w : (win_resizable ? scr->Width : w);
+		size_t max_h = window->max_h ? window->max_h : (win_resizable ? scr->Height : h);
+		
 
-		D("[%s] screen 0x%08lx is %ld/%ld and %ld/%ld\n", __FUNCTION__, scr, scr->Width, scr->Height);
+		D("[%s] initial sizes %ld/%ld and max: %ld/%ld\n", __FUNCTION__, w, h, max_w, max_h);
+
+
+		D("[%s] screen 0x%08lx is %ld/%ld\n", __FUNCTION__, scr, scr->Width, scr->Height);
 
 		// Add border sizes
 		APTR di = GetScreenDrawInfo(scr);
@@ -406,10 +414,10 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			top = left = 0;
 		} else if (data->sdlflags & SDL_WINDOW_MAXIMIZED) { // Maximize window
 			int border_w = GetSkinInfoAttrA(di, SI_BorderLeft    , NULL) + GetSkinInfoAttrA(di, SI_BorderRight, NULL);
-			int border_h = GetSkinInfoAttrA(di, SI_BorderTopTitle, NULL) + GetSkinInfoAttrA(di, window->flags & SDL_WINDOW_RESIZABLE ? SI_BorderBottomSize : SI_BorderBottom, NULL);
+			int border_h = GetSkinInfoAttrA(di, SI_BorderTopTitle, NULL) + GetSkinInfoAttrA(di, win_resizable ? SI_BorderBottomSize : SI_BorderBottom, NULL);
 
 			D("[%s] Border width %ld, border height %ld, bar height %ld\n", __FUNCTION__, border_w, border_h, barheight);
-
+			
 			max_w = MAX(w, max_w) - border_w;
 			max_h = MAX(h, max_h) - border_h;
 			max_h = MIN(maxheight - border_h, max_h);
@@ -445,7 +453,6 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		else
 			flags |= WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET;
 
-		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
 		SDL_bool win_top = (window->flags & SDL_WINDOW_ALWAYS_ON_TOP && !fullscreen);
 		if (win_resizable)
 			flags |= WFLG_SIZEGADGET | WFLG_SIZEBBOTTOM;
@@ -654,12 +661,13 @@ MOS_MaximizeWindow(_THIS, SDL_Window * window)
 	struct Screen *scr = data->win->WScreen;
 	ULONG bh = 0;
 
-	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
-
-	data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
-	data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
-
-	if (data->win) {
+	D("[%s] wnd 0x%08lx - w=%d, h=%d\n", __FUNCTION__, data->win, data->win->MaxWidth, data->win->MaxHeight);
+	
+	if (data->win && window->flags & SDL_WINDOW_RESIZABLE) {
+		
+		data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
+		data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
+		
 		if (videodata->CustomScreen == NULL)
 			bh = scr->BarHeight + 1;
 
