@@ -580,6 +580,17 @@ extern "C" {
 #define SDL_HINT_IME_SHOW_UI "SDL_IME_SHOW_UI"
 
 /**
+ * \brief A variable to control if extended IME text support is enabled.
+ * If enabled then SDL_TextEditingExtEvent will be issued if the text would be truncated otherwise.
+ * Additionally SDL_TextInputEvent will be dispatched multiple times so that it is not truncated.
+ *
+ * The variable can be set to the following values:
+ *   "0"       - Legacy behavior. Text can be truncated, no heap allocations. (default)
+ *   "1"       - Modern behavior.
+ */
+#define SDL_HINT_IME_SUPPORT_EXTENDED_TEXT "SDL_IME_SUPPORT_EXTENDED_TEXT"
+
+/**
  * \brief  A variable controlling whether the home indicator bar on iPhone X
  *         should be hidden.
  *
@@ -923,6 +934,22 @@ extern "C" {
 #define SDL_HINT_MOUSE_NORMAL_SPEED_SCALE    "SDL_MOUSE_NORMAL_SPEED_SCALE"
 
 /**
+ *  \brief  A variable controlling whether relative mouse mode constrains the mouse to the center of the window
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Relative mouse mode constrains the mouse to the window
+ *    "1"       - Relative mouse mode constrains the mouse to the center of the window
+ *
+ *  Constraining to the center of the window works better for FPS games and when the
+ *  application is running over RDP. Constraining to the whole window works better
+ *  for 2D games and increases the chance that the mouse will be in the correct
+ *  position when using high DPI mice.
+ *
+ *  By default SDL will constrain the mouse to the center of the window
+ */
+#define SDL_HINT_MOUSE_RELATIVE_MODE_CENTER    "SDL_MOUSE_RELATIVE_MODE_CENTER"
+
+/**
  *  \brief  A variable controlling whether relative mouse mode is implemented using mouse warping
  *
  *  This variable can be set to the following values:
@@ -957,6 +984,19 @@ extern "C" {
  *    "1"       - Mouse events will generate touch events (default for mobile platforms, such as Android and iOS)
  */
 #define SDL_HINT_MOUSE_TOUCH_EVENTS    "SDL_MOUSE_TOUCH_EVENTS"
+
+/**
+ *  \brief  A variable controlling whether the mouse is captured while mouse buttons are pressed
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - The mouse is not captured while mouse buttons are pressed
+ *    "1"       - The mouse is captured while mouse buttons are pressed
+ *
+ *  By default the mouse is captured while mouse buttons are pressed so if the mouse is dragged
+ *  outside the window, the application continues to receive mouse events until the button is
+ *  released.
+ */
+#define SDL_HINT_MOUSE_AUTO_CAPTURE    "SDL_MOUSE_AUTO_CAPTURE"
 
 /**
  *  \brief Tell SDL not to catch the SIGINT or SIGTERM signals.
@@ -1441,6 +1481,28 @@ extern "C" {
 *    share a pixel format with.
 */
 #define SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT    "SDL_VIDEO_WINDOW_SHARE_PIXEL_FORMAT"
+
+/**
+ *  \brief  When calling SDL_CreateWindowFrom(), make the window compatible with OpenGL.
+ *
+ * This variable can be set to the following values:
+ * "0" - Don't add any graphics flags to the SDL_WindowFlags
+ * "1" - Add SDL_WINDOW_OPENGL to the SDL_WindowFlags
+ *
+ * By default SDL will not make the foreign window compatible with OpenGL.
+ */
+#define SDL_HINT_VIDEO_FOREIGN_WINDOW_OPENGL "SDL_VIDEO_FOREIGN_WINDOW_OPENGL"
+
+/**
+ *  \brief  When calling SDL_CreateWindowFrom(), make the window compatible with Vulkan.
+ *
+ * This variable can be set to the following values:
+ * "0" - Don't add any graphics flags to the SDL_WindowFlags
+ * "1" - Add SDL_WINDOW_VULKAN to the SDL_WindowFlags
+ *
+ * By default SDL will not make the foreign window compatible with Vulkan.
+ */
+#define SDL_HINT_VIDEO_FOREIGN_WINDOW_VULKAN "SDL_VIDEO_FOREIGN_WINDOW_VULKAN"
 
 /**
 *  \brief  A variable specifying which shader compiler to preload when using the Chrome ANGLE binaries

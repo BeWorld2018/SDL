@@ -867,10 +867,14 @@ SDL_SendKeyboardText(const char *text)
     posted = 0;
     if (SDL_GetEventState(SDL_TEXTINPUT) == SDL_ENABLE) {
         SDL_Event event;
+        size_t i = 0, length = SDL_strlen(text);
+
         event.text.type = SDL_TEXTINPUT;
         event.text.windowID = keyboard->focus ? keyboard->focus->id : 0;
-        SDL_utf8strlcpy(event.text.text, text, SDL_arraysize(event.text.text));
-        posted = (SDL_PushEvent(&event) > 0);
+        while (i < length) {
+            i += SDL_utf8strlcpy(event.text.text, text + i, SDL_arraysize(event.text.text));
+            posted |= (SDL_PushEvent(&event) > 0);
+        }
     }
     return (posted);
 }
@@ -890,6 +894,22 @@ SDL_SendEditingText(const char *text, int start, int length)
         event.edit.start = start;
         event.edit.length = length;
         SDL_utf8strlcpy(event.edit.text, text, SDL_arraysize(event.edit.text));
+
+        if (SDL_GetHintBoolean(SDL_HINT_IME_SUPPORT_EXTENDED_TEXT, SDL_FALSE) &&
+            SDL_strlen(text) > SDL_arraysize(event.text.text)) {
+            event.editExt.type = SDL_TEXTEDITING_EXT;
+            event.editExt.windowID = keyboard->focus ? keyboard->focus->id : 0;
+            event.editExt.text = text ? SDL_strdup(text) : NULL;
+            event.editExt.start = start;
+            event.editExt.length = length;
+        } else {
+            event.edit.type = SDL_TEXTEDITING;
+            event.edit.windowID = keyboard->focus ? keyboard->focus->id : 0;
+            event.edit.start = start;
+            event.edit.length = length;
+            SDL_utf8strlcpy(event.edit.text, text, SDL_arraysize(event.edit.text));
+        }
+
         posted = (SDL_PushEvent(&event) > 0);
     }
     return (posted);

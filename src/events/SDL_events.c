@@ -35,7 +35,7 @@
 #include "SDL_syswm.h"
 
 #undef SDL_PRIs64
-#ifdef __WIN32__
+#if defined(__WIN32__) && !defined(__CYGWIN__)
 #define SDL_PRIs64  "I64d"
 #else
 #define SDL_PRIs64  "lld"
@@ -206,10 +206,27 @@ SDL_LogEvent(const SDL_Event *event)
         SDL_EVENT_CASE(SDL_APP_DIDENTERBACKGROUND) break;
         SDL_EVENT_CASE(SDL_APP_WILLENTERFOREGROUND) break;
         SDL_EVENT_CASE(SDL_APP_DIDENTERFOREGROUND) break;
+        SDL_EVENT_CASE(SDL_LOCALECHANGED) break;
         SDL_EVENT_CASE(SDL_KEYMAPCHANGED) break;
         SDL_EVENT_CASE(SDL_CLIPBOARDUPDATE) break;
         SDL_EVENT_CASE(SDL_RENDER_TARGETS_RESET) break;
         SDL_EVENT_CASE(SDL_RENDER_DEVICE_RESET) break;
+
+        SDL_EVENT_CASE(SDL_DISPLAYEVENT) {
+            char name2[64];
+            switch (event->display.event) {
+                case SDL_DISPLAYEVENT_NONE: SDL_strlcpy(name2, "SDL_DISPLAYEVENT_NONE (THIS IS PROBABLY A BUG!)", sizeof(name2)); break;
+                #define SDL_DISPLAYEVENT_CASE(x) case x: SDL_strlcpy(name2, #x, sizeof (name2)); break
+                SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_ORIENTATION);
+                SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_CONNECTED);
+                SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_DISCONNECTED);
+                #undef SDL_DISPLAYEVENT_CASE
+                default: SDL_strlcpy(name2, "UNKNOWN (bug? fixme?)", sizeof(name2)); break;
+            }
+            SDL_snprintf(details, sizeof (details), " (timestamp=%u display=%u event=%s data1=%d)",
+                        (uint) event->display.timestamp, (uint) event->display.display, name2, (int) event->display.data1);
+            break;
+        }
 
         SDL_EVENT_CASE(SDL_WINDOWEVENT) {
             char name2[64];
@@ -232,6 +249,8 @@ SDL_LogEvent(const SDL_Event *event)
                 SDL_WINDOWEVENT_CASE(SDL_WINDOWEVENT_CLOSE);
                 SDL_WINDOWEVENT_CASE(SDL_WINDOWEVENT_TAKE_FOCUS);
                 SDL_WINDOWEVENT_CASE(SDL_WINDOWEVENT_HIT_TEST);
+                SDL_WINDOWEVENT_CASE(SDL_WINDOWEVENT_ICCPROF_CHANGED);
+                SDL_WINDOWEVENT_CASE(SDL_WINDOWEVENT_DISPLAY_CHANGED);
                 #undef SDL_WINDOWEVENT_CASE
                 default: SDL_strlcpy(name2, "UNKNOWN (bug? fixme?)", sizeof (name2)); break;
             }
@@ -665,7 +684,7 @@ SDL_PeepEventsInternal(SDL_Event * events, int numevents, SDL_eventaction action
     /* Don't look after we've quit */
     if (!SDL_AtomicGet(&SDL_EventQ.active)) {
         /* We get a few spurious events at shutdown, so don't warn then */
-        if (action != SDL_ADDEVENT) {
+        if (action == SDL_GETEVENT) {
             SDL_SetError("The event system has been shut down");
         }
         return (-1);

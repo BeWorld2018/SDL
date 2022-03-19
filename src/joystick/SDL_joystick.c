@@ -893,17 +893,18 @@ SDL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 h
 #endif
     }
 
-    /* Save the rumble value regardless of success, so we don't spam the driver */
-    joystick->low_frequency_rumble = low_frequency_rumble;
-    joystick->high_frequency_rumble = high_frequency_rumble;
+    if (result == 0) {
+        joystick->low_frequency_rumble = low_frequency_rumble;
+        joystick->high_frequency_rumble = high_frequency_rumble;
 
-    if ((low_frequency_rumble || high_frequency_rumble) && duration_ms) {
-        joystick->rumble_expiration = SDL_GetTicks() + SDL_min(duration_ms, SDL_MAX_RUMBLE_DURATION_MS);
-        if (!joystick->rumble_expiration) {
-            joystick->rumble_expiration = 1;
+        if ((low_frequency_rumble || high_frequency_rumble) && duration_ms) {
+            joystick->rumble_expiration = SDL_GetTicks() + SDL_min(duration_ms, SDL_MAX_RUMBLE_DURATION_MS);
+            if (!joystick->rumble_expiration) {
+                joystick->rumble_expiration = 1;
+            }
+        } else {
+            joystick->rumble_expiration = 0;
         }
-    } else {
-        joystick->rumble_expiration = 0;
     }
     SDL_UnlockJoysticks();
 
@@ -927,17 +928,18 @@ SDL_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 ri
         result = joystick->driver->RumbleTriggers(joystick, left_rumble, right_rumble);
     }
 
-    /* Save the rumble value regardless of success, so we don't spam the driver */
-    joystick->left_trigger_rumble = left_rumble;
-    joystick->right_trigger_rumble = right_rumble;
+    if (result == 0) {
+        joystick->left_trigger_rumble = left_rumble;
+        joystick->right_trigger_rumble = right_rumble;
 
-    if ((left_rumble || right_rumble) && duration_ms) {
-        joystick->trigger_rumble_expiration = SDL_GetTicks() + SDL_min(duration_ms, SDL_MAX_RUMBLE_DURATION_MS);
-        if (!joystick->trigger_rumble_expiration) {
-            joystick->trigger_rumble_expiration = 1;
+        if ((left_rumble || right_rumble) && duration_ms) {
+            joystick->trigger_rumble_expiration = SDL_GetTicks() + SDL_min(duration_ms, SDL_MAX_RUMBLE_DURATION_MS);
+            if (!joystick->trigger_rumble_expiration) {
+                joystick->trigger_rumble_expiration = 1;
+            }
+        } else {
+            joystick->trigger_rumble_expiration = 0;
         }
-    } else {
-        joystick->trigger_rumble_expiration = 0;
     }
     SDL_UnlockJoysticks();
 
@@ -1959,6 +1961,9 @@ SDL_GetJoystickGameControllerType(const char *name, Uint16 vendor, Uint16 produc
         } else if (vendor == 0x0001 && product == 0x0001) {
             type = SDL_CONTROLLER_TYPE_UNKNOWN;
 
+        } else if (vendor == USB_VENDOR_MICROSOFT && product == USB_PRODUCT_XBOX_ONE_XINPUT_CONTROLLER) {
+            type = SDL_CONTROLLER_TYPE_XBOXONE;
+
         } else if ((vendor == USB_VENDOR_AMAZON && product == USB_PRODUCT_AMAZON_LUNA_CONTROLLER) ||
                    (vendor == BLUETOOTH_VENDOR_AMAZON && product == BLUETOOTH_PRODUCT_LUNA_CONTROLLER)) {
             type = SDL_CONTROLLER_TYPE_AMAZON_LUNA;
@@ -2743,9 +2748,7 @@ int SDL_PrivateJoystickTouchpad(SDL_Joystick *joystick, int touchpad, int finger
     SDL_JoystickTouchpadInfo *touchpad_info;
     SDL_JoystickTouchpadFingerInfo *finger_info;
     int posted;
-#if !SDL_EVENTS_DISABLED
     Uint32 event_type;
-#endif
 
     if (touchpad < 0 || touchpad >= joystick->ntouchpads) {
         return 0;
@@ -2789,7 +2792,6 @@ int SDL_PrivateJoystickTouchpad(SDL_Joystick *joystick, int touchpad, int finger
         }
     }
 
-#if !SDL_EVENTS_DISABLED
     if (state == finger_info->state) {
         event_type = SDL_CONTROLLERTOUCHPADMOTION;
     } else if (state) {
@@ -2797,7 +2799,6 @@ int SDL_PrivateJoystickTouchpad(SDL_Joystick *joystick, int touchpad, int finger
     } else {
         event_type = SDL_CONTROLLERTOUCHPADUP;
     }
-#endif
 
     /* We ignore events if we don't have keyboard focus, except for touch release */
     if (SDL_PrivateJoystickShouldIgnoreEvent()) {
