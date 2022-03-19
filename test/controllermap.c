@@ -759,25 +759,7 @@ main(int argc, char *argv[])
         return 2;
     }
 
-    while (!done && SDL_NumJoysticks() == 0) {
-        SDL_Event event;
 
-        while (SDL_PollEvent(&event) > 0) {
-            switch (event.type) {
-            case SDL_KEYDOWN:
-                if ((event.key.keysym.sym != SDLK_ESCAPE)) {
-                    break;
-                }
-                SDL_FALLTHROUGH;
-            case SDL_QUIT:
-                done = SDL_TRUE;
-                break;
-            default:
-                break;
-            }
-        }
-        SDL_RenderPresent(screen);
-    }
 
     /* Print information about the joysticks */
     SDL_Log("There are %d joysticks attached\n", SDL_NumJoysticks());
@@ -803,14 +785,40 @@ main(int argc, char *argv[])
         }
     }
 
-    joystick = SDL_JoystickOpen(0);
+	#ifdef __MORPHOS__
+	if (SDL_NumJoysticks() > 0) {
+	#endif
+	while (!done && SDL_NumJoysticks() == 0) {
+        SDL_Event event;
+
+        while (SDL_PollEvent(&event) > 0) {
+            switch (event.type) {
+            case SDL_KEYDOWN:
+                if ((event.key.keysym.sym != SDLK_ESCAPE)) {
+                    break;
+                }
+                SDL_FALLTHROUGH;
+            case SDL_QUIT:
+                done = SDL_TRUE;
+                break;
+            default:
+                break;
+            }
+        }
+        SDL_RenderPresent(screen);
+    }
+	
+	joystick = SDL_JoystickOpen(0);
     if (joystick == NULL) {
         SDL_Log("Couldn't open joystick 0: %s\n", SDL_GetError());
     } else {
         WatchJoystick(joystick);
         SDL_JoystickClose(joystick);
     }
-
+	#ifdef __MORPHOS__
+	}
+	#endif
+	
     SDL_DestroyWindow(window);
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
