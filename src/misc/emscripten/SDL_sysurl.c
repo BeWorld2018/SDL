@@ -20,21 +20,17 @@
 */
 
 #include "../SDL_sysurl.h"
-#include "../../core/windows/SDL_windows.h"
+
+#include <emscripten/emscripten.h>
 
 int
 SDL_SYS_OpenURL(const char *url)
 {
-    WCHAR *wurl = WIN_UTF8ToStringW(url);
-    if (!wurl) {
-        return SDL_OutOfMemory();
-    }
-    auto strurl = ref new Platform::String(wurl);
-    SDL_free(wurl);
+    EM_ASM({
+        window.open(UTF8ToString($0), "_blank");
+    }, url);
 
-    auto uri = ref new Windows::Foundation::Uri(strurl);
-    Windows::System::Launcher::LaunchUriAsync(uri);
-    return 0;  // oh well, we're not waiting on an async task here.
+    return 0;
 }
 
 /* vi: set ts=4 sw=4 expandtab: */

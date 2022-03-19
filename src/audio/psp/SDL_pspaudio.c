@@ -42,7 +42,7 @@
 #define PSPAUDIO_DRIVER_NAME    "psp"
 
 static int
-PSPAUDIO_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
+PSPAUDIO_OpenDevice(_THIS, const char *devname)
 {
     int format, mixlen, i;
 
@@ -64,6 +64,7 @@ PSPAUDIO_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
         format = PSP_AUDIO_FORMAT_MONO;
     } else {
         format = PSP_AUDIO_FORMAT_STEREO;
+        this->spec.channels = 2;  /* we're forcing the hardware to stereo. */
     }
 
     /*  PSP has some limitations with the Audio. It fully supports 44.1KHz (Mono & Stereo),
@@ -73,7 +74,6 @@ PSPAUDIO_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
         this->hidden->channel = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, this->spec.samples, format);
     } else {
         this->hidden->channel = sceAudioSRCChReserve(this->spec.samples, this->spec.freq, 2);
-        this->spec.channels = 2;  /* we're forcing the hardware to stereo. */
     }
     
     if (this->hidden->channel < 0) {
@@ -158,7 +158,7 @@ static void PSPAUDIO_ThreadInit(_THIS)
     }
 }
 
-static int
+static SDL_bool
 PSPAUDIO_Init(SDL_AudioDriverImpl * impl)
 {
     /* Set the function pointers */
@@ -170,16 +170,16 @@ PSPAUDIO_Init(SDL_AudioDriverImpl * impl)
     impl->ThreadInit = PSPAUDIO_ThreadInit;
 
     /* PSP audio device */
-    impl->OnlyHasDefaultOutputDevice = 1;
+    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
     /*
-    impl->HasCaptureSupport = 1;
-    impl->OnlyHasDefaultCaptureDevice = 1;
+    impl->HasCaptureSupport = SDL_TRUE;
+    impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
     */
-    return 1;   /* this audio target is available. */
+    return SDL_TRUE;   /* this audio target is available. */
 }
 
 AudioBootStrap PSPAUDIO_bootstrap = {
-    "psp", "PSP audio driver", PSPAUDIO_Init, 0
+    "psp", "PSP audio driver", PSPAUDIO_Init, SDL_FALSE
 };
 
 #endif /* SDL_AUDIO_DRIVER_PSP */

@@ -356,11 +356,15 @@ extern DECLSPEC SDL_Texture * SDLCALL SDL_CreateTextureFromSurface(SDL_Renderer 
  * \param texture the texture to query
  * \param format a pointer filled in with the raw format of the texture; the
  *               actual format may differ, but pixel transfers will use this
- *               format (one of the SDL_PixelFormatEnum values)
+ *               format (one of the SDL_PixelFormatEnum values). This argument
+ *               can be NULL if you don't need this information.
  * \param access a pointer filled in with the actual access to the texture
- *               (one of the SDL_TextureAccess values)
- * \param w a pointer filled in with the width of the texture in pixels
- * \param h a pointer filled in with the height of the texture in pixels
+ *               (one of the SDL_TextureAccess values). This argument can be
+ *               NULL if you don't need this information.
+ * \param w a pointer filled in with the width of the texture in pixels. This
+ *          argument can be NULL if you don't need this information.
+ * \param h a pointer filled in with the height of the texture in pixels. This
+ *          argument can be NULL if you don't need this information.
  * \returns 0 on success or a negative error code on failure; call
  *          SDL_GetError() for more information.
  *
@@ -1614,6 +1618,7 @@ extern DECLSPEC int SDLCALL SDL_RenderCopyExF(SDL_Renderer * renderer,
  *
  * \since This function is available since SDL 2.0.18.
  *
+ * \sa SDL_RenderGeometryRaw
  * \sa SDL_Vertex
  */
 extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer *renderer,
@@ -1641,6 +1646,9 @@ extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer *renderer,
  * \return 0 on success, or -1 if the operation is not supported
  *
  * \since This function is available since SDL 2.0.18.
+ *
+ * \sa SDL_RenderGeometry
+ * \sa SDL_Vertex
  */
 extern DECLSPEC int SDLCALL SDL_RenderGeometryRaw(SDL_Renderer *renderer,
                                                SDL_Texture *texture,
@@ -1654,7 +1662,8 @@ extern DECLSPEC int SDLCALL SDL_RenderGeometryRaw(SDL_Renderer *renderer,
  * Read pixels from the current rendering target to an array of pixels.
  *
  * **WARNING**: This is a very slow operation, and should not be used
- * frequently.
+ * frequently. If you're using this on the main rendering target, it should be
+ * called after rendering and before SDL_RenderPresent().
  *
  * `pitch` specifies the number of bytes between rows in the destination
  * `pixels` data. This allows you to write to a subrectangle or have padded
