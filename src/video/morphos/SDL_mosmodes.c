@@ -84,37 +84,37 @@ MOS_SDLPixelFormatToDepth(Uint32 pixfmt)
 static Uint32
 MOS_GetSDLPixelFormat(Uint32 pixfmt, Uint32 default_pixfmt)
 {
-	D("[%s]\n", __FUNCTION__);
-
 	switch (pixfmt) {
-		#if BYTEORDER == LITTLE_ENDIAN
-		case PIXFMT_RGB15PC: return SDL_PIXELFORMAT_RGB555;   // Will not work on big endian machine
-		case PIXFMT_BGR15PC: return SDL_PIXELFORMAT_BGR555;   // Will not work on big endian machine
-		case PIXFMT_RGB16PC: return SDL_PIXELFORMAT_RGB565;   // Will not work on big endian machine
-		case PIXFMT_BGR16PC: return SDL_PIXELFORMAT_BGR565;   // Will not work on big endian machine
-		#else
-		case PIXFMT_RGB15PC:
-		case PIXFMT_BGR15PC:
-		case PIXFMT_RGB16PC:
-		case PIXFMT_BGR16PC:
-			return default_pixfmt;
-		#endif
-
-		case PIXFMT_LUT8   : return SDL_PIXELFORMAT_INDEX8;
-		case PIXFMT_RGB15  : return SDL_PIXELFORMAT_RGB555;
-		case PIXFMT_RGB15X : return SDL_PIXELFORMAT_RGB555;
-		case PIXFMT_RGB16  : return SDL_PIXELFORMAT_RGB565;
-		case PIXFMT_BGR16  : return SDL_PIXELFORMAT_BGR565;
-		case PIXFMT_RGB24  : return SDL_PIXELFORMAT_RGB888;
-		case PIXFMT_BGR24  : return SDL_PIXELFORMAT_BGR888;
-		case PIXFMT_ARGB32 : return SDL_PIXELFORMAT_ARGB8888;
-		case PIXFMT_BGRA32 : return SDL_PIXELFORMAT_BGRA8888;
-		case PIXFMT_RGBA32 : return SDL_PIXELFORMAT_RGBA8888;
-		default            : return SDL_PIXELFORMAT_BGRA8888;
+		case PIXFMT_LUT8   : 
+			return SDL_PIXELFORMAT_INDEX8;
+		case PIXFMT_BGR15:	 // 		case PIXFMT_RGB15X : 
+		case PIXFMT_BGR15PC:	
+			return default_pixfmt; //
+		case PIXFMT_RGB15PC: 
+		case PIXFMT_RGB15  : 
+			return SDL_PIXELFORMAT_RGB555;
+		case PIXFMT_RGB16  : 
+		case PIXFMT_RGB16PC: 
+			return SDL_PIXELFORMAT_RGB565;
+		case PIXFMT_BGR16  : 
+		case PIXFMT_BGR16PC: 
+			return SDL_PIXELFORMAT_BGR565;
+		case PIXFMT_RGB24  : 
+			return SDL_PIXELFORMAT_RGB888;
+		case PIXFMT_BGR24  : 
+			return SDL_PIXELFORMAT_BGR888;
+		case PIXFMT_ARGB32 : 
+			return SDL_PIXELFORMAT_ARGB8888;
+		case PIXFMT_BGRA32 : 
+			return SDL_PIXELFORMAT_BGRA8888;
+		case PIXFMT_RGBA32 : 
+			return SDL_PIXELFORMAT_RGBA8888;
+		default            : 
+			return SDL_PIXELFORMAT_BGRA8888;
 	}
 }
 
-#define MAX_SDL_PIXEL_FORMATS 10
+#define MAX_SDL_PIXEL_FORMATS 15
 
 static const struct
 {
@@ -124,8 +124,13 @@ static const struct
 	{ PIXFMT_LUT8  , SDL_PIXELFORMAT_INDEX8 },
 	{ PIXFMT_RGB15 , SDL_PIXELFORMAT_RGB555 },
 	{ PIXFMT_RGB15X, SDL_PIXELFORMAT_RGB555 },
+	{ PIXFMT_BGR15,  SDL_PIXELFORMAT_BGR555 },
+	{ PIXFMT_RGB15PC , SDL_PIXELFORMAT_RGB555 },
+	{ PIXFMT_BGR15PC,  SDL_PIXELFORMAT_BGR555 },
 	{ PIXFMT_RGB16 , SDL_PIXELFORMAT_RGB565 },
 	{ PIXFMT_BGR16 , SDL_PIXELFORMAT_BGR565 },
+	{ PIXFMT_RGB16PC , SDL_PIXELFORMAT_RGB565 },
+	{ PIXFMT_BGR16PC,  SDL_PIXELFORMAT_BGR565 },
 	{ PIXFMT_RGB24 , SDL_PIXELFORMAT_RGB888 },
 	{ PIXFMT_BGR24 , SDL_PIXELFORMAT_BGR888 },
 	{ PIXFMT_ARGB32, SDL_PIXELFORMAT_ARGB8888 },
@@ -141,6 +146,7 @@ MOS_InitModes(_THIS)
 	SDL_VideoDisplay display;
 	SDL_DisplayMode mode;
 	Object **monitors;
+	STRPTR monitorname = NULL;
 	struct Screen *s;
 	APTR mon;
 
@@ -150,7 +156,7 @@ MOS_InitModes(_THIS)
 	mode.w = 1920;
 	mode.h = 1080;
 	mode.refresh_rate = 60;
-	mode.format = SDL_PIXELFORMAT_ARGB8888;
+	mode.format = SDL_PIXELFORMAT_BGRA8888;
 	mode.driverdata = NULL;
 
 	s = LockPubScreen("Workbench");
@@ -163,7 +169,7 @@ MOS_InitModes(_THIS)
 		width = s->Width;
 		height = s->Height;
 
-		pixfmt = MOS_GetSDLPixelFormat(getv(s, SA_PixelFormat), SDL_PIXELFORMAT_ARGB8888);
+		pixfmt = MOS_GetSDLPixelFormat(getv(s, SA_PixelFormat), SDL_PIXELFORMAT_BGRA8888);
 		mon = (APTR)getv(s, SA_MonitorObject);
 
 		UnlockPubScreen(NULL, s);
@@ -182,14 +188,16 @@ MOS_InitModes(_THIS)
 			display.desktop_mode = mode;
 			display.current_mode = mode;
 			display.driverdata = modedata;
-			display.name = (char *)getv(mon, MA_MonitorName);
+			//display.name = (char *)getv(m, MA_MonitorName);
+			GetAttr(MA_MonitorName, mon, (ULONG*)&monitorname);
+			display.name = monitorname;
 
 			SDL_AddVideoDisplay(&display, SDL_FALSE);
 			dispcount++;
 
 			mode.driverdata = NULL;
 
-			D("[%s] Added Workbench screen\n", __FUNCTION__);
+			D("[%s] Added Workbench screen - monitor = %d\n", __FUNCTION__, mon);
 		}
 	}
 
@@ -199,9 +207,9 @@ MOS_InitModes(_THIS)
 		int i, j;
 
 		for (i = 0; (m = monitors[i]); i++) {
-			D("[%s] Add other monitors = %d\n", __FUNCTION__, monitors[i]);
 			
 			if (m != mon) {
+				D("[%s] Add other monitors = %d\n", __FUNCTION__, monitors[i]);
 				SDL_DisplayModeData *modedata = SDL_malloc(sizeof(*modedata));
 
 				if (modedata) {
@@ -222,7 +230,9 @@ MOS_InitModes(_THIS)
 					display.desktop_mode = mode;
 					display.current_mode = mode;
 					display.driverdata = modedata;
-					display.name = (char *)getv(mon, MA_MonitorName);
+					GetAttr(MA_MonitorName, m, (ULONG*)&monitorname);
+					display.name = monitorname;
+					//display.name = (char *)getv(mon, MA_MonitorName);
 
 					D("[%s] Add video display '%s'\n", __FUNCTION__, display.name);
 
@@ -238,30 +248,6 @@ MOS_InitModes(_THIS)
 	return dispcount > 0 ? 0 : -1;
 }
 
-static int
-MOS_CheckMonitor(APTR mon, ULONG id)
-{
-	IPTR tags[] = { GMLA_DisplayID, id, TAG_DONE };
-	Object **monlist = GetMonitorList((struct TagItem *)&tags);
-	int rc = 0;
-	D("[%s] find mon 0x%08lx\n", __FUNCTION__, mon);
-
-	if (monlist) {
-		int idx;
-
-		for (idx = 0; monlist[idx]; idx++) {
-			if (monlist[idx] == mon) {
-				rc = 1;
-				break;
-			}
-		}
-
-		FreeMonitorList(monlist);
-	}
-
-	return rc;
-}
-
 void
 MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 {
@@ -269,39 +255,37 @@ MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 	D("[%s]\n", __FUNCTION__);
 
 	if (md) {
-		ULONG i, *fmt = (ULONG *)getv(md->monitor, MA_PixelFormats);
-		SDL_DisplayMode mode = sdl_display->desktop_mode;
+		Object **modes = GetMonitorModesList(md->monitor, NULL);
+		if (modes) {
+			int modei = 0;
+			while (modes[modei]) {
+				SDL_DisplayMode mode = sdl_display->desktop_mode;
+				Boopsiobject *amode = modes[modei++];
+				ULONG modeid = INVALID_ID;
+				STRPTR name = NULL;
+				ULONG width = 0;
+				ULONG height = 0;
+				ULONG pixelfmt = PIXFMT_ARGB32;
+				GetAttr(MA_Mode_Name, amode, (ULONG*)&name);
+				GetAttr(MA_Mode_ModeID, amode, (ULONG*)&modeid);
+				GetAttr(MA_Mode_Width, amode, (ULONG*)&width);
+				GetAttr(MA_Mode_Height, amode, (ULONG*)&height);
+				GetAttr(MA_Mode_PixelFormat, amode, (ULONG*)&pixelfmt);
 
-		for (i = 0; i < MAX_SDL_PIXEL_FORMATS; i++) {
-			Uint32 pixfmt = pixelformats[i].PixFmt;
+				mode.w = width;
+				mode.h = height;
+				float vert = 0, hori = 0;
+				DoMethod(amode, MM_Mode_GetRefreshFrequencies, &hori, &vert);
+				mode.refresh_rate = (int)vert;
+				mode.format = MOS_GetSDLPixelFormat(pixelfmt,SDL_PIXELFORMAT_BGRA8888);
 
-			if (fmt[pixfmt]) {
-				ULONG nextid = INVALID_ID;
-
-				mode.format = pixelformats[i].NewPixFmt;
-
-				// Go through display database to find out what modes are available to this monitor
-				//D("[%s] Go through display database\n", __FUNCTION__);
-				while ((nextid = NextDisplayInfo(nextid)) != INVALID_ID) {
-					if (GetCyberIDAttr(CYBRIDATTR_PIXFMT, nextid) == pixfmt) {
-						//D("[%s] id 0x%08lx matches to pixfmt %ld\n", __FUNCTION__, nextid, pixfmt);
-
-						if (MOS_CheckMonitor(md->monitor, nextid)) {
-							mode.w = GetCyberIDAttr(CYBRIDATTR_WIDTH, nextid);
-							mode.h = GetCyberIDAttr(CYBRIDATTR_HEIGHT, nextid);
-							mode.driverdata = sdl_display->desktop_mode.driverdata ? SDL_malloc(4) : NULL;
-
-							SDL_AddDisplayMode(sdl_display, &mode);
-						}
-					}
-
-					//D("[%s] Mode 0x%08lx checked.\n", __FUNCTION__, nextid);
-				}
-
-				//D("[%s] finished pixel format %ld\n", __FUNCTION__, pixfmt);
-			}
+				//D("[%s] Mode %s - pixelfmt %ld\n", __FUNCTION__, name, pixelfmt);
+				mode.driverdata = sdl_display->desktop_mode.driverdata ? SDL_malloc(4) : NULL;
+				SDL_AddDisplayMode(sdl_display, &mode);
+			}					
 		}
 	}
+				
 }
 
 int
