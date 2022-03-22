@@ -54,7 +54,7 @@ int
 SDL_setenv(const char *name, const char *value, int overwrite)
 {
     /* Input validation */
-    if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
+    if (!name || *name == '\0' || SDL_strchr(name, '=') != NULL || !value) {
         return (-1);
     }
     
@@ -65,7 +65,7 @@ int
 SDL_setenv(const char *name, const char *value, int overwrite)
 {
     /* Input validation */
-    if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
+    if (!name || *name == '\0' || SDL_strchr(name, '=') != NULL || !value) {
         return (-1);
     }
     
@@ -88,7 +88,7 @@ SDL_setenv(const char *name, const char *value, int overwrite)
     char *new_variable;
 
     /* Input validation */
-    if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
+    if (!name || *name == '\0' || SDL_strchr(name, '=') != NULL || !value) {
         return (-1);
     }
     
@@ -144,7 +144,7 @@ SDL_setenv(const char *name, const char *value, int overwrite)
     char *new_variable;
 
     /* Input validation */
-    if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
+    if (!name || *name == '\0' || SDL_strchr(name, '=') != NULL || !value) {
         return (-1);
     }
 
@@ -210,7 +210,7 @@ SDL_getenv(const char *name)
 #endif
 
     /* Input validation */
-    if (!name || !*name) {
+    if (!name || *name == '\0') {
         return NULL;
     }
 
@@ -223,7 +223,7 @@ SDL_getenv(const char *name)
     size_t bufferlen;
 
     /* Input validation */
-    if (!name || SDL_strlen(name)==0) {
+    if (!name || *name == '\0') {
         return NULL;
     }
     
@@ -306,7 +306,7 @@ SDL_getenv(const char *name)
     char *value;
 
     /* Input validation */
-    if (!name || SDL_strlen(name)==0) {
+    if (!name || *name == '\0') {
         return NULL;
     }
     
