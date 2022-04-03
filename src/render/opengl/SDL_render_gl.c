@@ -34,6 +34,11 @@
 #include <OpenGL/OpenGL.h>
 #endif
 
+#ifdef SDL_VIDEO_VITA_PVR_OGL
+#include <GL/gl.h>
+#include <GL/glext.h>
+#endif
+
 /* To prevent unnecessary window recreation,
  * these should match the defaults selected in SDL_GL_ResetAttributes
  */
@@ -1798,6 +1803,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 
+#ifndef SDL_VIDEO_VITA_PVR_OGL
     window_flags = SDL_GetWindowFlags(window);
     if (!(window_flags & SDL_WINDOW_OPENGL) ||
         profile_mask == SDL_GL_CONTEXT_PROFILE_ES || major != RENDERER_CONTEXT_MAJOR || minor != RENDERER_CONTEXT_MINOR) {
@@ -1811,6 +1817,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
             goto error;
         }
     }
+#endif
 
     renderer = (SDL_Renderer *) SDL_calloc(1, sizeof(*renderer));
     if (!renderer) {

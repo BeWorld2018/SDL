@@ -580,10 +580,10 @@ QueueCmdFillRects(SDL_Renderer *renderer, const SDL_FRect * rects, const int cou
                 if (retval < 0) {
                     cmd->command = SDL_RENDERCMD_NO_OP;
                 }
-
-                SDL_small_free(xy, isstack1);
-                SDL_small_free(indices, isstack2);
             }
+            SDL_small_free(xy, isstack1);
+            SDL_small_free(indices, isstack2);
+            
         } else {
             retval = renderer->QueueFillRects(renderer, cmd, rects, count);
             if (retval < 0) {
@@ -1095,6 +1095,13 @@ SDL_GetRenderer(SDL_Window * window)
     return (SDL_Renderer *)SDL_GetWindowData(window, SDL_WINDOWRENDERDATA);
 }
 
+SDL_Window *
+SDL_RenderGetWindow(SDL_Renderer *renderer)
+{
+    CHECK_RENDERER_MAGIC(renderer, NULL);
+    return renderer->window;
+}
+
 int
 SDL_GetRendererInfo(SDL_Renderer * renderer, SDL_RendererInfo * info)
 {
@@ -1585,10 +1592,11 @@ SDL_SetTextureScaleMode(SDL_Texture * texture, SDL_ScaleMode scaleMode)
     CHECK_TEXTURE_MAGIC(texture, -1);
 
     renderer = texture->renderer;
-    renderer->SetTextureScaleMode(renderer, texture, scaleMode);
     texture->scaleMode = scaleMode;
     if (texture->native) {
         return SDL_SetTextureScaleMode(texture->native, scaleMode);
+    } else {
+        renderer->SetTextureScaleMode(renderer, texture, scaleMode);
     }
     return 0;
 }
@@ -3138,9 +3146,10 @@ SDL_RenderDrawLinesF(SDL_Renderer * renderer,
                     num_vertices, indices, num_indices, size_indices,
                     1.0f, 1.0f);
 
-            SDL_small_free(xy, isstack1);
-            SDL_small_free(indices, isstack2);
         }
+
+        SDL_small_free(xy, isstack1);
+        SDL_small_free(indices, isstack2);
 
     } else if (renderer->scale.x != 1.0f || renderer->scale.y != 1.0f) {
         retval = RenderDrawLinesWithRectsF(renderer, points, count);
