@@ -1600,6 +1600,7 @@ elseif(WINDOWS)
 
   # headers needed elsewhere
   check_include_file(tpcshrd.h HAVE_TPCSHRD_H)
+  check_include_file(roapi.h HAVE_ROAPI_H)
   check_include_file(mmdeviceapi.h HAVE_MMDEVICEAPI_H)
   check_include_file(audioclient.h HAVE_AUDIOCLIENT_H)
   check_include_file(sensorsapi.h HAVE_SENSORSAPI_H)
@@ -2279,6 +2280,11 @@ elseif(VITA)
       ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_systls.c)
     set(HAVE_SDL_THREADS TRUE)
   endif()
+  if(SDL_LOCALE)
+    file(GLOB LOCALE_SOURCES ${SDL2_SOURCE_DIR}/src/locale/vita/*.c)
+    set(SOURCE_FILES ${SOURCE_FILES} ${LOCALE_SOURCES})
+    set(HAVE_SDL_LOCALE TRUE)
+  endif()
   if(SDL_TIMERS)
     set(SDL_TIMER_VITA 1)
     file(GLOB TIMER_SOURCES ${SDL2_SOURCE_DIR}/src/timer/vita/*.c)
@@ -2316,6 +2322,7 @@ elseif(VITA)
       check_include_file(gpu_es4/psp2_pvr_hint.h HAVE_PVR_H)
       if(HAVE_PVR_H)
         target_compile_definitions(sdl-build-options INTERFACE "-D__psp2__")
+        check_include_file(gl4esinit.h HAVE_GL4ES_H)
         set(SDL_VIDEO_OPENGL_EGL 1)
         set(HAVE_OPENGLES TRUE)
         set(SDL_VIDEO_OPENGL_ES 1)
@@ -2327,8 +2334,18 @@ elseif(VITA)
           libgpu_es4_ext_stub_weak
           libIMGEGL_stub_weak
         )
+
         set(HAVE_VITA_PVR ON)
         set(SDL_VIDEO_VITA_PVR 1)
+
+        if(HAVE_GL4ES_H)
+          set(HAVE_OPENGL TRUE)
+          set(SDL_VIDEO_OPENGL 1)
+          set(SDL_VIDEO_RENDER_OGL 1)
+          list(APPEND EXTRA_LIBS libGL_stub)
+          set(SDL_VIDEO_VITA_PVR_OGL 1)
+        endif()
+
       else()
         set(HAVE_VITA_PVR OFF)
       endif()
@@ -2342,6 +2359,7 @@ elseif(VITA)
       SceCtrl_stub
       SceAppMgr_stub
       SceAudio_stub
+      SceAudioIn_stub
       SceSysmodule_stub
       SceDisplay_stub
       SceCtrl_stub

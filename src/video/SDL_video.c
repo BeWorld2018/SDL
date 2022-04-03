@@ -261,6 +261,7 @@ SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window * window, Uint32 * fo
                                       SDL_TEXTUREACCESS_STREAMING,
                                       window->w, window->h);
     if (!data->texture) {
+        /* codechecker_false_positive [Malloc] Static analyzer doesn't realize allocated `data` is saved to SDL_WINDOWTEXTUREDATA and not leaked here. */
         return -1;
     }
 
@@ -1184,6 +1185,7 @@ SDL_GetWindowDisplayMode(SDL_Window * window, SDL_DisplayMode * mode)
     } else if (!SDL_GetClosestDisplayModeForDisplay(SDL_GetDisplayForWindow(window),
                                              &fullscreen_mode,
                                              &fullscreen_mode)) {
+        SDL_zerop(mode);
         return SDL_SetError("Couldn't find display mode match");
     }
 
@@ -1337,14 +1339,17 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
                     resized = SDL_FALSE;
                 }
 
-                /* only do the mode change if we want exclusive fullscreen */
-                if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
-                    if (SDL_SetDisplayModeForDisplay(display, &fullscreen_mode) < 0) {
-                        return -1;
-                    }
-                } else {
-                    if (SDL_SetDisplayModeForDisplay(display, NULL) < 0) {
-                        return -1;
+                /* Don't try to change the display mode if the driver doesn't want it. */
+                if (_this->disable_display_mode_switching == SDL_FALSE) {
+                    /* only do the mode change if we want exclusive fullscreen */
+                    if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
+                        if (SDL_SetDisplayModeForDisplay(display, &fullscreen_mode) < 0) {
+                            return -1;
+                        }
+                    } else {
+                        if (SDL_SetDisplayModeForDisplay(display, NULL) < 0) {
+                            return -1;
+                        }
                     }
                 }
 
@@ -1770,7 +1775,9 @@ SDL_RecreateWindow(SDL_Window * window, Uint32 flags)
     }
 
     /* Restore video mode, etc. */
-    SDL_HideWindow(window);
+    if (!(window->flags & SDL_WINDOW_FOREIGN)) {
+        SDL_HideWindow(window);
+    }
 
     /* Tear down the old native window */
     if (window->surface) {
@@ -2505,6 +2512,11 @@ SDL_CreateWindowFramebuffer(SDL_Window * window)
             attempt_texture_framebuffer = SDL_FALSE;
         }
         #endif
+        #if defined(__EMSCRIPTEN__)
+        else {
+            attempt_texture_framebuffer = SDL_FALSE;
+        }
+        #endif
 
         if (attempt_texture_framebuffer) {
             if (SDL_CreateWindowTexture(_this, window, &format, &pixels, &pitch) == -1) {
@@ -3099,7 +3111,9 @@ SDL_DestroyWindow(SDL_Window * window)
     window->is_destroying = SDL_TRUE;
 
     /* Restore video mode, etc. */
-    SDL_HideWindow(window);
+    if (!(window->flags & SDL_WINDOW_FOREIGN)) {
+        SDL_HideWindow(window);
+    }
 
     /* Make sure this window no longer has focus */
     if (SDL_GetKeyboardFocus() == window) {
