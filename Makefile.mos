@@ -75,6 +75,7 @@ sdk: $(LIBRARY)
 	cp include/*.h /usr/local/include/SDL2
 	cp src/core/morphos/devenv/lib/libSDL2.a /usr/local/lib/libSDL2.a
 	cp src/core/morphos/devenv/lib/libb32/libSDL2.a /usr/local/lib/libb32/libSDL2.a
+	cp sdl2-config /usr/local/bin/sdl2-config
 
 headers:
 	$(HEADERING)
