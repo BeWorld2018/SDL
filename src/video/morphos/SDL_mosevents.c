@@ -358,86 +358,104 @@ MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
 							MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 							SDL_setenv("SDL_RENDER_DRIVER", "software", SDL_TRUE);
-							break;								
-						case MID_AUTO:
+							break;	
+						case MID_RVAUTO:
 							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
 							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_VSYNC, "");
+							SDL_setenv("SDL_RENDER_VSYNC", "", SDL_TRUE);
+							break;	
+						case MID_RVENABLE:
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+							SDL_setenv("SDL_RENDER_VSYNC", "1", SDL_TRUE);
+							break;		
+						case MID_RVDISABLE:
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
+							SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+							SDL_setenv("SDL_RENDER_VSYNC", "0", SDL_TRUE);
+							break;	
+						case MID_AUTO:
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "", SDL_TRUE);
 							break;
 						case MID_NEAREST:
-							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "nearest", SDL_TRUE);
 							break;
 						case MID_LINEAR:
-							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 							SDL_setenv("SDL_RENDER_SCALE_QUALITY", "linear", SDL_TRUE);
 							break;
 						case MID_LAUTO:
-							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
-							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "", SDL_TRUE);
 							break;
 						case MID_LLETTER:
-							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "0", SDL_TRUE);
 							break;
 						case MID_LOVERS:
-							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
 							SDL_setenv("SDL_RENDER_LOGICAL_SIZE_MODE", "1", SDL_TRUE);
 							break;
 						case MID_BAUTO:
-							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
-							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
 							SDL_setenv("SDL_RENDER_BATCHING", "", SDL_TRUE);
 							break;	
 						case MID_BENABLE:
-							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
 							SDL_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
 							break;		
 						case MID_BDISABLE:
-							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
 							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 							SDL_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
 							break;	
 						case MID_MDEF:
-							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-						    MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+						    MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "", SDL_TRUE);
 							break;	
 						case MID_MPOINT:
-							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "1", SDL_TRUE);
 							break;		
 						case MID_MLINE:
-							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "2", SDL_TRUE);
 							break;	
 						case MID_MGEO:
-							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
 							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 							SDL_setenv("SDL_RENDER_LINE_METHOD", "3", SDL_TRUE);
 							break;	

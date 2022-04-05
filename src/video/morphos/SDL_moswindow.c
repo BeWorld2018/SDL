@@ -64,21 +64,25 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_ITEM , (char *)"Low CPU Priority", (const STRPTR)"P", (CHECKIT | MENUTOGGLE), 0, (APTR)MID_PRIORITY},
 	{ NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL },
 	{ NM_ITEM, (char *)"HINT RENDER DRIVER", 0, 0, 0, (APTR)MID_RRENDER },
-	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRAUTO },
-	{ NM_SUB, (char *)"opengl", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRGL },
-	{ NM_SUB, (char *)"software", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRSOFT },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRAUTO },
+	{ NM_SUB, (char *)"OpenGL", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRGL },
+	{ NM_SUB, (char *)"Software", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRSOFT },
+	{ NM_ITEM, (char *)"HINT RENDER VSYNC", 0, 0, 0, (APTR)MID_RVSYNC },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVAUTO },
+	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVENABLE },
+	{ NM_SUB, (char *)"Disabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVDISABLE },
 	{ NM_ITEM, (char *)"HINT RENDER SCALER", 0, 0, 0, (APTR)MID_RSCALER},
-	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_AUTO },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_AUTO },
 	{ NM_SUB, (char *)"Nearest", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_NEAREST },
 	{ NM_SUB, (char *)"Linear", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LINEAR },
 	{ NM_ITEM, (char *)"HINT RENDER LOGICAL SIZE", 0, 0, 0, (APTR)MID_LLOGICAL},
-	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_LAUTO },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_LAUTO },
 	{ NM_SUB, (char *)"Letterbox / sidebars", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LLETTER },
 	{ NM_SUB, (char *)"Overscan", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LOVERS },
 	{ NM_ITEM, (char *)"HINT RENDER BATCHING", 0, 0, 0, (APTR)MID_RBATCHING },
-	{ NM_SUB, (char *)"Auto", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
-	{ NM_SUB, (char *)"Enable", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BENABLE },
-	{ NM_SUB, (char *)"Disable", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BDISABLE },
+	{ NM_SUB, (char *)"Ddefault", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
+	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BENABLE },
+	{ NM_SUB, (char *)"Disabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BDISABLE },
 	{ NM_ITEM, (char *)"HINT RENDER LINE METHOD", 0, 0, 0, (APTR)MID_RMETHOD },
 	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_MDEF },
 	{ NM_SUB, (char *)"Point API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MPOINT },
@@ -526,72 +530,88 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 					}
 				}
-				char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
-				if (scale && strlen(scale)>0) {
-					if (strcmp(scale, "nearest")==0) {
+				char *rendervsync = SDL_getenv("SDL_RENDER_VSYNC");
+				if (rendervsync && strlen(rendervsync)>0) {
+					if (strcmp(rendervsync, "1")==0) {
 						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 4, 1, 1);
 						MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 					}
-					if (strcmp(scale, "linear")==0) {
+					if (strcmp(rendervsync, "0")==0) {
 						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
 						MOS_GlobalMenu(data->menu, 1, 4, 2, 1);
+						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+					}
+				}
+				
+				char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
+				if (scale && strlen(scale)>0) {
+					if (strcmp(scale, "nearest")==0) {
+						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 5, 1, 1);
+						MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+					}
+					if (strcmp(scale, "linear")==0) {
+						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 5, 2, 1);
 						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 					}
 				}
 				char *logical = SDL_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
 				if (logical && strlen(logical)>0) {
 					if (strcmp(logical, "0")==0) {
-						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 6, 1, 1);
+						MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
 						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
 					}
 					if (strcmp(logical, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 2, 1);
+						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 6, 2, 1);
 						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
 					}
 				}
 				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
 				if (renderbatching && strlen(renderbatching)>0) {
 					if (strcmp(renderbatching, "0")==0) {
-						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 7, 1, 1);
+						MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
 						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
 					}
 					if (strcmp(renderbatching, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 2, 1);
+						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 7, 2, 1);
 						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 					}
 				}
 				char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
 				if (renderline && strlen(renderline)>0) {
 					if (strcmp(renderline, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 1, 1);
+						MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
 					}
 					if (strcmp(renderline, "2")==0) {
-						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 2, 1);
-						MOS_GlobalMenu(data->menu, 1, 7, 3, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 2, 1);
+						MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
 					}
 					if (strcmp(renderline, "3")==0) {
-						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 3, 1);
+						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 8, 3, 1);
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 					}
 				}
