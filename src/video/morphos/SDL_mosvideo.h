@@ -82,6 +82,8 @@ typedef struct SDL_VideoData
 	SDL_VideoDevice *VideoDevice;
 
 	BYTE FullScreen;
+	BYTE vsyncEnabled;
+	
 } SDL_VideoData;
 
 extern size_t getv(APTR obj, size_t attr);

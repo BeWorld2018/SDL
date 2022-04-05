@@ -35,6 +35,7 @@
 #include <proto/exec.h>
 #include <proto/tinygl.h>
 #include <proto/intuition.h>
+#include <proto/graphics.h>
 
 #include <tgl/gl.h>
 #include <tgl/glu.h>
@@ -172,17 +173,34 @@ MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 int
 MOS_GL_SetSwapInterval(_THIS, int interval)
 {
-	return 0; // pretend to succeed
 	
+	D("[%s] interval=%d\n", __FUNCTION__, interval);
+	SDL_VideoData *data = _this->driverdata;
+	
+	switch (interval) {
+		case 0:
+			// always VSYNC in fullscreen
+			data->vsyncEnabled = data->CustomScreen != NULL ? TRUE : FALSE;
+			return 0;
+		break;
+		case 1:
+
+			data->vsyncEnabled = TRUE;
+			return 0;
+		break;
+		default:
+			return -1;
+	}		
+		
 }
 
 int
 MOS_GL_GetSwapInterval(_THIS)
 {
+
 	SDL_VideoData *data = _this->driverdata;
 
-	// full screen double buffering is always vsynced
-	return data->CustomScreen != NULL ? 1 : 0;
+	return data->vsyncEnabled ? 1 : 0;
 	
 }
 
@@ -190,9 +208,15 @@ int
 MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	SDL_VideoData *video = _this->driverdata;
 	if (!data->win && data->__tglContext)
 		return -1;
 	// TODO check the window context
+	
+	if (video->vsyncEnabled) {
+		WaitBOVP(&data->win->WScreen->ViewPort);
+	}
+	
 	GLASwapBuffers(data->__tglContext);
 	return 0;
 	
