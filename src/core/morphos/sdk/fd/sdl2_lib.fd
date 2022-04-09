@@ -766,4 +766,11 @@ SDL_PremultiplyAlpha(width,height,src_format,src,src_pitch,dst_format,dst,dst_pi
 SDL_getenv(name)(sysv,r12base)
 SDL_setenv(name,value,overwrite)(sysv,r12base)
 SDL_GetTouchName(index)(sysv,r12base)
-
+SDL_ClearComposition()(sysv,r12base)
+SDL_IsTextInputShown()(sysv,r12base)
+SDL_HasIntersectionF(A,B)(sysv,r12base)
+SDL_IntersectFRect(A,B,result)(sysv,r12base)
+SDL_UnionFRect(A,B,result)(sysv,r12base)
+SDL_EncloseFPoints(points,count,clip,result)(sysv,r12base)
+SDL_IntersectFRectAndLine(rect,X1,Y1,X2,Y2)(sysv,r12base)
+SDL_RenderGetWindow(renderer)(sysv,r12base)

@@ -6688,4 +6688,78 @@
 		(((const char *(*)(int ))*(void**)(__base - 4588))(__t__p0));\
 	})
 
+#define SDL_ClearComposition() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(void))*(void**)(__base - 4594))());\
+	})
+
+#define SDL_IsTextInputShown() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(void))*(void**)(__base - 4600))());\
+	})
+
+#define SDL_HasIntersectionF(__p0, __p1) \
+	({ \
+		const SDL_FRect * __t__p0 = __p0;\
+		const SDL_FRect * __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(const SDL_FRect *, const SDL_FRect *))*(void**)(__base - 4606))(__t__p0, __t__p1));\
+	})
+
+#define SDL_IntersectFRect(__p0, __p1, __p2) \
+	({ \
+		const SDL_FRect * __t__p0 = __p0;\
+		const SDL_FRect * __t__p1 = __p1;\
+		SDL_FRect * __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(const SDL_FRect *, const SDL_FRect *, SDL_FRect *))*(void**)(__base - 4612))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_UnionFRect(__p0, __p1, __p2) \
+	({ \
+		const SDL_FRect * __t__p0 = __p0;\
+		const SDL_FRect * __t__p1 = __p1;\
+		SDL_FRect * __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(const SDL_FRect *, const SDL_FRect *, SDL_FRect *))*(void**)(__base - 4618))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_EncloseFPoints(__p0, __p1, __p2, __p3) \
+	({ \
+		const SDL_FPoint * __t__p0 = __p0;\
+		int  __t__p1 = __p1;\
+		const SDL_FRect * __t__p2 = __p2;\
+		SDL_FRect * __t__p3 = __p3;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(const SDL_FPoint *, int , const SDL_FRect *, SDL_FRect *))*(void**)(__base - 4624))(__t__p0, __t__p1, __t__p2, __t__p3));\
+	})
+
+#define SDL_IntersectFRectAndLine(__p0, __p1, __p2, __p3, __p4) \
+	({ \
+		const SDL_FRect * __t__p0 = __p0;\
+		float * __t__p1 = __p1;\
+		float * __t__p2 = __p2;\
+		float * __t__p3 = __p3;\
+		float * __t__p4 = __p4;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(const SDL_FRect *, float *, float *, float *, float *))*(void**)(__base - 4630))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+	})
+
+#define SDL_RenderGetWindow(__p0) \
+	({ \
+		SDL_Renderer * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_Window *(*)(SDL_Renderer *))*(void**)(__base - 4636))(__t__p0));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

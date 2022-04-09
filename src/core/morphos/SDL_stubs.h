@@ -846,4 +846,12 @@
 	STUB(SDL_setenv)
 
 	STUB(SDL_GetTouchName)
+	STUB(SDL_ClearComposition)
+	STUB(SDL_IsTextInputShown)
+	STUB(SDL_HasIntersectionF)
+	STUB(SDL_IntersectFRect)
+	STUB(SDL_UnionFRect)
+	STUB(SDL_EncloseFPoints)
+	STUB(SDL_IntersectFRectAndLine)
+	STUB(SDL_RenderGetWindow)
 	
