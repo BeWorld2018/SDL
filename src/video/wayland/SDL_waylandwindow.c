@@ -241,6 +241,11 @@ ConfigureViewport(SDL_Window *window)
         GetFullScreenDimensions(window, &fs_width, &fs_height, &src_width, &src_height);
         SetViewport(window, src_width, src_height, output->width, output->height);
 
+        data->damage_region.x = 0;
+        data->damage_region.y = 0;
+        data->damage_region.w = output->width;
+        data->damage_region.h = output->height;
+
         data->pointer_scale_x = (float)fs_width / (float)output->width;
         data->pointer_scale_y = (float)fs_height / (float)output->height;
     } else {
@@ -252,6 +257,8 @@ ConfigureViewport(SDL_Window *window)
         } else {
             UnsetViewport(window);
         }
+
+        SDL_zero(data->damage_region);
 
         data->pointer_scale_x = 1.0f;
         data->pointer_scale_y = 1.0f;
@@ -399,6 +406,11 @@ handle_surface_frame_done(void *data, struct wl_callback *cb, uint32_t time)
 {
     SDL_WindowData *wind = (SDL_WindowData *) data;
     SDL_AtomicSet(&wind->swap_interval_ready, 1);  /* mark window as ready to present again. */
+
+    if (!SDL_RectEmpty(&wind->damage_region)) {
+        wl_surface_damage(wind->surface, wind->damage_region.x, wind->damage_region.y,
+                          wind->damage_region.w, wind->damage_region.h);
+    }
 
     /* reset this callback to fire again once a new frame was presented and compositor wants the next one. */
     wind->frame_callback = wl_surface_frame(wind->frame_surface_wrapper);
@@ -815,9 +827,28 @@ Wayland_move_window(SDL_Window *window,
     int i, numdisplays = SDL_GetNumVideoDisplays();
     for (i = 0; i < numdisplays; i += 1) {
         if (SDL_GetDisplay(i)->driverdata == driverdata) {
-            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MOVED,
-                                SDL_WINDOWPOS_CENTERED_DISPLAY(i),
-                                SDL_WINDOWPOS_CENTERED_DISPLAY(i));
+            /* We want to send a very very specific combination here:
+             *
+             * 1. A coordinate that tells the application what display we're on
+             * 2. Exactly (0, 0)
+             *
+             * Part 1 is useful information but is also really important for
+             * ensuring we end up on the right display for fullscreen, while
+             * part 2 is important because numerous applications use a specific
+             * combination of GetWindowPosition and GetGlobalMouseState, and of
+             * course neither are supported by Wayland. Since global mouse will
+             * fall back to just GetMouseState, we need the window position to
+             * be zero so the cursor math works without it going off in some
+             * random direction. See UE5 Editor for a notable example of this!
+             *
+             * This may be an issue some day if we're ever able to implement
+             * SDL_GetDisplayUsableBounds!
+             *
+             * -flibit
+             */
+            SDL_Rect bounds;
+            SDL_GetDisplayBounds(i, &bounds);
+            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MOVED, bounds.x, bounds.y);
             break;
         }
     }
@@ -991,6 +1022,23 @@ void Wayland_ShowWindow(_THIS, SDL_Window *window)
 {
     SDL_VideoData *c = _this->driverdata;
     SDL_WindowData *data = window->driverdata;
+
+    /* Detach any previous buffers before resetting everything, otherwise when
+     * calling this a second time you'll get an annoying protocol error!
+     *
+     * FIXME: This was originally moved to HideWindow, which _should_ make
+     * sense, but for whatever reason UE5's popups require that this actually
+     * be in both places at once? Possibly from renderers making commits? I can't
+     * fully remember if this location caused crashes or if I was fixing a pair
+     * of Hide/Show calls. In any case, UE gives us a pretty good test and having
+     * both detach calls passes. This bug may be relevant if I'm wrong:
+     *
+     * https://bugs.kde.org/show_bug.cgi?id=448856
+     *
+     * -flibit
+     */
+    wl_surface_attach(data->surface, NULL, 0, 0);
+    wl_surface_commit(data->surface);
 
     /* Create the shell surface and map the toplevel */
 #ifdef HAVE_LIBDECOR_H
