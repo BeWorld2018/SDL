@@ -901,12 +901,14 @@ MOS_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
 }
 
 static SDL_bool
-MOS_SetWindowOpacityPrivate(_THIS, struct Window * window, ULONG value)
+MOS_SetWindowOpacityPrivate(_THIS, SDL_Window * window, ULONG value)
 {
+
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	
-	LONG ret = SetAttrs(window, WA_Opacity, value, TAG_DONE);
+	LONG ret = SetAttrs(data->win, WA_Opacity, value, TAG_DONE);
 	if (ret) {
-		D("[%s] Failed to set window opaqueness to %d\n", __FUNCTION__, value);
+		D("[%s] Failed to set window opaqueness to %lu\n", __FUNCTION__, value);
 		return SDL_FALSE;
 	}
 	
@@ -916,24 +918,28 @@ MOS_SetWindowOpacityPrivate(_THIS, struct Window * window, ULONG value)
 int
 MOS_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 {
-	D("[%s] \n", __FUNCTION__);
 	
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	if (!data->win) return 0;
 	
     ULONG value = ((opacity) * (ULONG_MAX));
 
-    return MOS_SetWindowOpacityPrivate(_this, data->win, value) ? 0 : -1;
+	D("[%s] set window opaqueness to %lu\n", __FUNCTION__, value);
+	
+    return MOS_SetWindowOpacityPrivate(_this, window, value) ? 0 : -1;
 }
 
 static void
-MOS_FlashOperationPrivate(_THIS, struct Window * window)
+MOS_FlashOperationPrivate(_THIS, SDL_Window * window)
 {
+	
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	
 	ULONG value_old = 0;
 	
-	GetAttr(WA_Opacity, window, &value_old);
+	GetAttr(WA_Opacity, data->win, &value_old);
 
-	WindowToFront(window);
+	WindowToFront(data->win);
 	const Uint32 start = SDL_GetTicks();
 	ULONG elapsed = 0;
 	ULONG value = 0;
@@ -946,7 +952,7 @@ MOS_FlashOperationPrivate(_THIS, struct Window * window)
 		SDL_Delay(1);
 	}
 	
-	ActivateWindow(window);
+	ActivateWindow(data->win);
 	MOS_SetWindowOpacityPrivate(_this, window, value_old);
 }
 
@@ -962,7 +968,7 @@ MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation)
 	{
 		case SDL_FLASH_BRIEFLY:
 		case SDL_FLASH_UNTIL_FOCUSED:
-			MOS_FlashOperationPrivate(_this, data->win);
+			MOS_FlashOperationPrivate(_this, window);
 			break;
 		case SDL_FLASH_CANCEL:
 			break;

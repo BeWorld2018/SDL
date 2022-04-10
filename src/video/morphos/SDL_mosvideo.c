@@ -361,7 +361,7 @@ MOS_CreateDevice(int devindex)
 			device->SetWindowOpacity = MOS_SetWindowOpacity;
 			device->FlashWindow = MOS_FlashWindow;
 			
-			 device->SetWindowHitTest = MOS_SetWindowHitTest;
+			device->SetWindowHitTest = MOS_SetWindowHitTest;
 
 			device->free = MOS_DeleteDevice;
 

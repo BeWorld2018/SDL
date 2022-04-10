@@ -211,7 +211,6 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	SDL_VideoData *video = _this->driverdata;
 	if (!data->win && data->__tglContext)
 		return -1;
-	// TODO check the window context
 	
 	if (video->vsyncEnabled) {
 		WaitBOVP(&data->win->WScreen->ViewPort);
