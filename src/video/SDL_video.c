@@ -3502,13 +3502,8 @@ SDL_GL_ResetAttributes()
     _this->gl_config.accelerated = -1;  /* accelerated or not, both are fine */
 
 #if SDL_VIDEO_OPENGL
-#ifdef __MORPHOS__
-    _this->gl_config.major_version = 1; /* TinyGL */
-    _this->gl_config.minor_version = 2;
-#else
     _this->gl_config.major_version = 2;
     _this->gl_config.minor_version = 1;
-#endif
     _this->gl_config.profile_mask = 0;
 #elif SDL_VIDEO_OPENGL_ES2
     _this->gl_config.major_version = 2;
