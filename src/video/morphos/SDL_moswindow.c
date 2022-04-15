@@ -163,8 +163,20 @@ MOS_OpenWindows(_THIS)
 	D("[%s]\n", __FUNCTION__);
 
 	ForeachNode(&data->windowlist, wd) {
-		if (wd->win == NULL && !(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_MOS_WINDOW_SHOWN))	{
-			MOS_ShowWindow_Internal(_this, wd->window);
+		if (!(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_MOS_WINDOW_SHOWN)) {
+			if (wd->win == NULL)	{
+				MOS_ShowWindow_Internal(_this, wd->window);
+			} else {
+			   if ((wd->window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
+					//D("[%s] Go to Fullscreen Desktop\n", __FUNCTION__);
+					MOS_RecreateWindow(_this, wd->window);
+			   } else if (wd->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP) {
+					wd->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
+				    wd->window->flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
+					//D("[%s] Return from Fullscreen Desktop\n", __FUNCTION__);	
+				    MOS_RecreateWindow(_this, wd->window);
+			   }
+			}
 		}
 	}
 }
@@ -386,6 +398,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 
 		int maxheight, barheight = 0;
 		BYTE fullscreen = data->winflags & SDL_MOS_WINDOW_FULLSCREEN;
+		
+		BYTE fs_desktop = data->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
+		
 		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
 
 		data->winflags |= SDL_MOS_WINDOW_SHOWN;
@@ -412,7 +427,11 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			barheight = GetSkinInfoAttrA(di, SI_ScreenTitlebarHeight, NULL);
 
 		FreeScreenDrawInfo(scr, di);
-		maxheight = scr->Height - barheight;
+
+		if (!fs_desktop)
+			maxheight = scr->Height - barheight;
+		else
+			maxheight = scr->Height;
 
 		if (fullscreen) {
 			w = scr->Width;
@@ -740,9 +759,12 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 
 	D("[%s]\n", __FUNCTION__);
 
-	if (fullscreen)
+	if (fullscreen) {
 		data->winflags |= SDL_MOS_WINDOW_FULLSCREEN;
-	else
+		if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
+			data->winflags |= SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
+		}
+	} else
 		data->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN;
 
 	vd->FullScreen = fullscreen;
@@ -858,8 +880,8 @@ MOS_CloseWindow(SDL_Window *window)
 	
 }
 
-static 
-void MOS_RecreateWindow(_THIS, SDL_Window * window)
+void 
+MOS_RecreateWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);

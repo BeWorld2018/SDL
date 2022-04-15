@@ -90,9 +90,11 @@ typedef struct
 /* Is this window shown (not iconified) */
 #define SDL_MOS_WINDOW_SHOWN      (1 << 0)
 #define SDL_MOS_WINDOW_FULLSCREEN (1 << 1)
+#define SDL_MOS_WINDOW_FULLSCREEN_DESKTOP (1 << 2)
 
 extern void MOS_CloseWindows(_THIS);
 extern void MOS_OpenWindows(_THIS);
+extern void MOS_RecreateWindow(_THIS, SDL_Window * window);
 
 extern int MOS_CreateWindow(_THIS, SDL_Window * window);
 extern int MOS_CreateWindowFrom(_THIS, SDL_Window * window, const void *data);
