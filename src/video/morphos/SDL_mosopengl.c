@@ -29,6 +29,7 @@
 #include "SDL_syswm.h"
 #include "../SDL_sysvideo.h"
 #include "SDL_mosvideo.h"
+#include "SDL_mosmodes.h"
 #include "SDL_moswindow.h"
 #include "../../core/morphos/SDL_library.h"
 
@@ -121,9 +122,18 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 		if (fullscreen) {
 			tgltags[0].ti_Tag = TGL_CONTEXT_SCREEN;
 			tgltags[0].ti_Data = (IPTR)vd->CustomScreen;
-		} else {
+		} if (data->win) {
 			tgltags[0].ti_Tag = TGL_CONTEXT_WINDOW;
 			tgltags[0].ti_Data = (IPTR)data->win;
+		} else {
+			// window not exist but screen yes
+			
+			if (vd->WScreen == NULL)
+				MOS_GetScreen(vd->VideoDevice, 0, SDL_TRUE);
+			
+			D("[%s] new context unless window 0x%08lx - 0x%08lx\n", __FUNCTION__, glcont, vd->WScreen);
+			tgltags[0].ti_Tag = TGL_CONTEXT_SCREEN;
+			tgltags[0].ti_Data = (IPTR)vd->WScreen;
 		}
 
 		success = GLAInitializeContext(glcont, tgltags);
@@ -136,7 +146,8 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 		D("[%s] new context FAILED 0x%08lx\n", __FUNCTION__, glcont);
 		GLClose(glcont);
 		data->__tglContext = NULL;
-
+		
+		SDL_SetError("Couldn't initialize context TinyGL");
 	} else {
 		SDL_SetError("Couldn't create TinyGL/OpenGL context");
 	}
@@ -212,7 +223,7 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	if (!data->win && data->__tglContext)
 		return -1;
 	
-	if (video->vsyncEnabled) {
+	if (video->vsyncEnabled && &data->win->WScreen) {
 		WaitBOVP(&data->win->WScreen->ViewPort);
 	}
 	
