@@ -222,9 +222,13 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	SDL_VideoData *video = _this->driverdata;
 	if (!data->win && data->__tglContext)
 		return -1;
-	
-	if (video->vsyncEnabled && &data->win->WScreen) {
-		WaitBOVP(&data->win->WScreen->ViewPort);
+	}
+
+	if (video->vsyncEnabled && data->win->WScreen) {
+		BOOL displayed = getv(data->win->WScreen, SA_Displayed);
+		if (displayed) {
+			WaitBOVP(&data->win->WScreen->ViewPort);
+		}
 	}
 	
 	GLASwapBuffers(data->__tglContext);
