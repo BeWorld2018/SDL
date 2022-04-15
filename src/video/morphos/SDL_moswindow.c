@@ -127,7 +127,7 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 		}
 		if (data->visualinfo) {
 			FreeVisualInfo(data->visualinfo);
-					data->visualinfo = NULL;
+			data->visualinfo = NULL;
 		}
 		
 		CloseWindow(win);
@@ -155,7 +155,8 @@ MOS_CloseWindows(_THIS)
 	}
 }
 
-void MOS_OpenWindows(_THIS)
+void 
+MOS_OpenWindows(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	SDL_WindowData *wd;
@@ -191,6 +192,7 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->first_deltamove = 0;
 		wd->winflags = 0;
 		wd->appmsg = NULL;
+		wd->menu = NULL;
 		if (win)
 			win->UserData = (APTR)wd;
 	} else {
@@ -435,16 +437,6 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			D("[%s] maximize to %ld/%ld\n", __FUNCTION__, w, h);
 		}
 		
-		if (!fullscreen) {
-			data->visualinfo = GetVisualInfoA(vd->WScreen, NULL);
-			if (data->visualinfo) {
-				data->menu = CreateMenusA(SDL_NewMenu, NULL);
-				if (data->menu) {
-					LayoutMenusA(data->menu, data->visualinfo, NULL);
-				}
-			}
-		}
-
 		min_w = MIN(min_w, scr->Width);
 		min_h = MIN(min_h, maxheight);
 		max_w = MIN(max_w, scr->Width);
@@ -506,113 +498,127 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			data->first_deltamove = TRUE;
 
 			data->win->UserData = (APTR)data;
-			
-			if (data->menu) {
-				SetMenuStrip(data->win, data->menu);
 
-				char *priority = SDL_getenv("SDL_THREAD_PRIORITY_POLICY");
-				if (priority && strlen(priority)>0 && strcmp(priority, "-1")==0) {
-					SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
-					MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
-				}
-				char *renderdriver = SDL_getenv("SDL_RENDER_DRIVER");
-				if (renderdriver && strlen(renderdriver)>0) {
-					if (strcmp(renderdriver, "opengl")==0) {
-						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 3, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-					}
-					if (strcmp(renderdriver, "software")==0) {
-						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 3, 2, 1);
-						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+			if (!fullscreen) {
+				data->visualinfo = GetVisualInfoA(vd->WScreen, NULL);
+				if (data->visualinfo) {
+					if (data->menu = CreateMenusA(SDL_NewMenu, NULL)) {
+						
+						if (!LayoutMenusA(data->menu, data->visualinfo, NULL)) {
+							FreeMenus(data->menu);
+							data->menu = NULL;
+						}
 					}
 				}
-				char *rendervsync = SDL_getenv("SDL_RENDER_VSYNC");
-				if (rendervsync && strlen(rendervsync)>0) {
-					if (strcmp(rendervsync, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 4, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+			}
+			if (data->menu != NULL) {
+
+				if (SetMenuStrip(data->win, data->menu)) {
+	
+					char *priority = SDL_getenv("SDL_THREAD_PRIORITY_POLICY");
+					if (priority && strlen(priority)>0 && strcmp(priority, "-1")==0) {
+						SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
+						MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
 					}
-					if (strcmp(rendervsync, "0")==0) {
-						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 4, 2, 1);
-						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+					char *renderdriver = SDL_getenv("SDL_RENDER_DRIVER");
+					if (renderdriver && strlen(renderdriver)>0) {
+						if (strcmp(renderdriver, "opengl")==0) {
+							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+						}
+						if (strcmp(renderdriver, "software")==0) {
+							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 3, 2, 1);
+							SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+						}
 					}
-				}
-				
-				char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
-				if (scale && strlen(scale)>0) {
-					if (strcmp(scale, "nearest")==0) {
-						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+					char *rendervsync = SDL_getenv("SDL_RENDER_VSYNC");
+					if (rendervsync && strlen(rendervsync)>0) {
+						if (strcmp(rendervsync, "1")==0) {
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+						}
+						if (strcmp(rendervsync, "0")==0) {
+							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 4, 2, 1);
+							SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+						}
 					}
-					if (strcmp(scale, "linear")==0) {
-						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 5, 2, 1);
-						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+					
+					char *scale = SDL_getenv("SDL_RENDER_SCALE_QUALITY");
+					if (scale && strlen(scale)>0) {
+						if (strcmp(scale, "nearest")==0) {
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+						}
+						if (strcmp(scale, "linear")==0) {
+							MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 5, 2, 1);
+							SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+						}
 					}
-				}
-				char *logical = SDL_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
-				if (logical && strlen(logical)>0) {
-					if (strcmp(logical, "0")==0) {
-						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
+					char *logical = SDL_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
+					if (logical && strlen(logical)>0) {
+						if (strcmp(logical, "0")==0) {
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
+						}
+						if (strcmp(logical, "1")==0) {
+							MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 6, 2, 1);
+							SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
+						}
 					}
-					if (strcmp(logical, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 6, 2, 1);
-						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "1");
+					char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
+					if (renderbatching && strlen(renderbatching)>0) {
+						if (strcmp(renderbatching, "0")==0) {
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
+							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+						}
+						if (strcmp(renderbatching, "1")==0) {
+							MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 7, 2, 1);
+							SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+						}
 					}
-				}
-				char *renderbatching = SDL_getenv("SDL_RENDER_BATCHING");
-				if (renderbatching && strlen(renderbatching)>0) {
-					if (strcmp(renderbatching, "0")==0) {
-						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
-					}
-					if (strcmp(renderbatching, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 2, 1);
-						SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
-					}
-				}
-				char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
-				if (renderline && strlen(renderline)>0) {
-					if (strcmp(renderline, "1")==0) {
-						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 1, 1);
-						MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
-						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
-					}
-					if (strcmp(renderline, "2")==0) {
-						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 2, 1);
-						MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
-						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
-					}
-					if (strcmp(renderline, "3")==0) {
-						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
-						MOS_GlobalMenu(data->menu, 1, 8, 3, 1);
-						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
+					char *renderline = SDL_getenv("SDL_RENDER_LINE_METHOD");
+					if (renderline && strlen(renderline)>0) {
+						if (strcmp(renderline, "1")==0) {
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 1);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "1");
+						}
+						if (strcmp(renderline, "2")==0) {
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 1);
+							MOS_GlobalMenu(data->menu, 1, 8, 3, 0);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "2");
+						}
+						if (strcmp(renderline, "3")==0) {
+							MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 2, 0);
+							MOS_GlobalMenu(data->menu, 1, 8, 3, 1);
+							SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
+						}
 					}
 				}
 			}
@@ -625,7 +631,8 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
-					
+			
+						
 		}
 		
 	} else if (data->win)	{
@@ -740,7 +747,6 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 	if (data->__tglContext) MOS_GL_ResizeContext(_this, window);
 }
 
-
 int
 MOS_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp)
 {
@@ -828,7 +834,8 @@ MOS_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo * info)
 	}
 }
 
-static void MOS_CloseWindow(SDL_Window *window) 
+static void 
+MOS_CloseWindow(SDL_Window *window) 
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
