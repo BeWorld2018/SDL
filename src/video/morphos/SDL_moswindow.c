@@ -458,6 +458,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 
 		D("[%s] min %ld/%ld, normal %ld/%ld, max %ld/%ld\n", __FUNCTION__, min_w, min_h, w, h, max_w, max_h);
 
+		//
+		ULONG opacity_value = ((window->opacity) * (ULONG_MAX));
+		
 		data->win = OpenWindowTags(NULL,
 			WA_Left, left, WA_Top, top,
 			WA_InnerWidth, w,
@@ -474,6 +477,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			fullscreen ? TAG_IGNORE : WA_Title, data->window_title,
 			WA_UserPort, &vd->WinPort,
 			WA_AutoAdjust, TRUE,
+			WA_Opacity, opacity_value,
 			WA_FrontWindow, win_top ? TRUE : FALSE,
 			WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY | IDCMP_MOUSEMOVE | IDCMP_DELTAMOVE | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW | IDCMP_CHANGEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK,
 			WA_ExtraTitlebarGadgets, ETG_ICONIFY,
