@@ -224,7 +224,7 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 		return -1;
 	}
 
-	if (video->vsyncEnabled && data->win->WScreen) {
+	if (video->vsyncEnabled) {
 		BOOL displayed = getv(data->win->WScreen, SA_Displayed);
 		if (displayed) {
 			WaitBOVP(&data->win->WScreen->ViewPort);
