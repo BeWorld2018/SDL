@@ -68,6 +68,7 @@ static struct {
     EventRegistrationToken controller_added_token;
     EventRegistrationToken controller_removed_token;
     int controller_count;
+    SDL_bool ro_initialized;
     WindowsGamingInputControllerState *controllers;
 } wgi;
 
@@ -443,6 +444,30 @@ WGI_JoystickInit(void)
     if (FAILED(WIN_RoInitialize())) {
         return SDL_SetError("RoInitialize() failed");
     }
+    wgi.ro_initialized = SDL_TRUE;
+
+#ifndef __WINRT__
+    {
+        /* There seems to be a bug in Windows where a dependency of WGI can be unloaded from memory prior to WGI itself.
+         * This results in Windows_Gaming_Input!GameController::~GameController() invoking an unloaded DLL and crashing.
+         * As a workaround, we will keep a reference to the MTA to prevent COM from unloading DLLs later.
+         * See https://github.com/libsdl-org/SDL/issues/5552 for more details.
+         */
+        static PVOID cookie = NULL;
+        if (!cookie) {
+            typedef HRESULT (WINAPI *CoIncrementMTAUsage_t)(PVOID* pCookie);
+            CoIncrementMTAUsage_t CoIncrementMTAUsageFunc = (CoIncrementMTAUsage_t)WIN_LoadComBaseFunction("CoIncrementMTAUsage");
+            if (CoIncrementMTAUsageFunc) {
+                if (FAILED(CoIncrementMTAUsageFunc(&cookie))) {
+                    return SDL_SetError("CoIncrementMTAUsage() failed");
+                }
+            } else {
+                /* CoIncrementMTAUsage() is present since Win8, so we should never make it here. */
+                return SDL_SetError("CoIncrementMTAUsage() not found");
+            }
+        }
+    }
+#endif
 
 #ifdef __WINRT__
     WindowsCreateStringReferenceFunc = WindowsCreateStringReference;
@@ -848,9 +873,12 @@ WGI_JoystickQuit(void)
         __x_ABI_CWindows_CGaming_CInput_CIRawGameControllerStatics_remove_RawGameControllerRemoved(wgi.statics, wgi.controller_removed_token);
         __x_ABI_CWindows_CGaming_CInput_CIRawGameControllerStatics_Release(wgi.statics);
     }
-    SDL_zero(wgi);
 
-    WIN_RoUninitialize();
+    if (wgi.ro_initialized) {
+        WIN_RoUninitialize();
+    }
+
+    SDL_zero(wgi);
 }
 
 static SDL_bool
