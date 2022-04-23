@@ -391,8 +391,8 @@ pointer_handle_motion(void *data, struct wl_pointer *pointer,
     if (input->pointer_focus) {
         const float sx_f = (float)wl_fixed_to_double(sx_w);
         const float sy_f = (float)wl_fixed_to_double(sy_w);
-        const int   sx   = (int)SDL_lroundf(sx_f * window->pointer_scale_x);
-        const int   sy   = (int)SDL_lroundf(sy_f * window->pointer_scale_y);
+        const int   sx   = (int)SDL_floorf(sx_f * window->pointer_scale_x);
+        const int   sy   = (int)SDL_floorf(sy_f * window->pointer_scale_y);
         SDL_SendMouseMotion(window->sdlwindow, 0, 0, sx, sy);
     }
 }
@@ -475,6 +475,9 @@ ProcessHitTest(struct SDL_WaylandInput *input, uint32_t serial)
         /* ditto for libdecor. */
         const uint32_t *directions_libdecor = directions;
 #endif
+
+        /* Hit tests shouldn't apply to xdg_popups, right? */
+        SDL_assert(!WINDOW_IS_XDG_POPUP(window));
 
         switch (rc) {
             case SDL_HITTEST_DRAGGABLE:
@@ -1826,8 +1829,8 @@ tablet_tool_handle_motion(void* data, struct zwp_tablet_tool_v2* tool, wl_fixed_
     if (input->tool_focus) {
         const float sx_f = (float)wl_fixed_to_double(sx_w);
         const float sy_f = (float)wl_fixed_to_double(sy_w);
-        const int   sx   = (int)SDL_lroundf(sx_f * window->pointer_scale_x);
-        const int   sy   = (int)SDL_lroundf(sy_f * window->pointer_scale_y);
+        const int   sx   = (int)SDL_floorf(sx_f * window->pointer_scale_x);
+        const int   sy   = (int)SDL_floorf(sy_f * window->pointer_scale_y);
         SDL_SendMouseMotion(window->sdlwindow, 0, 0, sx, sy);
     }
 }

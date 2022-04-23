@@ -36,16 +36,27 @@ typedef struct {
     struct xdg_surface *surface;
     union {
         struct xdg_toplevel *toplevel;
-        struct xdg_popup *popup;
+        struct {
+            struct xdg_popup *popup;
+            struct xdg_positioner *positioner;
+            Uint32 parentID;
+            SDL_Window *child;
+        } popup;
     } roleobj;
     SDL_bool initial_configure_seen;
 } SDL_xdg_shell_surface;
+
+#define WINDOW_IS_XDG_POPUP(window) \
+    (window->flags & (SDL_WINDOW_TOOLTIP | SDL_WINDOW_POPUP_MENU))
 
 #ifdef HAVE_LIBDECOR_H
 typedef struct {
     struct libdecor_frame *frame;
     SDL_bool initial_configure_seen;
 } SDL_libdecor_surface;
+
+#define WINDOW_IS_LIBDECOR(viddata, window) \
+    (viddata->shell.libdecor && !WINDOW_IS_XDG_POPUP(window))
 #endif
 
 typedef struct {
@@ -117,7 +128,6 @@ extern int Wayland_SetWindowModalFor(_THIS, SDL_Window * modal_window, SDL_Windo
 extern void Wayland_SetWindowTitle(_THIS, SDL_Window * window);
 extern void Wayland_DestroyWindow(_THIS, SDL_Window *window);
 extern void Wayland_SuspendScreenSaver(_THIS);
-extern int Wayland_SetDisplayMode(_THIS, SDL_VideoDisplay * display, SDL_DisplayMode * mode);
 
 extern SDL_bool
 Wayland_GetWindowWMInfo(_THIS, SDL_Window * window, SDL_SysWMinfo * info);

@@ -610,7 +610,7 @@ static int get_event_joystick_index(int event)
 {
     int joystick_index = -1;
     int i, count;
-    struct dirent **entries;
+    struct dirent **entries = NULL;
     char path[PATH_MAX];
 
     SDL_snprintf(path, SDL_arraysize(path), "/sys/class/input/event%d/device", event);
@@ -636,8 +636,10 @@ filter_entries(const struct dirent *entry)
     return IsJoystickDeviceNode(entry->d_name);
 }
 static int
-sort_entries(const struct dirent **a, const struct dirent **b)
+sort_entries(const void *_a, const void *_b)
 {
+    const struct dirent **a = (const struct dirent **)_a;
+    const struct dirent **b = (const struct dirent **)_b;
     int numA, numB;
     int offset;
 
@@ -679,10 +681,13 @@ LINUX_FallbackJoystickDetect(void)
         /* Opening input devices can generate synchronous device I/O, so avoid it if we can */
         if (stat("/dev/input", &sb) == 0 && sb.st_mtime != last_input_dir_mtime) {
             int i, count;
-            struct dirent **entries;
+            struct dirent **entries = NULL;
             char path[PATH_MAX];
 
-            count = scandir("/dev/input", &entries, filter_entries, sort_entries);
+            count = scandir("/dev/input", &entries, filter_entries, NULL);
+            if (count > 1) {
+                qsort(entries, count, sizeof(*entries), sort_entries);
+            }
             for (i = 0; i < count; ++i) {
                 SDL_snprintf(path, SDL_arraysize(path), "/dev/input/%s", entries[i]->d_name);
                 MaybeAddDevice(path);
