@@ -28,6 +28,7 @@
 #include "../SDL_pixels_c.h"
 #include "../../core/morphos/SDL_misc.h"
 #include "../../events/SDL_keyboard_c.h"
+#include "../../events/SDL_events_c.h"
 #include "../../events/SDL_mouse_c.h"
 #include "../../core/morphos/SDL_library.h"
 
@@ -262,7 +263,7 @@ MOS_SetWindowTitle(_THIS, SDL_Window * window)
 
 		title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
-		D("[%S] %s to %s (0x%08lx)\n", __FUNCTION__, window->title, title, data->win);
+		D("[%s] %s to %s (0x%08lx)\n", __FUNCTION__, window->title, title, data->win);
 		SetWindowTitles(data->win, title, title);
 			
 		data->window_title = title;
@@ -691,18 +692,40 @@ void
 MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display, SDL_bool fullscreen)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	struct Window *w = data->win;
 	SDL_VideoData *vd = data->videodata;
-
-	D("[%s]\n", __FUNCTION__);
 
 	if (fullscreen) {
 		data->winflags |= SDL_MOS_WINDOW_FULLSCREEN;
 		if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
 			data->winflags |= SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
-		}
-	} else
+		}	
+		int ww, hh;
+		SDL_GetWindowSize(window, &ww, &hh);
+		
+		data->old_x = data->curr_x;
+		data->old_y = data->curr_y;
+		data->old_w = ww;
+		data->old_h = hh;
+		D("[%s] Save actual position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h);
+		
+	} else {
+		
 		data->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN;
 
+		if ((data->old_w && data->old_h) && (data->old_w != data->curr_w && data->old_h != data->curr_h)) {
+			D("[%s] Change position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h);
+			window->x = data->old_x;
+			window->y = data->old_y;
+			window->w = data->old_w;
+			window->h = data->old_h;
+			data->old_w = 0;
+			data->old_h = 0;
+			data->old_x = 0;
+			data->old_y = 0;		
+		}
+
+	}
 	vd->FullScreen = fullscreen;
 
 	MOS_OpenWindows(_this);
