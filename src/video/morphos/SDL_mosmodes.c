@@ -276,7 +276,7 @@ MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 				mode.h = height;
 				float vert = 0, hori = 0;
 				DoMethod(amode, MM_Mode_GetRefreshFrequencies, &hori, &vert);
-				mode.refresh_rate = (int)vert;
+				mode.refresh_rate = (int)hori;
 				mode.format = MOS_GetSDLPixelFormat(pixelfmt,SDL_PIXELFORMAT_BGRA8888);
 
 				//D("[%s] Mode %s - pixelfmt %ld\n", __FUNCTION__, name, pixelfmt);
