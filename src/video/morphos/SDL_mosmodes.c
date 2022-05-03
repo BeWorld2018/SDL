@@ -282,7 +282,8 @@ MOS_GetDisplayModes(_THIS, SDL_VideoDisplay * sdl_display)
 				//D("[%s] Mode %s - pixelfmt %ld\n", __FUNCTION__, name, pixelfmt);
 				mode.driverdata = sdl_display->desktop_mode.driverdata ? SDL_malloc(4) : NULL;
 				SDL_AddDisplayMode(sdl_display, &mode);
-			}					
+			}
+			FreeMonitorModesList(modes);					
 		}
 	}
 				
