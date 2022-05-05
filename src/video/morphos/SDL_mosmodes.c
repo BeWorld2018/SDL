@@ -312,7 +312,7 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 			{SA_Title, (IPTR)"SDL2"},
 			{SA_AdaptSize, TRUE},
 			{SA_ErrorCode, (ULONG)&openError},
-			{/*support3d ?*/ SA_3DSupport /*: TAG_IGNORE*/, TRUE},
+			{support3d ? SA_3DSupport : TAG_IGNORE, TRUE},
 			{SA_GammaControl, TRUE},
 			{TAG_DONE}
 		};
