@@ -592,10 +592,8 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
 			
-			if (data->fb) {
-				D("[%s] FB DETECT \n", __FUNCTION__);
-				// Force refresh when dont use RENDERER
-				ChangeWindowBox(data->win, window->x, window->y, window->w, window->h);
+			if (data->fb && !fullscreen && !fs_desktop) {
+				ChangeWindowBox(data->win, window->x, window->y, data->win->Width, data->win->Height);
 			}				
 		}
 		
