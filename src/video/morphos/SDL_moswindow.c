@@ -592,7 +592,11 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
 			
-						
+			if (data->fb) {
+				D("[%s] FB DETECT \n", __FUNCTION__);
+				// Force refresh when dont use RENDERER
+				ChangeWindowBox(data->win, window->x, window->y, window->w, window->h);
+			}				
 		}
 		
 	} else if (data->win)	{
@@ -692,7 +696,6 @@ void
 MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display, SDL_bool fullscreen)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	struct Window *w = data->win;
 	SDL_VideoData *vd = data->videodata;
 
 	if (fullscreen) {

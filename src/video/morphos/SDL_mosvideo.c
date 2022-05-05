@@ -116,7 +116,7 @@ MOS_ShowApp(_THIS)
 	}
 
 	MOS_OpenWindows(_this);
-	MOS_GL_ResizeContext(_this, _this->current_glwin);
+	if (__tglContext) MOS_GL_ResizeContext(_this, _this->current_glwin);
 }
 
 static int

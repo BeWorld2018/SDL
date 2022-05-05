@@ -193,7 +193,7 @@ MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 		data->curr_w = w->Width;
 		data->curr_h = w->Height;
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
-		MOS_GL_ResizeContext(_this, data->window);
+		if (__tglContext) MOS_GL_ResizeContext(_this, data->window);
 	}
 }
 
@@ -578,13 +578,15 @@ MOS_CheckWBEvents(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct AppMessage *msg;
-	char filename[1024];
+	
 	while ((msg = (struct AppMessage *)GetMsg(&data->WBPort)) != NULL) {
 		D("[%s] check AppMessage\n", __FUNCTION__);
 
 		switch (msg->am_Type) {
-			case AMTYPE_APPWINDOW: {
+			case AMTYPE_APPWINDOW: 
+				{
 				    SDL_Window *window = (SDL_Window *)msg->am_UserData;
+					char filename[1024];
 					struct WBArg *argptr = msg->am_ArgList;
 				    for (int i = 0; i < msg->am_NumArgs; i++) {
 						if (argptr->wa_Lock) {
