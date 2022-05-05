@@ -1810,7 +1810,6 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 
-#ifndef __MORPHOS__
 #ifndef SDL_VIDEO_VITA_PVR_OGL
     window_flags = SDL_GetWindowFlags(window);
     if (!(window_flags & SDL_WINDOW_OPENGL) ||
@@ -1825,7 +1824,6 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
             goto error;
         }
     }
-#endif
 #endif
 	
     renderer = (SDL_Renderer *) SDL_calloc(1, sizeof(*renderer));
