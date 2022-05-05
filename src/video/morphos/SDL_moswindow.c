@@ -592,9 +592,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
 			
-			if (data->fb && !fullscreen && !fs_desktop) {
+			/*if (data->fb && !fullscreen && !fs_desktop) {
 				ChangeWindowBox(data->win, window->x, window->y, data->win->Width, data->win->Height);
-			}				
+			}*/				
 		}
 		
 	} else if (data->win)	{
