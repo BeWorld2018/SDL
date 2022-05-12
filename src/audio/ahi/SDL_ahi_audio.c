@@ -144,6 +144,8 @@ AHIAUD_OpenDevice(_THIS, const char *devname)
 		case AUDIO_S16LSB:
 			this->spec.format = AUDIO_S16MSB;
 			break;
+		case AUDIO_F32LSB:
+		case AUDIO_F32MSB:
 		case AUDIO_S32LSB:
 		 	this->spec.format = AUDIO_S32MSB;
 			break;
@@ -156,16 +158,19 @@ AHIAUD_OpenDevice(_THIS, const char *devname)
 	while (sample_format < 0 && test_format) {
 		//convert = AMIAUD_CONVERT_NONE;
 		switch (test_format) {
-			case AUDIO_U8: 
-			case AUDIO_S8: 			
-				sample_format = this->spec.channels == 1 ? AHIST_M8S : AHIST_S8S; break; 	
+			case AUDIO_U8:
+			case AUDIO_S8:
+				sample_format = this->spec.channels == 1 ? AHIST_M8S : AHIST_S8S;
+				break; 
 			break;
 			case AUDIO_S16LSB://convert = AMIAUD_CONVERT_SWAP16;
-			case AUDIO_S16MSB: sample_format = this->spec.channels == 1 ? AHIST_M16S : AHIST_S16S; break;
-
+			case AUDIO_S16MSB:
+				sample_format = this->spec.channels == 1 ? AHIST_M16S : AHIST_S16S;
+				break;
 			case AUDIO_S32LSB://convert = AMIAUD_CONVERT_SWAP32;
-			case AUDIO_S32MSB: sample_format = this->spec.channels == 1 ? AHIST_M32S : AHIST_S32S; break;
-
+			case AUDIO_S32MSB:
+				sample_format = this->spec.channels == 1 ? AHIST_M32S : AHIST_S32S;
+				break;
 			default:
 				D("[%s] unsupported SDL format 0x%ld\n", __FUNCTION__, test_format);
 				test_format = SDL_NextAudioFormat();
