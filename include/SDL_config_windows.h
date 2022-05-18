@@ -137,6 +137,7 @@ typedef unsigned int uintptr_t;
 #define HAVE_FREE 1
 #define HAVE_ALLOCA 1
 #define HAVE_QSORT 1
+#define HAVE_BSEARCH 1
 #define HAVE_ABS 1
 #define HAVE_MEMSET 1
 #define HAVE_MEMCPY 1
@@ -299,11 +300,6 @@ typedef unsigned int uintptr_t;
 
 /* Enable filesystem support */
 #define SDL_FILESYSTEM_WINDOWS  1
-
-/* Enable assembly routines (Win64 doesn't have inline asm) */
-#ifndef _WIN64
-#define SDL_ASSEMBLY_ROUTINES   1
-#endif
 
 #endif /* SDL_config_windows_h_ */
 

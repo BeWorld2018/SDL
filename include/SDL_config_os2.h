@@ -56,9 +56,6 @@
 #define SDL_TIMER_OS2 1
 #define SDL_FILESYSTEM_OS2 1
 
-/* Enable assembly routines */
-#define SDL_ASSEMBLY_ROUTINES 1
-
 /* use libsamplerate for audio rate conversion. */
 /*#define HAVE_LIBSAMPLERATE_H 1 */
 
@@ -106,6 +103,7 @@
 #define HAVE_SETENV 1
 #define HAVE_PUTENV 1
 #define HAVE_QSORT 1
+#define HAVE_BSEARCH 1
 #define HAVE_ABS 1
 #define HAVE_BCOPY 1
 #define HAVE_MEMSET 1
