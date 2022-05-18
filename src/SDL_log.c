@@ -28,6 +28,8 @@
 
 #include "SDL_error.h"
 #include "SDL_log.h"
+#include "SDL_mutex.h"
+#include "SDL_log_c.h"
 
 #if HAVE_STDIO_H
 #include <stdio.h>
@@ -40,6 +42,12 @@
 #if defined(__MORPHOS__)
 #include <proto/exec.h>
 #endif
+
+#include "stdlib/SDL_vacopy.h"
+
+
+/* The size of the stack buffer to use for rendering log messages. */
+#define SDL_MAX_LOG_MESSAGE_STACK 256
 
 #define DEFAULT_PRIORITY                SDL_LOG_PRIORITY_CRITICAL
 #define DEFAULT_ASSERT_PRIORITY         SDL_LOG_PRIORITY_WARN
@@ -63,6 +71,7 @@ static SDL_LogPriority SDL_application_priority = DEFAULT_APPLICATION_PRIORITY;
 static SDL_LogPriority SDL_test_priority = DEFAULT_TEST_PRIORITY;
 static SDL_LogOutputFunction SDL_log_function = SDL_LogOutput;
 static void *SDL_log_userdata = NULL;
+static SDL_mutex *log_function_mutex = NULL;
 
 static const char *SDL_priority_prefixes[SDL_NUM_LOG_PRIORITIES] = {
     NULL,
@@ -96,6 +105,24 @@ static int SDL_android_priority[SDL_NUM_LOG_PRIORITIES] = {
 };
 #endif /* __ANDROID__ */
 
+void
+SDL_LogInit(void)
+{
+    if (!log_function_mutex) {
+        /* if this fails we'll try to continue without it. */
+        log_function_mutex = SDL_CreateMutex();
+    }
+}
+
+void
+SDL_LogQuit(void)
+{
+    SDL_LogResetPriorities();
+    if (log_function_mutex) {
+        SDL_DestroyMutex(log_function_mutex);
+        log_function_mutex = NULL;
+    }
+}
 
 void
 SDL_LogSetAllPriority(SDL_LogPriority priority)
@@ -268,8 +295,11 @@ GetCategoryPrefix(int category)
 void
 SDL_LogMessageV(int category, SDL_LogPriority priority, const char *fmt, va_list ap)
 {
-    char *message;
-    size_t len;
+    char *message = NULL;
+    char stack_buf[SDL_MAX_LOG_MESSAGE_STACK];
+    size_t len_plus_term;
+    int len;
+    va_list aq;
 
     /* Nothing to do if we don't have an output function */
     if (!SDL_log_function) {
@@ -286,16 +316,33 @@ SDL_LogMessageV(int category, SDL_LogPriority priority, const char *fmt, va_list
         return;
     }
 
-    /* !!! FIXME: why not just "char message[SDL_MAX_LOG_MESSAGE];" ? */
-    message = SDL_stack_alloc(char, SDL_MAX_LOG_MESSAGE);
-    if (!message) {
-        return;
+    if (!log_function_mutex) {
+        /* this mutex creation can race if you log from two threads at startup. You should have called SDL_Init first! */
+        log_function_mutex = SDL_CreateMutex();
     }
 
-    SDL_vsnprintf(message, SDL_MAX_LOG_MESSAGE, fmt, ap);
+    /* Render into stack buffer */
+    va_copy(aq, ap);
+    len = SDL_vsnprintf(stack_buf, sizeof(stack_buf), fmt, aq);
+    va_end(aq);
+
+    if (len < 0)
+        return;
+
+    /* If message truncated, allocate and re-render */
+    if (len >= sizeof(stack_buf) && SDL_size_add_overflow(len, 1, &len_plus_term) == 0) {
+        /* Allocate exactly what we need, including the zero-terminator */
+        message = (char *)SDL_malloc(len_plus_term);
+        if (!message)
+            return;
+        va_copy(aq, ap);
+        len = SDL_vsnprintf(message, len_plus_term, fmt, aq);
+        va_end(aq);
+    } else {
+        message = stack_buf;
+    }
 
     /* Chop off final endline. */
-    len = SDL_strlen(message);
     if ((len > 0) && (message[len-1] == '\n')) {
         message[--len] = '\0';
         if ((len > 0) && (message[len-1] == '\r')) {  /* catch "\r\n", too. */
@@ -303,8 +350,20 @@ SDL_LogMessageV(int category, SDL_LogPriority priority, const char *fmt, va_list
         }
     }
 
+    if (log_function_mutex) {
+        SDL_LockMutex(log_function_mutex);
+    }
+
     SDL_log_function(SDL_log_userdata, category, priority, message);
-    SDL_stack_free(message);
+
+    if (log_function_mutex) {
+        SDL_UnlockMutex(log_function_mutex);
+    }
+
+    /* Free only if dynamically allocated */
+    if (message != stack_buf) {
+        SDL_free(message);
+    }
 }
 
 #if defined(__WIN32__) && !defined(HAVE_STDIO_H) && !defined(__WINRT__)
@@ -407,17 +466,10 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
 #elif defined(__APPLE__) && (defined(SDL_VIDEO_DRIVER_COCOA) || defined(SDL_VIDEO_DRIVER_UIKIT))
     /* Technically we don't need Cocoa/UIKit, but that's where this function is defined for now.
     */
-    extern void SDL_NSLog(const char *text);
+    extern void SDL_NSLog(const char *prefix, const char *text);
     {
-        char *text;
-        /* !!! FIXME: why not just "char text[SDL_MAX_LOG_MESSAGE];" ? */
-        text = SDL_stack_alloc(char, SDL_MAX_LOG_MESSAGE);
-        if (text) {
-            SDL_snprintf(text, SDL_MAX_LOG_MESSAGE, "%s: %s", SDL_priority_prefixes[priority], message);
-            SDL_NSLog(text);
-            SDL_stack_free(text);
-            return;
-        }
+        SDL_NSLog(SDL_priority_prefixes[priority], message);
+        return;
     }
 #elif defined(__PSP__)
     {

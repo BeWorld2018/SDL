@@ -46,9 +46,6 @@ extern "C" {
 #define SDL_RWOPS_MEMORY    4U  /**< Memory stream */
 #define SDL_RWOPS_MEMORY_RO 5U  /**< Read-Only memory stream */
 #define SDL_RWOPS_MORPHOSFILE 6U  /**< MorphOS file */
-#if defined(__VITA__)
-#define SDL_RWOPS_VITAFILE  6U  /**< Vita file */
-#endif
 
 /**
  * This is the read/write operation structure -- very basic.
@@ -131,17 +128,6 @@ typedef struct SDL_RWops
                 void   *libc;
             } fp;
         } morphosio;
-#elif defined(__VITA__)
-                struct
-                {
-                    int h;
-                    struct
-                    {
-                        void *data;
-                        size_t size;
-                        size_t left;
-                    } buffer;
-                } vitaio;
 #endif
 
 #ifdef HAVE_STDIO_H

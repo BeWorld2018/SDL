@@ -865,3 +865,9 @@
 #define SDL_EncloseFPoints SDL_EncloseFPoints_REAL
 #define SDL_IntersectFRectAndLine SDL_IntersectFRectAndLine_REAL
 #define SDL_RenderGetWindow SDL_RenderGetWindow_REAL
+#define SDL_bsearch SDL_bsearch_REAL
+#define SDL_GameControllerPathForIndex SDL_GameControllerPathForIndex_REAL
+#define SDL_GameControllerPath SDL_GameControllerPath_REAL
+#define SDL_JoystickPathForIndex SDL_JoystickPathForIndex_REAL
+#define SDL_JoystickPath SDL_JoystickPath_REAL
+#define SDL_JoystickAttachVirtualEx SDL_JoystickAttachVirtualEx_REAL

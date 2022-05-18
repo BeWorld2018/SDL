@@ -1652,8 +1652,6 @@ SDL_AudioQuit(void)
 #ifdef HAVE_LIBSAMPLERATE_H
     UnloadLibSampleRate();
 #endif
-
-    SDL_FreeResampleFilter();
 }
 
 #define NUM_FORMATS 10
