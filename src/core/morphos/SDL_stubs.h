@@ -855,3 +855,10 @@
 	STUB(SDL_IntersectFRectAndLine)
 	STUB(SDL_RenderGetWindow)
 	
+	STUB(SDL_bsearch)
+	STUB(SDL_GameControllerPathForIndex)
+	STUB(SDL_GameControllerPath)
+	STUB(SDL_JoystickPathForIndex)
+	STUB(SDL_JoystickPath)
+	STUB(SDL_JoystickAttachVirtualEx)
+	

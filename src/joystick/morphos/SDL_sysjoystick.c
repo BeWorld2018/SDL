@@ -97,6 +97,12 @@ SDL_MORPHOS_JoystickGetDeviceName(int device_index)
 	return name;
 }
 
+static const char *
+SDL_MORPHOS_JoystickGetDevicePath(int device_index)
+{
+    return NULL;
+}
+
 static int
 SDL_MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -476,6 +482,7 @@ SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
     SDL_MORPHOS_JoystickGetCount,
     SDL_MORPHOS_JoystickDetect,
     SDL_MORPHOS_JoystickGetDeviceName,
+	SDL_MORPHOS_JoystickGetDevicePath,
     SDL_MORPHOS_JoystickGetDevicePlayerIndex,
     SDL_MORPHOS_JoystickSetDevicePlayerIndex,
     SDL_MORPHOS_JoystickGetDeviceGUID,

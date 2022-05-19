@@ -834,6 +834,7 @@ SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 void SDL_hid_ble_scan(SDL_bool active);
 int SDL_PremultiplyAlpha(int width, int height, Uint32 src_format, const void * src, int src_pitch, Uint32 dst_format, void * dst, int dst_pitch);
+/* 2.0.22 */
 const char* SDL_GetTouchName(int index);
 void SDL_ClearComposition(void);
 SDL_bool SDL_IsTextInputShown(void);
@@ -843,7 +844,13 @@ void SDL_UnionFRect(const SDL_FRect * A, const SDL_FRect * B, SDL_FRect * result
 SDL_bool SDL_EncloseFPoints(const SDL_FPoint * points, int count, const SDL_FRect * clip, SDL_FRect * result);
 SDL_bool SDL_IntersectFRectAndLine(const SDL_FRect * rect, float *X1, float *Y1, float *X2, float *Y2);
 SDL_Window * SDL_RenderGetWindow(SDL_Renderer *renderer);
-	
+/* 2.24.0 */
+void * SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
+const char * SDL_GameControllerPathForIndex(int joystick_index);
+const char * SDL_GameControllerPath(SDL_GameController *gamecontroller);
+const char * SDL_JoystickPathForIndex(int device_index);
+const char * SDL_JoystickPath(SDL_Joystick *joystick);
+int SDL_JoystickAttachVirtualEx(const SDL_VirtualJoystickDesc *desc);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

@@ -6762,4 +6762,56 @@
 		(((SDL_Window *(*)(SDL_Renderer *))*(void**)(__base - 4636))(__t__p0));\
 	})
 
+#define SDL_bsearch(__p0, __p1, __p2, __p3, __p4) \
+	({ \
+		const void * __t__p0 = __p0;\
+		const void * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		size_t  __t__p3 = __p3;\
+		int (* __t__p4) (const void *, const void *) = __p4;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void *(*)(const void *, const void *, size_t , size_t , int (*) (const void *, const void *)))*(void**)(__base - 4642))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+	})
+
+#define SDL_GameControllerPathForIndex(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(int ))*(void**)(__base - 4648))(__t__p0));\
+	})
+
+#define SDL_GameControllerPath(__p0) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(SDL_GameController *))*(void**)(__base - 4654))(__t__p0));\
+	})
+
+#define SDL_JoystickPathForIndex(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(int ))*(void**)(__base - 4660))(__t__p0));\
+	})
+
+#define SDL_JoystickPath(__p0) \
+	({ \
+		SDL_Joystick * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((const char *(*)(SDL_Joystick *))*(void**)(__base - 4666))(__t__p0));\
+	})
+
+#define SDL_JoystickAttachVirtualEx(__p0) \
+	({ \
+		const SDL_VirtualJoystickDesc * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const SDL_VirtualJoystickDesc *))*(void**)(__base - 4672))(__t__p0));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
