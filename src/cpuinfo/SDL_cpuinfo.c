@@ -137,7 +137,7 @@ CPU_haveCPUID(void)
 {
     int has_CPUID = 0;
 
-/* *INDENT-OFF* */
+/* *INDENT-OFF* */ /* clang-format off */
 #ifndef SDL_CPUINFO_DISABLED
 #if (defined(__GNUC__) || defined(__llvm__)) && defined(__i386__)
     __asm__ (
@@ -226,7 +226,7 @@ done:
     );
 #endif
 #endif
-/* *INDENT-ON* */
+/* *INDENT-ON* */ /* clang-format on */
     return has_CPUID;
 }
 

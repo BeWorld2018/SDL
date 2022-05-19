@@ -296,6 +296,7 @@ SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window * window, Uint32 * fo
 }
 
 static SDL_VideoDevice *_this = NULL;
+static SDL_atomic_t SDL_messagebox_count;
 
 static int
 SDL_UpdateWindowTexture(SDL_VideoDevice *unused, SDL_Window * window, const SDL_Rect * rects, int numrects)
@@ -346,7 +347,7 @@ SDL_DestroyWindowTexture(SDL_VideoDevice *unused, SDL_Window * window)
     SDL_free(data);
 }
 
-static int
+static int SDLCALL
 cmpmodes(const void *A, const void *B)
 {
     const SDL_DisplayMode *a = (const SDL_DisplayMode *) A;
@@ -4285,6 +4286,12 @@ SDL_IsScreenKeyboardShown(SDL_Window *window)
     return SDL_FALSE;
 }
 
+int
+SDL_GetMessageBoxCount(void)
+{
+    return SDL_AtomicGet(&SDL_messagebox_count);
+}
+
 #if SDL_VIDEO_DRIVER_ANDROID
 #include "android/SDL_androidmessagebox.h"
 #endif
@@ -4348,7 +4355,6 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     int retval = -1;
     SDL_bool relative_mode;
     int show_cursor_prev;
-    SDL_bool mouse_captured;
     SDL_Window *current_window;
     SDL_MessageBoxData mbdata;
 
@@ -4358,10 +4364,11 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
         return SDL_SetError("Invalid number of buttons");
     }
 
+    (void)SDL_AtomicIncRef(&SDL_messagebox_count);
+
     current_window = SDL_GetKeyboardFocus();
-    mouse_captured = current_window && ((SDL_GetWindowFlags(current_window) & SDL_WINDOW_MOUSE_CAPTURE) != 0);
     relative_mode = SDL_GetRelativeMouseMode();
-    SDL_CaptureMouse(SDL_FALSE);
+    SDL_UpdateMouseCapture(SDL_FALSE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
     show_cursor_prev = SDL_ShowCursor(1);
     SDL_ResetKeyboard();
@@ -4472,15 +4479,15 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
         }
     }
 
+    (void)SDL_AtomicDecRef(&SDL_messagebox_count);
+
     if (current_window) {
         SDL_RaiseWindow(current_window);
-        if (mouse_captured) {
-            SDL_CaptureMouse(SDL_TRUE);
-        }
     }
 
     SDL_ShowCursor(show_cursor_prev);
     SDL_SetRelativeMouseMode(relative_mode);
+    SDL_UpdateMouseCapture(SDL_FALSE);
 
     return retval;
 }
