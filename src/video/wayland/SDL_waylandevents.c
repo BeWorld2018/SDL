@@ -294,6 +294,12 @@ Wayland_WaitEventTimeout(_THIS, int timeout)
         }
     }
 
+#ifdef HAVE_LIBDECOR_H
+    if (d->shell.libdecor) {
+        libdecor_dispatch(d->shell.libdecor, timeout);
+    }
+#endif
+
     /* wl_display_prepare_read() will return -1 if the default queue is not empty.
      * If the default queue is empty, it will prepare us for our SDL_IOReady() call. */
     if (WAYLAND_wl_display_prepare_read(d->display) == 0) {

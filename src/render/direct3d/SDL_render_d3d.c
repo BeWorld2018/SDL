@@ -41,6 +41,13 @@
 
 #include "SDL_shaders_d3d.h"
 
+#ifdef __WATCOMC__
+/* FIXME: Remove this once https://github.com/open-watcom/open-watcom-v2/pull/868 is merged */
+#define D3DBLENDOP_REVSUBTRACT 3
+/* FIXME: Remove this once https://github.com/open-watcom/open-watcom-v2/pull/869 is merged */
+#define D3DERR_UNSUPPORTEDCOLOROPERATION MAKE_D3DHRESULT( 2073 )
+#endif
+
 typedef struct
 {
     SDL_Rect viewport;
@@ -1740,6 +1747,9 @@ D3D_CreateRenderer(SDL_Window * window, Uint32 flags)
         }
     }
 #endif
+    data->drawstate.viewport_dirty = SDL_TRUE;
+    data->drawstate.cliprect_dirty = SDL_TRUE;
+    data->drawstate.cliprect_enabled_dirty = SDL_TRUE;
     data->drawstate.blend = SDL_BLENDMODE_INVALID;
 
     return renderer;

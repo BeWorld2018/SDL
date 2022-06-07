@@ -653,6 +653,8 @@ SDL_RLD_FLAGS
 SDL_STATIC_LIBS
 SDL_LIBS
 SDL_CFLAGS
+bin_prefix_relpath
+cmake_prefix_relpath
 INSTALL_SDL2_CONFIG
 LIBUSB_LIBS
 LIBUSB_CFLAGS
@@ -806,6 +808,7 @@ with_aix_soname
 with_gnu_ld
 with_sysroot
 enable_libtool_lock
+enable_largefile
 enable_assertions
 enable_dependency_tracking
 enable_libc
@@ -836,6 +839,8 @@ enable_sse
 enable_sse2
 enable_sse3
 enable_altivec
+enable_lsx
+enable_lasx
 enable_oss
 enable_alsa
 with_alsa_prefix
@@ -1581,6 +1586,7 @@ Optional Features:
   --enable-fast-install[=PKGS]
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
+  --disable-largefile     omit support for large files
   --enable-assertions     Enable internal sanity checks
                           (auto/disabled/release/enabled/paranoid)
                           [default=auto]
@@ -1617,6 +1623,8 @@ Optional Features:
   --enable-sse2           use SSE2 assembly routines [default=maybe]
   --enable-sse3           use SSE3 assembly routines [default=maybe]
   --enable-altivec        use Altivec assembly routines [default=yes]
+  --enable-lsx            use LSX assembly routines [default=yes]
+  --enable-lasx           use LASX assembly routines [default=yes]
   --enable-oss            support the OSS audio API [default=maybe]
   --enable-alsa           support the ALSA audio API [default=yes]
   --disable-alsatest      Do not try to compile and run a test Alsa program
@@ -16392,6 +16400,206 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
+# Check whether --enable-largefile was given.
+if test "${enable_largefile+set}" = set; then :
+  enableval=$enable_largefile;
+fi
+
+if test "$enable_largefile" != no; then
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for special C compiler options needed for large files" >&5
+$as_echo_n "checking for special C compiler options needed for large files... " >&6; }
+if ${ac_cv_sys_largefile_CC+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_sys_largefile_CC=no
+     if test "$GCC" != yes; then
+       ac_save_CC=$CC
+       while :; do
+	 # IRIX 6.2 and later do not support large files by default,
+	 # so use the C compiler's -n32 option if that helps.
+	 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+ /* Check that off_t can represent 2**63 - 1 correctly.
+    We can't simply define LARGE_OFF_T to be 9223372036854775807,
+    since some C++ compilers masquerading as C compilers
+    incorrectly reject 9223372036854775807.  */
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+  int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+		       && LARGE_OFF_T % 2147483647 == 1)
+		      ? 1 : -1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+	 if ac_fn_c_try_compile "$LINENO"; then :
+  break
+fi
+rm -f core conftest.err conftest.$ac_objext
+	 CC="$CC -n32"
+	 if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sys_largefile_CC=' -n32'; break
+fi
+rm -f core conftest.err conftest.$ac_objext
+	 break
+       done
+       CC=$ac_save_CC
+       rm -f conftest.$ac_ext
+    fi
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sys_largefile_CC" >&5
+$as_echo "$ac_cv_sys_largefile_CC" >&6; }
+  if test "$ac_cv_sys_largefile_CC" != no; then
+    CC=$CC$ac_cv_sys_largefile_CC
+  fi
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for _FILE_OFFSET_BITS value needed for large files" >&5
+$as_echo_n "checking for _FILE_OFFSET_BITS value needed for large files... " >&6; }
+if ${ac_cv_sys_file_offset_bits+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  while :; do
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+ /* Check that off_t can represent 2**63 - 1 correctly.
+    We can't simply define LARGE_OFF_T to be 9223372036854775807,
+    since some C++ compilers masquerading as C compilers
+    incorrectly reject 9223372036854775807.  */
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+  int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+		       && LARGE_OFF_T % 2147483647 == 1)
+		      ? 1 : -1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sys_file_offset_bits=no; break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#define _FILE_OFFSET_BITS 64
+#include <sys/types.h>
+ /* Check that off_t can represent 2**63 - 1 correctly.
+    We can't simply define LARGE_OFF_T to be 9223372036854775807,
+    since some C++ compilers masquerading as C compilers
+    incorrectly reject 9223372036854775807.  */
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+  int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+		       && LARGE_OFF_T % 2147483647 == 1)
+		      ? 1 : -1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sys_file_offset_bits=64; break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  ac_cv_sys_file_offset_bits=unknown
+  break
+done
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sys_file_offset_bits" >&5
+$as_echo "$ac_cv_sys_file_offset_bits" >&6; }
+case $ac_cv_sys_file_offset_bits in #(
+  no | unknown) ;;
+  *)
+cat >>confdefs.h <<_ACEOF
+#define _FILE_OFFSET_BITS $ac_cv_sys_file_offset_bits
+_ACEOF
+;;
+esac
+rm -rf conftest*
+  if test $ac_cv_sys_file_offset_bits = unknown; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for _LARGE_FILES value needed for large files" >&5
+$as_echo_n "checking for _LARGE_FILES value needed for large files... " >&6; }
+if ${ac_cv_sys_large_files+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  while :; do
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+ /* Check that off_t can represent 2**63 - 1 correctly.
+    We can't simply define LARGE_OFF_T to be 9223372036854775807,
+    since some C++ compilers masquerading as C compilers
+    incorrectly reject 9223372036854775807.  */
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+  int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+		       && LARGE_OFF_T % 2147483647 == 1)
+		      ? 1 : -1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sys_large_files=no; break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#define _LARGE_FILES 1
+#include <sys/types.h>
+ /* Check that off_t can represent 2**63 - 1 correctly.
+    We can't simply define LARGE_OFF_T to be 9223372036854775807,
+    since some C++ compilers masquerading as C compilers
+    incorrectly reject 9223372036854775807.  */
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+  int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+		       && LARGE_OFF_T % 2147483647 == 1)
+		      ? 1 : -1];
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sys_large_files=1; break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  ac_cv_sys_large_files=unknown
+  break
+done
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sys_large_files" >&5
+$as_echo "$ac_cv_sys_large_files" >&6; }
+case $ac_cv_sys_large_files in #(
+  no | unknown) ;;
+  *)
+cat >>confdefs.h <<_ACEOF
+#define _LARGE_FILES $ac_cv_sys_large_files
+_ACEOF
+;;
+esac
+rm -rf conftest*
+  fi
+
+
+fi
+
 # Find a good install program.  We prefer a C program (faster),
 # so one script is as good as another.  But avoid the broken or
 # incompatible versions:
@@ -18245,7 +18453,6 @@ fi
 if test x$enable_assembly = xyes; then
     SUMMARY_modules="${SUMMARY_modules} assembly"
 
-
     # Make sure that we don't generate floating point code that would
     # cause illegal instruction exceptions on older processors
     case "$host" in
@@ -18707,6 +18914,148 @@ $as_echo "#define HAVE_ALTIVEC_H 1" >>confdefs.h
         fi
     fi
 fi
+
+    # Check whether --enable-lsx was given.
+if test "${enable_lsx+set}" = set; then :
+  enableval=$enable_lsx;
+else
+  enable_lsx=yes
+fi
+
+    if test x$enable_lsx = xyes; then
+        save_CFLAGS="$CFLAGS"
+        have_gcc_lsx=no
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for GCC -mlsx option" >&5
+$as_echo_n "checking for GCC -mlsx option... " >&6; }
+        lsx_CFLAGS="-mlsx"
+        CFLAGS="$save_CFLAGS $lsx_CFLAGS"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #ifndef __loongarch_sx
+        #error Assembler CPP flag not enabled
+        #endif
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  have_gcc_lsx=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_lsx" >&5
+$as_echo "$have_gcc_lsx" >&6; }
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_lsx = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS $lsx_CFLAGS"
+            SUMMARY_math="${SUMMARY_math} lsx"
+        fi
+    fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lsxintrin.h" >&5
+$as_echo_n "checking for lsxintrin.h... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <lsxintrin.h>
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  have_lsxintrin_h_hdr=yes
+else
+  have_lsxintrin_h_hdr=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_lsxintrin_h_hdr" >&5
+$as_echo "$have_lsxintrin_h_hdr" >&6; }
+    if test x$have_lsxintrin_h_hdr = xyes; then
+
+$as_echo "#define HAVE_LSXINTRIN_H 1" >>confdefs.h
+
+    fi
+
+    # Check whether --enable-lasx was given.
+if test "${enable_lasx+set}" = set; then :
+  enableval=$enable_lasx;
+else
+  enable_LASX=yes
+fi
+
+    if test x$enable_LASX = xyes; then
+        save_CFLAGS="$CFLAGS"
+        have_gcc_lasx=no
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for GCC -mlasx option" >&5
+$as_echo_n "checking for GCC -mlasx option... " >&6; }
+        lasx_CFLAGS="-mlasx"
+        CFLAGS="$save_CFLAGS $lasx_CFLAGS"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #ifndef __loongarch_asx
+        #error Assembler CPP flag not enabled
+        #endif
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  have_gcc_lasx=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_lasx" >&5
+$as_echo "$have_gcc_lasx" >&6; }
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_lasx = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS $lasx_CFLAGS"
+            SUMMARY_math="${SUMMARY_math} lasx"
+        fi
+    fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lasxintrin.h" >&5
+$as_echo_n "checking for lasxintrin.h... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <lasxintrin.h>
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  have_lasxintrin_h_hdr=yes
+else
+  have_lasxintrin_h_hdr=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_lasxintrin_h_hdr" >&5
+$as_echo "$have_lasxintrin_h_hdr" >&6; }
+    if test x$have_lasxintrin_h_hdr = xyes; then
+
+$as_echo "#define HAVE_LASXINTRIN_H 1" >>confdefs.h
+
+    fi
 
 CheckOSS()
 {
@@ -24734,6 +25083,12 @@ if test "x$ac_cv_header_d3d11_1_h" = xyes; then :
 fi
 
 
+        ac_fn_c_check_header_mongrel "$LINENO" "d3d12.h" "ac_cv_header_d3d12_h" "$ac_includes_default"
+if test "x$ac_cv_header_d3d12_h" = xyes; then :
+  have_d3d12=yes
+fi
+
+
         ac_fn_c_check_header_mongrel "$LINENO" "ddraw.h" "ac_cv_header_ddraw_h" "$ac_includes_default"
 if test "x$ac_cv_header_ddraw_h" = xyes; then :
   have_ddraw=yes
@@ -26091,6 +26446,12 @@ $as_echo "#define SDL_VIDEO_RENDER_D3D11 1" >>confdefs.h
 
                 SUMMARY_video="${SUMMARY_video} d3d11"
             fi
+            if test x$enable_render_d3d = xyes -a x$have_d3d12 = xyes; then
+
+$as_echo "#define SDL_VIDEO_RENDER_D3D12 1" >>confdefs.h
+
+                SUMMARY_video="${SUMMARY_video} d3d12"
+            fi
         fi
         # Set up files for the audio library
         if test x$enable_audio = xyes; then
@@ -27051,6 +27412,15 @@ else
 fi
 
 SDL_STATIC_LIBS="$EXTRA_LDFLAGS"
+
+eval pkg_prefix=$prefix
+eval pkg_cmakedir=$libdir/cmake/SDL2
+cmake_prefix_relpath="$(echo -n "$pkg_cmakedir" | sed -E "s#^$pkg_prefix##" | sed -E "s#[A-Za-z0-9_ .-]+#..#g" )"
+
+
+eval pkg_bindir=$bindir
+bin_prefix_relpath="$(echo -n "pkg_bindir" | sed -E "s#^$pkg_prefix##" | sed -E "s#[A-Za-z0-9_ .-]+#..#g" )"
+
 
 
 

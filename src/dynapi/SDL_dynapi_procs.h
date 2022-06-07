@@ -70,7 +70,7 @@ SDL_DYNAPI_PROC(IDirect3DDevice9*,SDL_RenderGetD3D9Device,(SDL_Renderer *a),(a),
 #endif
 
 #ifdef __IPHONEOS__
-SDL_DYNAPI_PROC(int,SDL_iPhoneSetAnimationCallback,(SDL_Window *a, int b, void c, void *d),(a,b,c,d),return)
+SDL_DYNAPI_PROC(int,SDL_iPhoneSetAnimationCallback,(SDL_Window *a, int b, void (SDLCALL *c)(void *), void *d),(a,b,c,d),return)
 SDL_DYNAPI_PROC(void,SDL_iPhoneSetEventPump,(SDL_bool a),(a),)
 #endif
 
@@ -508,7 +508,7 @@ SDL_DYNAPI_PROC(void,SDL_WaitThread,(SDL_Thread *a, int *b),(a,b),)
 SDL_DYNAPI_PROC(void,SDL_DetachThread,(SDL_Thread *a),(a),)
 SDL_DYNAPI_PROC(SDL_TLSID,SDL_TLSCreate,(void),(),return)
 SDL_DYNAPI_PROC(void*,SDL_TLSGet,(SDL_TLSID a),(a),return)
-SDL_DYNAPI_PROC(int,SDL_TLSSet,(SDL_TLSID a, const void *b, void (*c)(void*)),(a,b,c),return)
+SDL_DYNAPI_PROC(int,SDL_TLSSet,(SDL_TLSID a, const void *b, void (SDLCALL *c)(void*)),(a,b,c),return)
 SDL_DYNAPI_PROC(Uint32,SDL_GetTicks,(void),(),return)
 SDL_DYNAPI_PROC(Uint64,SDL_GetPerformanceCounter,(void),(),return)
 SDL_DYNAPI_PROC(Uint64,SDL_GetPerformanceFrequency,(void),(),return)
@@ -942,3 +942,12 @@ SDL_DYNAPI_PROC(const char*,SDL_GameControllerPath,(SDL_GameController *a),(a),r
 SDL_DYNAPI_PROC(const char*,SDL_JoystickPathForIndex,(int a),(a),return)
 SDL_DYNAPI_PROC(const char*,SDL_JoystickPath,(SDL_Joystick *a),(a),return)
 SDL_DYNAPI_PROC(int,SDL_JoystickAttachVirtualEx,(const SDL_VirtualJoystickDesc *a),(a),return)
+SDL_DYNAPI_PROC(Uint16,SDL_GameControllerGetFirmwareVersion,(SDL_GameController *a),(a),return)
+SDL_DYNAPI_PROC(Uint16,SDL_JoystickGetFirmwareVersion,(SDL_Joystick *a),(a),return)
+SDL_DYNAPI_PROC(void,SDL_GUIDToString,(SDL_GUID a, char *b, int c),(a,b,c),)
+SDL_DYNAPI_PROC(SDL_GUID,SDL_GUIDFromString,(const char *a),(a),return)
+SDL_DYNAPI_PROC(SDL_bool,SDL_HasLSX,(void),(),return)
+SDL_DYNAPI_PROC(SDL_bool,SDL_HasLASX,(void),(),return)
+#ifdef __WIN32__
+SDL_DYNAPI_PROC(ID3D12Device*,SDL_RenderGetD3D12Device,(SDL_Renderer *a),(a),return)
+#endif

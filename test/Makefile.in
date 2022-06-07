@@ -40,6 +40,7 @@ TARGETS = \
 	testgamecontroller$(EXE) \
 	testgeometry$(EXE) \
 	testgesture$(EXE) \
+	testguid$(EXE) \
 	testhaptic$(EXE) \
 	testhittesting$(EXE) \
 	testhotplug$(EXE) \
@@ -103,9 +104,11 @@ generatetestmeta:
 	done
 
 install: all
-	install -D -t $(DESTDIR)$(installedtestsdir) $(TARGETS)
-	install -m644 -D -t $(DESTDIR)$(installedtestsdir) $(DATA)
-	install -m644 -D -t $(DESTDIR)$(installedtestsmetadir) *.test
+	install -d $(DESTDIR)$(installedtestsdir)
+	install $(TARGETS) $(DESTDIR)$(installedtestsdir)
+	install -m644 $(DATA) $(DESTDIR)$(installedtestsdir)
+	install -d $(DESTDIR)$(installedtestsmetadir)
+	install -m644 *.test $(DESTDIR)$(installedtestsmetadir)
 
 Makefile: $(srcdir)/Makefile.in
 	$(SHELL) config.status $@
@@ -199,7 +202,7 @@ testgeometry$(EXE): $(srcdir)/testgeometry.c $(srcdir)/testutils.c
 
 testgesture$(EXE): $(srcdir)/testgesture.c
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS) @MATHLIB@
- 
+
 testgl2$(EXE): $(srcdir)/testgl2.c
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS) @MATHLIB@
 
@@ -211,6 +214,9 @@ testgles2$(EXE): $(srcdir)/testgles2.c
 
 testgles2_sdf$(EXE): $(srcdir)/testgles2_sdf.c $(srcdir)/testutils.c
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS) @MATHLIB@
+
+testguid$(EXE): $(srcdir)/testguid.c
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 testhaptic$(EXE): $(srcdir)/testhaptic.c
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)

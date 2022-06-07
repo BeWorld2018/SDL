@@ -60,6 +60,7 @@ dnl AC_CANONICAL_HOST
 dnl Check for tools
 AC_PROG_CC
 AC_PROG_CXX
+AC_SYS_LARGEFILE
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 PKG_PROG_PKG_CONFIG
@@ -850,6 +851,70 @@ dnl Check for various instruction support
         fi
     fi
 fi
+
+    AC_ARG_ENABLE(lsx,
+[AC_HELP_STRING([--enable-lsx], [use LSX assembly routines [default=yes]])],
+                  , enable_lsx=yes)
+    if test x$enable_lsx = xyes; then
+        save_CFLAGS="$CFLAGS"
+        have_gcc_lsx=no
+        AC_MSG_CHECKING(for GCC -mlsx option)
+        lsx_CFLAGS="-mlsx"
+        CFLAGS="$save_CFLAGS $lsx_CFLAGS"
+
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #ifndef __loongarch_sx
+        #error Assembler CPP flag not enabled
+        #endif
+        ]], [])], [have_gcc_lsx=yes], [])
+        AC_MSG_RESULT($have_gcc_lsx)
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_lsx = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS $lsx_CFLAGS"
+            SUMMARY_math="${SUMMARY_math} lsx"
+        fi
+    fi
+
+    AC_MSG_CHECKING(for lsxintrin.h)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <lsxintrin.h>]])],
+       [have_lsxintrin_h_hdr=yes],[have_lsxintrin_h_hdr=no])
+    AC_MSG_RESULT($have_lsxintrin_h_hdr)
+    if test x$have_lsxintrin_h_hdr = xyes; then
+        AC_DEFINE(HAVE_LSXINTRIN_H, 1, [ ])
+    fi
+
+    AC_ARG_ENABLE(lasx,
+[AC_HELP_STRING([--enable-lasx], [use LASX assembly routines [default=yes]])],
+                  , enable_LASX=yes)
+    if test x$enable_LASX = xyes; then
+        save_CFLAGS="$CFLAGS"
+        have_gcc_lasx=no
+        AC_MSG_CHECKING(for GCC -mlasx option)
+        lasx_CFLAGS="-mlasx"
+        CFLAGS="$save_CFLAGS $lasx_CFLAGS"
+
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #ifndef __loongarch_asx
+        #error Assembler CPP flag not enabled
+        #endif
+        ]], [])], [have_gcc_lasx=yes], [])
+        AC_MSG_RESULT($have_gcc_lasx)
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_lasx = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS $lasx_CFLAGS"
+            SUMMARY_math="${SUMMARY_math} lasx"
+        fi
+    fi
+
+    AC_MSG_CHECKING(for lasxintrin.h)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <lasxintrin.h>]])],
+       [have_lasxintrin_h_hdr=yes],[have_lasxintrin_h_hdr=no])
+    AC_MSG_RESULT($have_lasxintrin_h_hdr)
+    if test x$have_lasxintrin_h_hdr = xyes; then
+        AC_DEFINE(HAVE_LASXINTRIN_H, 1, [ ])
+    fi
 
 dnl See if the OSS audio interface is supported
 CheckOSS()
@@ -3199,6 +3264,7 @@ CheckDIRECTX()
     if test x$enable_directx = xyes; then
         AC_CHECK_HEADER(d3d9.h, have_d3d=yes)
         AC_CHECK_HEADER(d3d11_1.h, have_d3d11=yes)
+        AC_CHECK_HEADER(d3d12.h, have_d3d12=yes)
         AC_CHECK_HEADER(ddraw.h, have_ddraw=yes)
         AC_CHECK_HEADER(dsound.h, have_dsound=yes)
         AC_CHECK_HEADER(dinput.h, have_dinput=yes)
@@ -3925,6 +3991,10 @@ case "$host" in
             if test x$enable_render_d3d = xyes -a x$have_d3d11 = xyes; then
                 AC_DEFINE(SDL_VIDEO_RENDER_D3D11, 1, [ ])
                 SUMMARY_video="${SUMMARY_video} d3d11"
+            fi
+            if test x$enable_render_d3d = xyes -a x$have_d3d12 = xyes; then
+                AC_DEFINE(SDL_VIDEO_RENDER_D3D12, 1, [ ])
+                SUMMARY_video="${SUMMARY_video} d3d12"
             fi
         fi
         # Set up files for the audio library
@@ -4687,6 +4757,17 @@ else
 fi
 
 SDL_STATIC_LIBS="$EXTRA_LDFLAGS"
+
+dnl Calculate the location of the prefix, relative to the cmake folder
+eval pkg_prefix=$prefix
+eval pkg_cmakedir=$libdir/cmake/SDL2
+cmake_prefix_relpath="$(echo -n "$pkg_cmakedir" | sed -E "s#^$pkg_prefix##" | sed -E "s#[A-Za-z0-9_ .-]+#..#g" )"
+AC_SUBST([cmake_prefix_relpath])
+
+dnl Calculate the location of the prefix, relative to bindir
+eval pkg_bindir=$bindir
+bin_prefix_relpath="$(echo -n "pkg_bindir" | sed -E "s#^$pkg_prefix##" | sed -E "s#[A-Za-z0-9_ .-]+#..#g" )"
+AC_SUBST([bin_prefix_relpath])
 
 dnl Expand the cflags and libraries needed by apps using SDL
 AC_SUBST(SDL_CFLAGS)
