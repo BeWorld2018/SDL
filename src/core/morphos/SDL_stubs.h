@@ -861,4 +861,12 @@
 	STUB(SDL_JoystickPathForIndex)
 	STUB(SDL_JoystickPath)
 	STUB(SDL_JoystickAttachVirtualEx)
+	STUB(SDL_HasLSX)
+	STUB(SDL_HasLASX)
+	STUB( SDL_GameControllerGetFirmwareVersion)
+	STUB(SDL_GUIDToString)
+	STUB(SDL_GUIDFromString)
+	STUB(SDL_JoystickGetFirmwareVersion)
+	
+	
 	

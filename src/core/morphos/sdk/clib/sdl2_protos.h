@@ -851,6 +851,12 @@ const char * SDL_GameControllerPath(SDL_GameController *gamecontroller);
 const char * SDL_JoystickPathForIndex(int device_index);
 const char * SDL_JoystickPath(SDL_Joystick *joystick);
 int SDL_JoystickAttachVirtualEx(const SDL_VirtualJoystickDesc *desc);
+SDL_bool SDL_HasLSX(void);
+SDL_bool SDL_HasLASX(void);
+Uint16 SDL_GameControllerGetFirmwareVersion(SDL_GameController *gamecontroller);
+void SDL_GUIDToString(SDL_GUID guid, char *pszGUID, int cbGUID);
+SDL_GUID SDL_GUIDFromString(const char *pchGUID);
+Uint16 SDL_JoystickGetFirmwareVersion(SDL_Joystick *joystick);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

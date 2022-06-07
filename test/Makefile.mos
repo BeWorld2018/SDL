@@ -69,6 +69,8 @@ TARGETS = \
 	testwm2 \
 	testyuv \
 	torturethread \
+	testgui \
+	testutils \
 
 #	testgesture \
 #	testsensor \
@@ -261,6 +263,12 @@ testviewport: testviewport.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testwm2: testwm2.o
+	$(CC) -o $@ $^ $(LIBS)
+
+testgui: testgui.o
+	$(CC) -o $@ $^ $(LIBS)
+
+testutils: testutils.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testyuv: testyuv.o testyuv_cvt.o
