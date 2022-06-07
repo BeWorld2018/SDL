@@ -6814,4 +6814,52 @@
 		(((int (*)(const SDL_VirtualJoystickDesc *))*(void**)(__base - 4672))(__t__p0));\
 	})
 
+#define SDL_HasLSX() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(void))*(void**)(__base - 4678))());\
+	})
+
+#define SDL_HasLASX() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(void))*(void**)(__base - 4684))());\
+	})
+
+#define SDL_GameControllerGetFirmwareVersion(__p0) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint16 (*)(SDL_GameController *))*(void**)(__base - 4690))(__t__p0));\
+	})
+
+#define SDL_GUIDToString(__p0, __p1, __p2) \
+	({ \
+		SDL_GUID  __t__p0 = __p0;\
+		char * __t__p1 = __p1;\
+		int  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_GUID , char *, int ))*(void**)(__base - 4696))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_GUIDFromString(__p0) \
+	({ \
+		const char * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_GUID (*)(const char *))*(void**)(__base - 4702))(__t__p0));\
+	})
+
+#define SDL_JoystickGetFirmwareVersion(__p0) \
+	({ \
+		SDL_Joystick * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint16 (*)(SDL_Joystick *))*(void**)(__base - 4708))(__t__p0));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */
