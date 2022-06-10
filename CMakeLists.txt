@@ -1591,7 +1591,14 @@ elseif(WINDOWS)
 
     check_include_file(d3d9.h HAVE_D3D_H)
     check_include_file(d3d11_1.h HAVE_D3D11_H)
-    check_include_file(d3d12.h HAVE_D3D12_H)
+    check_c_source_compiles("
+      #include <winsdkver.h>
+      #include <sdkddkver.h>
+      #include <d3d12.h>
+      ID3D12Device5 *device;
+      #if WDK_NTDDI_VERSION > 0x0A000008
+      int main(int argc, char **argv) { return 0; }
+      #endif" HAVE_D3D12_H)
     check_include_file(ddraw.h HAVE_DDRAW_H)
     check_include_file(dsound.h HAVE_DSOUND_H)
     check_include_file(dinput.h HAVE_DINPUT_H)
@@ -2395,6 +2402,7 @@ elseif(VITA)
       SceDisplay_stub
       SceCtrl_stub
       SceAppMgr_stub
+      SceAppUtil_stub
       SceAudio_stub
       SceAudioIn_stub
       SceSysmodule_stub
@@ -2934,6 +2942,7 @@ if(SDL_SHARED)
   add_library(SDL2 SHARED ${SOURCE_FILES} ${VERSION_SOURCES})
   # alias target for in-tree builds
   add_library(SDL2::SDL2 ALIAS SDL2)
+  set_target_properties(SDL2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
   if(APPLE)
     set_target_properties(SDL2 PROPERTIES
       MACOSX_RPATH 1
@@ -2995,7 +3004,7 @@ if(SDL_STATIC)
   else()
     set_target_properties(SDL2-static PROPERTIES OUTPUT_NAME "SDL2")
   endif()
-  set_target_properties(SDL2-static PROPERTIES POSITION_INDEPENDENT_CODE ${SDL_STATIC_PIC})
+  set_target_properties(SDL2-static PROPERTIES POSITION_INDEPENDENT_CODE "${SDL_STATIC_PIC}")
   # Note: The clang toolset for Visual Studio does not support /NODEFAULTLIB.
   if(MSVC AND NOT SDL_LIBC AND NOT MSVC_CLANG AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM")
     set_target_properties(SDL2-static PROPERTIES LINK_FLAGS_RELEASE "/NODEFAULTLIB")
