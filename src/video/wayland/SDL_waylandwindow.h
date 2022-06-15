@@ -42,9 +42,10 @@ typedef struct {
     SDL_Window *sdlwindow;
     SDL_VideoData *waylandData;
     struct wl_surface *surface;
-    struct wl_callback *frame_callback;
-    struct wl_event_queue *frame_event_queue;
-    struct wl_surface *frame_surface_wrapper;
+    struct wl_callback *gles_swap_frame_callback;
+    struct wl_event_queue *gles_swap_frame_event_queue;
+    struct wl_surface *gles_swap_frame_surface_wrapper;
+    struct wl_callback *surface_damage_frame_callback;
 
     union {
 #ifdef HAVE_LIBDECOR_H
@@ -85,7 +86,7 @@ typedef struct {
     struct zwp_keyboard_shortcuts_inhibitor_v1 *key_inhibitor;
     struct zwp_idle_inhibitor_v1 *idle_inhibitor;
     struct xdg_activation_token_v1 *activation_token;
-    struct wp_viewport *viewport;
+    struct wp_viewport *draw_viewport;
 
     /* floating dimensions for restoring from maximized and fullscreen */
     int floating_width, floating_height;
@@ -103,7 +104,7 @@ typedef struct {
     float pointer_scale_x;
     float pointer_scale_y;
     int drawable_width, drawable_height;
-    SDL_Rect damage_region;
+    SDL_Rect viewport_rect;
     SDL_bool needs_resize_event;
     SDL_bool floating_resize_pending;
 } SDL_WindowData;

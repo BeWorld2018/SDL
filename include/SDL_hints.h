@@ -652,7 +652,7 @@ extern "C" {
  */
 #define SDL_HINT_JOYSTICK_GAMECUBE_RUMBLE_BRAKE "SDL_JOYSTICK_GAMECUBE_RUMBLE_BRAKE"
 
- /**
+/**
   *  \brief  A variable controlling whether Switch Joy-Cons should be treated the same as Switch Pro Controllers when using the HIDAPI driver.
   *
   *  This variable can be set to the following values:
@@ -663,7 +663,7 @@ extern "C" {
   */
 #define SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS "SDL_JOYSTICK_HIDAPI_JOY_CONS"
 
- /**
+/**
   *  \brief  A variable controlling whether the HIDAPI driver for Amazon Luna controllers connected via Bluetooth should be used.
   *
   *  This variable can be set to the following values:
@@ -800,7 +800,7 @@ extern "C" {
  */
 #define SDL_HINT_JOYSTICK_HIDAPI_XBOX   "SDL_JOYSTICK_HIDAPI_XBOX"
 
- /**
+/**
   *  \brief  A variable controlling whether the RAWINPUT joystick drivers should be used for better handling XInput-capable devices.
   *
   *  This variable can be set to the following values:
@@ -809,7 +809,7 @@ extern "C" {
   */
 #define SDL_HINT_JOYSTICK_RAWINPUT "SDL_JOYSTICK_RAWINPUT"
 
- /**
+/**
   *  \brief  A variable controlling whether the RAWINPUT driver should pull correlated data from XInput.
   *
   *  This variable can be set to the following values:
@@ -822,7 +822,7 @@ extern "C" {
   */
 #define SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT   "SDL_JOYSTICK_RAWINPUT_CORRELATE_XINPUT"
 
- /**
+/**
   *  \brief  A variable controlling whether the ROG Chakram mice should show up as joysticks
   *
   *  This variable can be set to the following values:
@@ -831,7 +831,7 @@ extern "C" {
   */
 #define SDL_HINT_JOYSTICK_ROG_CHAKRAM "SDL_JOYSTICK_ROG_CHAKRAM"
 
- /**
+/**
   *  \brief  A variable controlling whether a separate thread should be used
   *          for handling joystick detection and raw input messages on Windows
   *
@@ -865,14 +865,14 @@ extern "C" {
  */
 #define SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER      "SDL_KMSDRM_REQUIRE_DRM_MASTER"
 
- /**
+/**
   *  \brief  A comma separated list of devices to open as joysticks
   *
   *  This variable is currently only used by the Linux joystick driver.
   */
 #define SDL_HINT_JOYSTICK_DEVICE "SDL_JOYSTICK_DEVICE"
 
- /**
+/**
   *  \brief  A variable controlling whether joysticks on Linux will always treat 'hat' axis inputs (ABS_HAT0X - ABS_HAT3Y) as 8-way digital hats without checking whether they may be analog.
   *
   *  This variable can be set to the following values:
@@ -881,7 +881,7 @@ extern "C" {
   */
 #define SDL_HINT_LINUX_DIGITAL_HATS "SDL_LINUX_DIGITAL_HATS"
 
- /**
+/**
   *  \brief  A variable controlling whether digital hats on Linux will apply deadzones to their underlying input axes or use unfiltered values.
   *
   *  This variable can be set to the following values:
@@ -890,7 +890,7 @@ extern "C" {
   */
 #define SDL_HINT_LINUX_HAT_DEADZONES "SDL_LINUX_HAT_DEADZONES"
 
- /**
+/**
   *  \brief  A variable controlling whether to use the classic /dev/input/js* joystick interface or the newer /dev/input/event* joystick interface on Linux
   *
   *  This variable can be set to the following values:
@@ -901,7 +901,7 @@ extern "C" {
   */
 #define SDL_HINT_LINUX_JOYSTICK_CLASSIC "SDL_LINUX_JOYSTICK_CLASSIC"
 
- /**
+/**
   *  \brief  A variable controlling whether joysticks on Linux adhere to their HID-defined deadzones or return unfiltered values.
   *
   *  This variable can be set to the following values:
@@ -1258,7 +1258,7 @@ extern "C" {
  */
 #define SDL_HINT_RENDER_VSYNC               "SDL_RENDER_VSYNC"
 
- /**
+/**
  * \brief A variable to control whether the return key on the soft keyboard
  *        should hide the soft keyboard on Android and iOS.
  *
@@ -1507,6 +1507,21 @@ extern "C" {
  *  libdecor is used over xdg-shell when xdg-decoration protocol is unavailable.
  */
 #define SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR "SDL_VIDEO_WAYLAND_PREFER_LIBDECOR"
+
+/**
+ *  \brief  A variable controlling whether video mode emulation is enabled under Wayland.
+ *
+ *  When this hint is set, a standard set of emulated CVT video modes will be exposed for use by the application.
+ *  If it is disabled, the only modes exposed will be the logical desktop size and, in the case of a scaled
+ *  desktop, the native display resolution.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Video mode emulation is disabled.
+ *    "1"       - Video mode emulation is enabled.
+ *
+ *  By default video mode emulation is enabled.
+ */
+#define SDL_HINT_VIDEO_WAYLAND_MODE_EMULATION "SDL_VIDEO_WAYLAND_MODE_EMULATION"
 
 /**
 *  \brief  A variable that is the address of another SDL_Window* (as a hex string formatted with "%p").
@@ -1792,6 +1807,57 @@ extern "C" {
  *
  */
 #define SDL_HINT_WINDOWS_USE_D3D9EX "SDL_WINDOWS_USE_D3D9EX"
+
+/**
+ * \brief Controls whether SDL will declare the process to be DPI aware.
+ *
+ *  This hint must be set before initializing the video subsystem.
+ *
+ *  The main purpose of declaring DPI awareness is to disable OS bitmap scaling of SDL windows on monitors with 
+ *  a DPI scale factor.
+ * 
+ *  This hint is equivalent to requesting DPI awareness via external means (e.g. calling SetProcessDpiAwarenessContext)
+ *  and does not cause SDL to use a virtualized coordinate system, so it will generally give you 1 SDL coordinate = 1 pixel
+ *  even on high-DPI displays.
+ * 
+ *  For more information, see:
+ *  https://docs.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows
+ * 
+ *  This variable can be set to the following values:
+ *    ""             - Do not change the DPI awareness (default).
+ *    "unaware"      - Declare the process as DPI unaware. (Windows 8.1 and later).
+ *    "system"       - Request system DPI awareness. (Vista and later).
+ *    "permonitor"   - Request per-monitor DPI awareness. (Windows 8.1 and later).
+ *    "permonitorv2" - Request per-monitor V2 DPI awareness. (Windows 10, version 1607 and later).
+ *                     The most visible difference from "permonitor" is that window title bar will be scaled
+ *                     to the visually correct size when dragging between monitors with different scale factors.
+ *                     This is the preferred DPI awareness level.
+ *
+ * If the requested DPI awareness is not available on the currently running OS, SDL will try to request the best
+ * available match.
+ */
+#define SDL_HINT_WINDOWS_DPI_AWARENESS "SDL_WINDOWS_DPI_AWARENESS"
+
+/**
+ * \brief Uses DPI-scaled points as the SDL coordinate system on Windows.
+ * 
+ *  This changes the SDL coordinate system units to be DPI-scaled points, rather than pixels everywhere.
+ *  This means windows will be appropriately sized, even when created on high-DPI displays with scaling.
+ * 
+ *  e.g. requesting a 640x480 window from SDL, on a display with 125% scaling in Windows display settings,
+ *  will create a window with an 800x600 client area (in pixels).
+ *
+ *  Setting this to "1" implicitly requests process DPI awareness (setting SDL_WINDOWS_DPI_AWARENESS is unnecessary),
+ *  and forces SDL_WINDOW_ALLOW_HIGHDPI on all windows.
+ * 
+ *  This variable can be set to the following values:
+ *    "0"       - SDL coordinates equal Windows coordinates. No automatic window resizing when dragging
+ *                between monitors with different scale factors (unless this is performed by
+ *                Windows itself, which is the case when the process is DPI unaware).
+ *    "1"       - SDL coordinates are in DPI-scaled points. Automatically resize windows as needed on
+ *                displays with non-100% scale factors.
+ */
+#define SDL_HINT_WINDOWS_DPI_SCALING "SDL_WINDOWS_DPI_SCALING"
 
 /**
  *  \brief  A variable controlling whether the window frame and title bar are interactive when the cursor is hidden 
