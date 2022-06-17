@@ -47,7 +47,6 @@ include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
-include(CheckTypeSize)
 include(CheckStructHasMember)
 include(CMakeDependentOption)
 include(FindPkgConfig)
@@ -251,7 +250,7 @@ if(APPLE OR ARCH_64 OR MSVC_CLANG)
     set(OPT_DEF_SSEMATH ON)
   endif()
 endif()
-if(UNIX OR MINGW OR MSYS OR (USE_CLANG AND NOT WINDOWS) OR VITA OR PSP)
+if(UNIX OR MINGW OR MSYS OR (USE_CLANG AND NOT WINDOWS) OR VITA OR PSP OR PS2)
   set(OPT_DEF_LIBC ON)
 endif()
 
@@ -297,7 +296,7 @@ endif()
 # Those are used for pkg-config and friends, so that the sdl2.pc, sdl2-config,
 # etc. are created correctly.
 set(SDL_LIBS "-lSDL2")
-set(SDL_CFLAGS "")
+set(SDL_CFLAGS )
 
 # When building shared lib for Windows with MinGW,
 # avoid the DLL having a "lib" prefix
@@ -322,7 +321,7 @@ if(CYGWIN)
     list(APPEND EXTRA_LDFLAGS_BUILD "-mno-cygwin")
     list(APPEND SDL_LIBS "-mno-cygwin")
   endif()
-  set(SDL_CFLAGS "${SDL_CFLAGS} -I/usr/include/mingw")
+  list(APPEND SDL_CFLAGS "-I/usr/include/mingw")
 endif()
 
 # General includes
@@ -356,7 +355,7 @@ if(EMSCRIPTEN)
   set(SDL_TEST_ENABLED_BY_DEFAULT OFF)
 endif()
 
-if(VITA OR PSP)
+if(VITA OR PSP OR PS2)
   set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
   set(SDL_LOADSO_ENABLED_BY_DEFAULT OFF)
 endif()
@@ -518,15 +517,18 @@ file(GLOB SOURCE_FILES
   ${SDL2_SOURCE_DIR}/src/video/yuv2rgb/*.c)
 
 
-if(SDL_ASSERTIONS STREQUAL "auto")
+set(SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED 1)
+if(SDL_ASSERTIONS MATCHES "^(auto|)$")
   # Do nada - use optimization settings to determine the assertion level
-elseif(SDL_ASSERTIONS STREQUAL "disabled")
+  set(SDL_DEFAULT_ASSERT_LEVEL )
+  set(SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED 0)
+elseif(SDL_ASSERTIONS MATCHES "^(disabled|0)$")
   set(SDL_DEFAULT_ASSERT_LEVEL 0)
-elseif(SDL_ASSERTIONS STREQUAL "release")
+elseif(SDL_ASSERTIONS MATCHES "^(release|1)$")
   set(SDL_DEFAULT_ASSERT_LEVEL 1)
-elseif(SDL_ASSERTIONS STREQUAL "enabled")
+elseif(SDL_ASSERTIONS MATCHES "^(enabled|2)$")
   set(SDL_DEFAULT_ASSERT_LEVEL 2)
-elseif(SDL_ASSERTIONS STREQUAL "paranoid")
+elseif(SDL_ASSERTIONS MATCHES "^(paranoid|3)$")
   set(SDL_DEFAULT_ASSERT_LEVEL 3)
 else()
   message_error("unknown assertion level")
@@ -645,6 +647,11 @@ if(MSVC)
   target_compile_definitions(sdl-build-options INTERFACE "-D_CRT_SECURE_NO_DEPRECATE")
   target_compile_definitions(sdl-build-options INTERFACE "-D_CRT_NONSTDC_NO_DEPRECATE")
   target_compile_definitions(sdl-build-options INTERFACE "-D_CRT_SECURE_NO_WARNINGS")
+endif()
+
+if(MSVC)
+  # Due to a limitation of Microsoft's LTO implementation, LTO must be disabled for memcpy and memset.
+  set_property(SOURCE src/stdlib/SDL_memcpy.c src/stdlib/SDL_memset.c APPEND PROPERTY COMPILE_FLAGS /GL-)
 endif()
 
 if(SDL_ASSEMBLY)
@@ -910,7 +917,6 @@ if(SDL_LIBC)
 
     set(STDC_HEADER_NAMES "stddef.h;stdarg.h;stdlib.h;string.h;stdio.h;wchar.h;float.h")
     check_include_files("${STDC_HEADER_NAMES}" STDC_HEADERS)
-    check_type_size("size_t" SIZEOF_SIZE_T)
     check_symbol_exists(M_PI math.h HAVE_M_PI)
     # TODO: refine the mprotect check
     check_c_source_compiles("#include <sys/types.h>
@@ -1410,8 +1416,10 @@ elseif(UNIX AND NOT APPLE AND NOT ANDROID AND NOT RISCOS AND NOT HAIKU)
       endif()
 
       if(HAVE_LIBUNWIND_H)
-        # We've already found the header, so REQUIRE the lib to be present
-        pkg_search_module(UNWIND REQUIRED libunwind)
+        # We've already found the header, so link the lib if present.
+        # NB: This .pc file is not present on FreeBSD where the implicitly
+        # linked base system libgcc_s includes all libunwind ABI.
+        pkg_search_module(UNWIND libunwind)
         pkg_search_module(UNWIND_GENERIC libunwind-generic)
         list(APPEND EXTRA_TEST_LIBS ${UNWIND_LIBRARIES} ${UNWIND_GENERIC_LIBRARIES})
       endif()
@@ -1858,7 +1866,7 @@ elseif(WINDOWS)
   if(MINGW OR CYGWIN)
     list(APPEND SDL_LIBS "-lmingw32" "-mwindows")
     if(NOT SDL2_DISABLE_SDL2MAIN)
-      set(SDL_CFLAGS "${SDL_CFLAGS} -Dmain=SDL_main")
+      list(APPEND SDL_CFLAGS "-Dmain=SDL_main")
       list(APPEND SDL_LIBS "-lSDL2main")
     endif(NOT SDL2_DISABLE_SDL2MAIN)
   endif()
@@ -2513,6 +2521,27 @@ elseif(PSP)
       GL
     )
 
+elseif(PS2)
+  list(APPEND EXTRA_CFLAGS "-DPS2" "-D__PS2__")
+
+  if(SDL_FILESYSTEM)
+    set(SDL_FILESYSTEM_PS2 1)
+    file(GLOB PS2_FILESYSTEM_SOURCES ${SDL2_SOURCE_DIR}/src/filesystem/ps2/*.c)
+    set(SOURCE_FILES ${SOURCE_FILES} ${PS2_FILESYSTEM_SOURCES})
+    set(HAVE_SDL_FILESYSTEM TRUE)
+  endif()
+  if(SDL_THREADS)
+    set(SDL_THREAD_PS2 1)
+    file(GLOB PS2_THREAD_SOURCES ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_systls.c ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_sysmutex.c ${SDL2_SOURCE_DIR}/src/thread/ps2/*.c)
+    set(SOURCE_FILES ${SOURCE_FILES} ${PS2_THREAD_SOURCES})
+    set(HAVE_SDL_THREADS TRUE)
+  endif()
+  if(SDL_TIMERS)
+    set(SDL_TIMER_PS2 1)
+    file(GLOB PS2_TIMER_SOURCES ${SDL2_SOURCE_DIR}/src/timer/ps2/*.c)
+    set(SOURCE_FILES ${SOURCE_FILES} ${PS2_TIMER_SOURCES})
+    set(HAVE_SDL_TIMERS TRUE)
+  endif()
 elseif(OS2)
   list(APPEND EXTRA_CFLAGS "-DOS2EMX_PLAIN_CHAR")
 
@@ -2757,6 +2786,8 @@ Libs.private:")
     listtostr(SDL_LIBS _SDL_LIBS)
     set(SDL_LIBS ${_SDL_LIBS})
   endif()
+  listtostr(SDL_CFLAGS _SDL_CFLAGS "")
+  set(SDL_CFLAGS ${_SDL_CFLAGS})
 
   # MESSAGE(STATUS "SDL_LIBS: ${SDL_LIBS}")
   # MESSAGE(STATUS "SDL_STATIC_LIBS: ${SDL_STATIC_LIBS}")

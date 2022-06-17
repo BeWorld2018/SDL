@@ -261,7 +261,9 @@
 #cmakedefine HAVE_XINPUT_STATE_EX @HAVE_XINPUT_STATE_EX@
 
 /* SDL internal assertion support */
+#if @SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED@
 #cmakedefine SDL_DEFAULT_ASSERT_LEVEL @SDL_DEFAULT_ASSERT_LEVEL@
+#endif
 
 /* Allow disabling of core subsystems */
 #cmakedefine SDL_ATOMIC_DISABLED @SDL_ATOMIC_DISABLED@
@@ -376,6 +378,7 @@
 #cmakedefine SDL_THREAD_OS2 @SDL_THREAD_OS2@
 #cmakedefine SDL_THREAD_VITA @SDL_THREAD_VITA@
 #cmakedefine SDL_THREAD_PSP @SDL_THREAD_PSP@
+#cmakedefine SDL_THREAD_PS2 @SDL_THREAD_PS2@
 
 /* Enable various timer systems */
 #cmakedefine SDL_TIMER_HAIKU @SDL_TIMER_HAIKU@
@@ -385,6 +388,7 @@
 #cmakedefine SDL_TIMER_OS2 @SDL_TIMER_OS2@
 #cmakedefine SDL_TIMER_VITA @SDL_TIMER_VITA@
 #cmakedefine SDL_TIMER_PSP @SDL_TIMER_PSP@
+#cmakedefine SDL_TIMER_PS2 @SDL_TIMER_PS2@
 
 /* Enable various video drivers */
 #cmakedefine SDL_VIDEO_DRIVER_ANDROID @SDL_VIDEO_DRIVER_ANDROID@
@@ -492,6 +496,7 @@
 #cmakedefine SDL_FILESYSTEM_OS2 @SDL_FILESYSTEM_OS2@
 #cmakedefine SDL_FILESYSTEM_VITA @SDL_FILESYSTEM_VITA@
 #cmakedefine SDL_FILESYSTEM_PSP @SDL_FILESYSTEM_PSP@
+#cmakedefine SDL_FILESYSTEM_PS2 @SDL_FILESYSTEM_PS2@
 
 /* Enable misc subsystem */
 #cmakedefine SDL_MISC_DUMMY @SDL_MISC_DUMMY@

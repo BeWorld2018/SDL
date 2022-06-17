@@ -44,6 +44,8 @@ endif()
 
 # CMake incorrectly detects opengl32.lib being present on MSVC ARM64
 if(NOT MSVC OR NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+    # Prefer GLVND, if present
+    set(OpenGL_GL_PREFERENCE GLVND)
     find_package(OpenGL)
 endif()
 
@@ -251,15 +253,13 @@ if(SDL_DUMMYVIDEO)
 endif()
 
 if(OPENGL_FOUND)
-add_dependencies(testshader OpenGL::GL)
-add_dependencies(testgl2 OpenGL::GL)
-target_link_libraries(testshader OpenGL::GL)
-target_link_libraries(testgl2 OpenGL::GL)
+    target_link_libraries(testshader OpenGL::GL)
+    target_link_libraries(testgl2 OpenGL::GL)
 endif()
 
 file(GLOB RESOURCE_FILES *.bmp *.wav *.hex moose.dat utf8.txt)
 file(COPY ${RESOURCE_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-if(PSP)
+if(PSP OR PS2)
     set(NEEDS_RESOURCES
         testscale
         testrendercopyex
@@ -406,7 +406,7 @@ endif()
 
 foreach(APP IN LISTS NEEDS_RESOURCES)
     foreach(RESOURCE_FILE ${RESOURCE_FILES})
-        if(PSP)
+        if(PSP OR PS2)
             add_custom_command(TARGET ${APP} POST_BUILD COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${RESOURCE_FILE} $<TARGET_FILE_DIR:${APP}>/sdl-${APP})
         else()
             add_custom_command(TARGET ${APP} POST_BUILD COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${RESOURCE_FILE} $<TARGET_FILE_DIR:${APP}>)
