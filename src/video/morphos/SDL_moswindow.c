@@ -208,6 +208,12 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->menu = NULL;
 		if (win)
 			win->UserData = (APTR)wd;
+		else {
+			wd->old_w = 0;
+			wd->old_h = 0;
+			wd->old_x = 0;
+			wd->old_y = 0;
+		}
 	} else {
 		return SDL_OutOfMemory();
 	}
