@@ -31,7 +31,6 @@ TARGETS = \
 	testgl2 \
 	testgles \
 	testgles2 \
-	testguid \
 	testhaptic \
 	testhittesting \
 	testhotplug \
@@ -186,9 +185,6 @@ testgles: testgles.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testgles2: testgles2.o
-	$(CC) -o $@ $^ $(LIBS)
-
-testguid: testguid.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testhaptic: testhaptic.o
