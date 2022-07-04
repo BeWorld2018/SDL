@@ -25,6 +25,13 @@
 
 #if SDL_VIDEO_OPENGL_EGL   
 #include "../SDL_egl_c.h"
+#else
+#include "../SDL_sysvideo.h"
+#endif
+
+/* Set up for C function definitions, even when using C++ */
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 typedef struct
@@ -101,6 +108,11 @@ extern void WIN_ClientPointToSDL(const SDL_Window *window, int *w, int *h);
 extern void WIN_ClientPointFromSDL(const SDL_Window *window, int *w, int *h);
 extern void WIN_AcceptDragAndDrop(SDL_Window * window, SDL_bool accept);
 extern int WIN_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation);
+
+/* Ends C function definitions when using C++ */
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SDL_windowswindow_h_ */
 

@@ -2314,7 +2314,7 @@ class DummyEdit extends View implements View.OnKeyListener {
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         ic = new SDLInputConnection(this, true);
 
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
+        outAttrs.inputType = InputType.TYPE_CLASS_TEXT;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
                 | EditorInfo.IME_FLAG_NO_FULLSCREEN /* API 11 */;
 
@@ -2356,6 +2356,29 @@ class SDLInputConnection extends BaseInputConnection {
     @Override
     public boolean commitText(CharSequence text, int newCursorPosition) {
 
+        /* Generate backspaces for the text we're going to replace */
+        final Editable content = getEditable();
+        if (content != null) {
+            int a = getComposingSpanStart(content);
+            int b = getComposingSpanEnd(content);
+            if (a == -1 || b == -1) {
+                a = Selection.getSelectionStart(content);
+                b = Selection.getSelectionEnd(content);
+            }
+            if (a < 0) a = 0;
+            if (b < 0) b = 0;
+            if (b < a) {
+                int tmp = a;
+                a = b;
+                b = tmp;
+            }
+            int backspaces = (b - a);
+
+            for (int i = 0; i < backspaces; i++) {
+                nativeGenerateScancodeForUnichar('\b');
+            }
+        }
+
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '\n') {
@@ -2390,14 +2413,11 @@ class SDLInputConnection extends BaseInputConnection {
         // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions/14560344/android-backspace-in-webview-baseinputconnection
         // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
         if (beforeLength > 0 && afterLength == 0) {
-            boolean ret = true;
             // backspace(s)
             while (beforeLength-- > 0) {
-               boolean ret_key = sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                              && sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
-               ret = ret && ret_key;
+                nativeGenerateScancodeForUnichar('\b');
             }
-            return ret;
+            return true;
         }
 
         return super.deleteSurroundingText(beforeLength, afterLength);

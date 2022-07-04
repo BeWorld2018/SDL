@@ -18,19 +18,29 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../SDL_internal.h"
+#include "../../SDL_internal.h"
 
-#include "../video/SDL_sysvideo.h"
+#ifndef SDL_ps2audio_h_
+#define SDL_ps2audio_h_
 
-/* Useful functions and variables from SDL_sysevents.c */
+#include "../SDL_sysaudio.h"
 
-#if defined(__HAIKU__)
-/* The Haiku event loops run in a separate thread */
-#define MUST_THREAD_EVENTS
-#endif
+/* Hidden "this" pointer for the audio functions */
+#define _THIS   SDL_AudioDevice *this
 
-#ifdef __WIN32__              /* Windows doesn't allow a separate event thread */
-#define CANT_THREAD_EVENTS
-#endif
+#define NUM_BUFFERS 2
 
+struct SDL_PrivateAudioData
+{
+   /* The hardware output channel. */
+   int     channel;
+   /* The raw allocated mixing buffer. */
+   Uint8   *rawbuf;
+   /* Individual mixing buffers. */
+   Uint8   *mixbufs[NUM_BUFFERS];
+   /* Index of the next available mixing buffer. */
+   int     next_buffer;
+};
+
+#endif /* SDL_ps2audio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */

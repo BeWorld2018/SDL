@@ -37,7 +37,7 @@
 /* This is included in only one place because it has a large static list of controllers */
 #include "controller_type.h"
 
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(__WINGDK__)
 /* Needed for checking for input remapping programs */
 #include "../core/windows/SDL_windows.h"
 
@@ -88,6 +88,9 @@ static SDL_JoystickDriver *SDL_joystick_drivers[] = {
 #endif
 #ifdef SDL_JOYSTICK_OS2
     &SDL_OS2_JoystickDriver,
+#endif
+#ifdef SDL_JOYSTICK_PS2
+    &SDL_PS2_JoystickDriver,
 #endif
 #ifdef SDL_JOYSTICK_PSP
     &SDL_PSP_JoystickDriver,
@@ -2374,7 +2377,7 @@ static SDL_JoystickType SDL_GetJoystickGUIDType(SDL_JoystickGUID guid)
 
 static SDL_bool SDL_IsPS4RemapperRunning(void)
 {
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(__WINGDK__)
     const char *mapper_processes[] = {
         "DS4Windows.exe",
         "InputMapper.exe",

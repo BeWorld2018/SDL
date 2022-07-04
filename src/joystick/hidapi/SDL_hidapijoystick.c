@@ -32,7 +32,7 @@
 #include "SDL_hidapi_rumble.h"
 #include "../../SDL_hints_c.h"
 
-#if defined(__WIN32__)
+#if defined(__WIN32__) || defined(__WINGDK__)
 #include "../windows/SDL_rawinputjoystick_c.h"
 #endif
 
@@ -1076,6 +1076,7 @@ HIDAPI_JoystickQuit(void)
 
     SDL_hid_exit();
 
+    SDL_HIDAPI_change_count = 0;
     shutting_down = SDL_FALSE;
     initialized = SDL_FALSE;
 }
