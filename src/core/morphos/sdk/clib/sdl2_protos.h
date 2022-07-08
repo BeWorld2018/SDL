@@ -472,7 +472,7 @@ SDL_Keycode SDL_GetKeyFromName(const char *name);
 void SDL_StartTextInput(void);
 SDL_bool SDL_IsTextInputActive(void);
 void SDL_StopTextInput(void);
-void SDL_SetTextInputRect(SDL_Rect *rect);
+void SDL_SetTextInputRect(const SDL_Rect *rect);
 SDL_bool SDL_HasScreenKeyboardSupport(void);
 SDL_bool SDL_IsScreenKeyboardShown(SDL_Window *window);
 
@@ -857,6 +857,7 @@ Uint16 SDL_GameControllerGetFirmwareVersion(SDL_GameController *gamecontroller);
 void SDL_GUIDToString(SDL_GUID guid, char *pszGUID, int cbGUID);
 SDL_GUID SDL_GUIDFromString(const char *pchGUID);
 Uint16 SDL_JoystickGetFirmwareVersion(SDL_Joystick *joystick);
+int SDL_GetOriginalMemoryFunctions(SDL_malloc_func *malloc_func, SDL_calloc_func *calloc_func, SDL_realloc_func *realloc_func, SDL_free_func *free_func);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

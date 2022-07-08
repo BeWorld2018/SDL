@@ -3705,10 +3705,10 @@
 
 #define SDL_SetTextInputRect(__p0) \
 	({ \
-		SDL_Rect * __t__p0 = __p0;\
+		const SDL_Rect * __t__p0 = __p0;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(SDL_Rect *))*(void**)(__base - 2404))(__t__p0));\
+		(((void (*)(const SDL_Rect *))*(void**)(__base - 2404))(__t__p0));\
 	})
 
 #define SDL_HasScreenKeyboardSupport() \
@@ -6860,6 +6860,17 @@
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((Uint16 (*)(SDL_Joystick *))*(void**)(__base - 4708))(__t__p0));\
+	})
+
+#define SDL_GetOriginalMemoryFunctions(__p0, __p1, __p2, __p3) \
+	({ \
+		SDL_malloc_func * __t__p0 = __p0;\
+		SDL_calloc_func * __t__p1 = __p1;\
+		SDL_realloc_func * __t__p2 = __p2;\
+		SDL_free_func * __t__p3 = __p3;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(SDL_malloc_func *, SDL_calloc_func *, SDL_realloc_func *, SDL_free_func *))*(void**)(__base - 4714))(__t__p0, __t__p1, __t__p2, __t__p3));\
 	})
 
 #endif /* !_PPCINLINE_SDL2_H */
