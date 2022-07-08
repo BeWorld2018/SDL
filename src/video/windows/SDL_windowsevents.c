@@ -451,6 +451,10 @@ WIN_UpdateFocus(SDL_Window *window, SDL_bool expect_focus)
         data->in_window_deactivation = SDL_TRUE;
 
         SDL_SetKeyboardFocus(NULL);
+        /* In relative mode we are guaranteed to not have mouse focus if we don't have keyboard focus */
+        if (SDL_GetMouse()->relative_mode) {
+            SDL_SetMouseFocus(NULL);
+        }
         WIN_ResetDeadKeys();
 
         if (GetClipCursor(&rect) && SDL_memcmp(&rect, &data->cursor_clipped_rect, sizeof(rect)) == 0) {
@@ -677,9 +681,9 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         char message[1024];
         if (msg > MAX_WMMSG) {
-            SDL_snprintf(message, sizeof(message), "Received windows message: %p UNKNOWN (%d) -- 0x%X, 0x%X\n", hwnd, msg, wParam, lParam);
+            SDL_snprintf(message, sizeof(message), "Received windows message: %p UNKNOWN (%d) -- 0x%p, 0x%p\n", hwnd, msg, wParam, lParam);
         } else {
-            SDL_snprintf(message, sizeof(message), "Received windows message: %p %s -- 0x%X, 0x%X\n", hwnd, wmtab[msg], wParam, lParam);
+            SDL_snprintf(message, sizeof(message), "Received windows message: %p %s -- 0x%p, 0x%p\n", hwnd, wmtab[msg], wParam, lParam);
         }
         OutputDebugStringA(message);
     }
@@ -943,8 +947,10 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                }
             }
 
-            /* When WM_MOUSELEAVE is fired we can be assured that the cursor has left the window */
-            SDL_SetMouseFocus(NULL);
+            if (!SDL_GetMouse()->relative_mode) {
+                /* When WM_MOUSELEAVE is fired we can be assured that the cursor has left the window */
+                SDL_SetMouseFocus(NULL);
+            }
         }
 
         /* Once we get WM_MOUSELEAVE we're guaranteed that the window is no longer tracked */
