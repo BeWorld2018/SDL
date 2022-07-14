@@ -50,6 +50,7 @@
 #define USB_PRODUCT_NINTENDO_N64_CONTROLLER                 0x2019
 #define USB_PRODUCT_NINTENDO_SEGA_GENESIS_CONTROLLER        0x201e
 #define USB_PRODUCT_NINTENDO_SNES_CONTROLLER                0x2017
+#define USB_PRODUCT_NVIDIA_SHIELD_CONTROLLER                0x7214
 #define USB_PRODUCT_RAZER_PANTHERA                          0x0401
 #define USB_PRODUCT_RAZER_PANTHERA_EVO                      0x1008
 #define USB_PRODUCT_RAZER_ATROX                             0x0a00
