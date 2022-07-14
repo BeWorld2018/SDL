@@ -45,12 +45,9 @@
 
 #ifdef __MORPHOS__
 extern UWORD TinyGl_NewVersion;
-#define RENDERER_CONTEXT_MAJOR 1
-#define RENDERER_CONTEXT_MINOR 2
-#else
+#endif
 #define RENDERER_CONTEXT_MAJOR 2
 #define RENDERER_CONTEXT_MINOR 1
-#endif
 
 /* OpenGL renderer implementation */
 
