@@ -27,6 +27,7 @@
 #include "SDL_audio_c.h"
 #include "SDL_sysaudio.h"
 #include "../thread/SDL_systhread.h"
+#include "../SDL_utils_c.h"
 
 #define _THIS SDL_AudioDevice *_this
 
@@ -1414,6 +1415,13 @@ open_audio_device(const char *devname, int iscapture,
             SDL_SetError("Couldn't create mixer lock");
             return 0;
         }
+    }
+
+    /* For backends that require a power-of-two value for spec.samples, take the
+     * value we got from 'desired' and round up to the nearest value
+     */
+    if (!current_audio.impl.SupportsNonPow2Samples && device->spec.samples > 0) {
+        device->spec.samples = SDL_powerof2(device->spec.samples);
     }
 
     if (current_audio.impl.OpenDevice(device, devname) < 0) {
