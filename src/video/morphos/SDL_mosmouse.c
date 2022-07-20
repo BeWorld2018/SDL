@@ -38,8 +38,8 @@
 static SDL_Cursor *
 MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
-	SDL_MOSCursor *cursor = SDL_malloc(sizeof(*cursor));
 	D("[%s]\n", __FUNCTION__);
+	SDL_MOSCursor *cursor = SDL_malloc(sizeof(*cursor));
 
 	if (cursor) {
 		SDL_MOSCursor *ac = SDL_malloc(sizeof(*ac));

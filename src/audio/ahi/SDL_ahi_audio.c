@@ -141,13 +141,14 @@ AHIAUD_OpenDevice(_THIS, const char *devname)
 	int sample_format = -1;
 	// UBYTE convert = AMIAUD_CONVERT_NONE;
 	switch (this->spec.format) {
-		case AUDIO_S16LSB:
-			this->spec.format = AUDIO_S16MSB;
-			break;
 		case AUDIO_F32LSB:
 		case AUDIO_F32MSB:
 		case AUDIO_S32LSB:
 		 	this->spec.format = AUDIO_S32MSB;
+			break;
+		case AUDIO_S16LSB:
+		default:
+			this->spec.format = AUDIO_S16MSB;
 			break;
 	}
 	/*if ((this->spec.format & 0xff) != 8)

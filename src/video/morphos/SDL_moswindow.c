@@ -121,11 +121,13 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 				data->appmsg = NULL;
 			}
 		}
+		
 		if (data->menu) {
 			ClearMenuStrip(win);
 			FreeMenus(data->menu);
 			data->menu = NULL;
 		}
+		
 		if (data->visualinfo) {
 			FreeVisualInfo(data->visualinfo);
 			data->visualinfo = NULL;
@@ -140,16 +142,14 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 void
 MOS_CloseWindows(_THIS)
 {
+	D("[%s]\n", __FUNCTION__);
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	SDL_WindowData *wd;
-	D("[%s]\n", __FUNCTION__);
 
-	ForeachNode(&data->windowlist, wd)
-	{
+	ForeachNode(&data->windowlist, wd) {
 		struct Window *win = wd->win;
 
-		if (win)
-		{
+		if (win) {
 			wd->win = NULL;
 			MOS_CloseWindowSafely(wd->window, win);
 		}
@@ -159,22 +159,20 @@ MOS_CloseWindows(_THIS)
 void 
 MOS_OpenWindows(_THIS)
 {
+	D("[%s]\n", __FUNCTION__);
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	SDL_WindowData *wd;
-	D("[%s]\n", __FUNCTION__);
 
 	ForeachNode(&data->windowlist, wd) {
 		if (!(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_MOS_WINDOW_SHOWN)) {
-			if (wd->win == NULL)	{
+			if (wd->win == NULL) {
 				MOS_ShowWindow_Internal(_this, wd->window);
 			} else {
 			   if ((wd->window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
-					//D("[%s] Go to Fullscreen Desktop\n", __FUNCTION__);
 					MOS_RecreateWindow(_this, wd->window);
 			   } else if (wd->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP) {
 					wd->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
 				    wd->window->flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
-					//D("[%s] Return from Fullscreen Desktop\n", __FUNCTION__);	
 				    MOS_RecreateWindow(_this, wd->window);
 			   }
 			}
@@ -206,6 +204,7 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->winflags = 0;
 		wd->appmsg = NULL;
 		wd->menu = NULL;
+		wd->visualinfo = NULL;
 		if (win)
 			win->UserData = (APTR)wd;
 		else {
@@ -358,8 +357,8 @@ MOS_SetWindowMaximumSize(_THIS, SDL_Window * window)
 void
 MOS_SetWindowSize(_THIS, SDL_Window * window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s]\n", __FUNCTION__);
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
 	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
@@ -384,7 +383,6 @@ static void
 MOS_WindowToFront(struct Window *win)
 {
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, win);
-	
 	ActivateWindow(win);
 	WindowToFront(win);
 }
@@ -597,13 +595,10 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			
 			if (data->grabbed > 0)
 				DoMethod((Object *)data->win, WM_ObtainEvents);
-			
-			/*if (data->fb && !fullscreen && !fs_desktop) {
-				ChangeWindowBox(data->win, window->x, window->y, data->win->Width, data->win->Height);
-			}*/				
+				
 		}
 		
-	} else if (data->win)	{
+	} else if (data->win) {
 		MOS_WindowToFront(data->win);
 	}
 }
@@ -612,30 +607,21 @@ void
 MOS_ShowWindow(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
-
 	MOS_ShowWindow_Internal(_this, window);
-}
-
-void
-MOS_HideWindow_Internal(_THIS, SDL_Window * window)
-{
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	D("[%s] 0x%08lx\n", __FUNCTION__, data->win);
-
-	if (data->win) {
-		MOS_CloseWindowSafely(window, data->win);
-		data->win = NULL;
-	}
 }
 
 void
 MOS_HideWindow(_THIS, SDL_Window * window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s]\n", __FUNCTION__);
-
-	data->winflags &= ~SDL_MOS_WINDOW_SHOWN;
-	MOS_HideWindow_Internal(_this, window);
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	
+	if (data->win) {
+		data->winflags &= ~SDL_MOS_WINDOW_SHOWN;
+		MOS_CloseWindowSafely(window, data->win);
+		data->win = NULL;
+	}
+	
 }
 
 void
@@ -783,8 +769,8 @@ MOS_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 void
 MOS_DestroyWindow(_THIS, SDL_Window * window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s]\n", __FUNCTION__);
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	
 	window->driverdata = NULL;
 
@@ -840,8 +826,18 @@ MOS_CloseWindow(SDL_Window *window)
 		}
 	
 		struct Window *win = data->win;
+		if (data->menu) {
+			ClearMenuStrip(win);
+			FreeMenus(data->menu);
+			data->menu = NULL;
+		}
+		
+		if (data->visualinfo) {
+			FreeVisualInfo(data->visualinfo);
+			data->visualinfo = NULL;
+		}
 		CloseWindow(win);
-		data->win = NULL;	
+		data->win = NULL;
 	}
 	
 }
@@ -882,7 +878,7 @@ MOS_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top)
 int
 MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled)
 {
-    return 0;  /* just succeed, the real work is done elsewhere. */
+    return 0;
 }
 
 void
@@ -902,7 +898,6 @@ MOS_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
 static SDL_bool
 MOS_SetWindowOpacityPrivate(_THIS, SDL_Window * window, ULONG value)
 {
-
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	
 	LONG ret = SetAttrs(data->win, WA_Opacity, value, TAG_DONE);
@@ -917,9 +912,9 @@ MOS_SetWindowOpacityPrivate(_THIS, SDL_Window * window, ULONG value)
 int
 MOS_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 {
-	
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (!data->win) return 0;
+	if (!data->win) 
+		return 0;
 	
     ULONG value = ((opacity) * (ULONG_MAX));
 
@@ -931,7 +926,6 @@ MOS_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
 static void
 MOS_FlashOperationPrivate(_THIS, SDL_Window * window)
 {
-	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	
 	ULONG value_old = 0;
@@ -958,7 +952,7 @@ MOS_FlashOperationPrivate(_THIS, SDL_Window * window)
 int
 MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation)
 {
-	D("[%s] \n", __FUNCTION__);
+	D("[%s]\n", __FUNCTION__);
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	if (!data->win) return 0;

@@ -858,6 +858,7 @@ void SDL_GUIDToString(SDL_GUID guid, char *pszGUID, int cbGUID);
 SDL_GUID SDL_GUIDFromString(const char *pchGUID);
 Uint16 SDL_JoystickGetFirmwareVersion(SDL_Joystick *joystick);
 int SDL_GetOriginalMemoryFunctions(SDL_malloc_func *malloc_func, SDL_calloc_func *calloc_func, SDL_realloc_func *realloc_func, SDL_free_func *free_func);
+void SDL_ResetKeyboard(void);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

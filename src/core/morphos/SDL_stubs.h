@@ -868,7 +868,4 @@
 	STUB(SDL_GUIDFromString)
 	STUB(SDL_JoystickGetFirmwareVersion)
 	STUB(SDL_GetOriginalMemoryFunctions)
-	
-	
-	
-	
+	STUB(SDL_ResetKeyboard)	

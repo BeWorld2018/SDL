@@ -6873,4 +6873,11 @@
 		(((int (*)(SDL_malloc_func *, SDL_calloc_func *, SDL_realloc_func *, SDL_free_func *))*(void**)(__base - 4714))(__t__p0, __t__p1, __t__p2, __t__p3));\
 	})
 
+#define SDL_ResetKeyboard() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(void))*(void**)(__base - 4720))());\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

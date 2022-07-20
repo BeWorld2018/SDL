@@ -52,7 +52,6 @@ UWORD TinyGl_NewVersion = 0;
 int
 MOS_GL_LoadLibrary(_THIS, const char *path)
 {
-
 	if (SDL2Base->MyTinyGLBase) {
 		if (!TinyGLBase)
 			TinyGLBase = OpenLibrary("tinygl.library", 52); 
@@ -60,7 +59,7 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 		if (TinyGLBase) {
 				UWORD TinyGl_Version = TinyGLBase->lib_Version;
 				UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
-				D("[%s] tinygl version %d . %d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
+				D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
 				*SDL2Base->MyTinyGLBase = TinyGLBase;
 				TinyGl_NewVersion = 1;
 				if (TinyGl_Version < 52 ||	
@@ -84,7 +83,6 @@ MOS_GL_GetProcAddress(_THIS, const char *proc)
 	void *func = NULL;
 	func = AmiGetGLProc(proc);
 	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
-
 	return func;
 }
 
@@ -159,12 +157,8 @@ int
 MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-
-	int ret = 0;
-
 	*SDL2Base->MyGLContext = __tglContext = context;
-	
-	return ret;
+	return 0;
 }
 
 void
@@ -178,13 +172,11 @@ MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 		if (h)
 			*h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
 	}
-
 }
 
 int
 MOS_GL_SetSwapInterval(_THIS, int interval)
 {
-	
 	D("[%s] interval=%d\n", __FUNCTION__, interval);
 	SDL_VideoData *data = _this->driverdata;
 	
@@ -201,18 +193,14 @@ MOS_GL_SetSwapInterval(_THIS, int interval)
 		break;
 		default:
 			return -1;
-	}		
-		
+	}	
 }
 
 int
 MOS_GL_GetSwapInterval(_THIS)
 {
-
 	SDL_VideoData *data = _this->driverdata;
-
 	return data->vsyncEnabled ? 1 : 0;
-	
 }
 
 int
@@ -232,7 +220,6 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	
 	GLASwapBuffers(data->__tglContext);
 	return 0;
-	
 }
 
 void

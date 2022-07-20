@@ -29,7 +29,6 @@
 #include <proto/graphics.h>
 #include <proto/intuition.h>
 
-
 SDL_WindowShaper*
 MOS_CreateShaper(SDL_Window *window)
 {

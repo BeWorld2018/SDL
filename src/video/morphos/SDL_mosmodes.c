@@ -141,6 +141,7 @@ static const struct
 int
 MOS_InitModes(_THIS)
 {
+	D("[%s]\n", __FUNCTION__);
 	Uint32 pixfmt = SDL_PIXELFORMAT_BGRA8888;
 	int width = 1920, height = 1080, dispcount = 0;
 	SDL_VideoDisplay display;
@@ -150,7 +151,6 @@ MOS_InitModes(_THIS)
 	struct Screen *s;
 	APTR mon;
 
-	D("[%s]\n", __FUNCTION__);
 	SDL_zero(display);
 
 	mode.w = 1920;

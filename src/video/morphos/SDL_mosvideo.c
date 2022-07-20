@@ -185,8 +185,8 @@ MOS_SuspendScreenSaver(_THIS)
 		SetAttrs(data->WScreen, SA_StopBlanker, suspend, TAG_DONE);
 }
 
-static
-CONST_STRPTR MOS_GetTaskName()
+static CONST_STRPTR
+MOS_GetTaskName()
 {
 	struct Process *task = (struct Process *)FindTask(NULL);
 	STRPTR name = "SDL";
