@@ -530,6 +530,7 @@ SDL_RemoveAudioDevice(const SDL_bool iscapture, void *handle)
 {
     int device_index;
     SDL_AudioDevice *device = NULL;
+    SDL_bool device_was_opened = SDL_FALSE;
 
     SDL_LockMutex(current_audio.detectionLock);
     if (iscapture) {
@@ -542,10 +543,29 @@ SDL_RemoveAudioDevice(const SDL_bool iscapture, void *handle)
         device = open_devices[device_index];
         if (device != NULL && device->handle == handle)
         {
+            device_was_opened = SDL_TRUE;
             SDL_OpenedAudioDeviceDisconnected(device);
             break;
         }
     }
+
+    /* Devices that aren't opened, as of 2.24.0, will post an
+       SDL_AUDIODEVICEREMOVED event with the `which` field set to zero.
+       Apps can use this to decide if they need to refresh a list of
+       available devices instead of closing an opened one.
+       Note that opened devices will send the non-zero event in
+       SDL_OpenedAudioDeviceDisconnected(). */
+    if (!device_was_opened) {
+        if (SDL_GetEventState(SDL_AUDIODEVICEREMOVED) == SDL_ENABLE) {
+            SDL_Event event;
+            SDL_zero(event);
+            event.adevice.type = SDL_AUDIODEVICEREMOVED;
+            event.adevice.which = 0;
+            event.adevice.iscapture = iscapture ? 1 : 0;
+            SDL_PushEvent(&event);
+        }
+    }
+
     SDL_UnlockMutex(current_audio.detectionLock);
 
     current_audio.impl.FreeDeviceHandle(handle);
@@ -1243,22 +1263,12 @@ prepare_audiospec(const SDL_AudioSpec * orig, SDL_AudioSpec * prepared)
         }
     }
 
-    switch (orig->channels) {
-    case 0:{
-            const char *env = SDL_getenv("SDL_AUDIO_CHANNELS");
-            if ((!env) || ((prepared->channels = (Uint8) SDL_atoi(env)) == 0)) {
-                prepared->channels = 2; /* a reasonable default */
-                break;
-            }
+    if (orig->channels == 0) {
+        const char *env = SDL_getenv("SDL_AUDIO_CHANNELS");
+        if ((!env) || ((prepared->channels = (Uint8) SDL_atoi(env)) == 0)) {
+            prepared->channels = 2; /* a reasonable default */
         }
-    case 1:                    /* Mono */
-    case 2:                    /* Stereo */
-    case 4:                    /* Quadrophonic */
-    case 6:                    /* 5.1 surround */
-    case 7:                    /* 6.1 surround */
-    case 8:                    /* 7.1 surround */
-        break;
-    default:
+    } else if (orig->channels > 8) {
         SDL_SetError("Unsupported number of audio channels.");
         return 0;
     }

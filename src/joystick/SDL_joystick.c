@@ -1967,8 +1967,10 @@ SDL_GetJoystickGameControllerTypeFromVIDPID(Uint16 vendor, Uint16 product, const
     } else if (vendor == USB_VENDOR_NVIDIA && product == USB_PRODUCT_NVIDIA_SHIELD_CONTROLLER) {
         type = SDL_CONTROLLER_TYPE_NVIDIA_SHIELD;
 
-    } else if (vendor == USB_VENDOR_NINTENDO && product == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP) {
-            type = SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, SDL_FALSE) ? SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO : SDL_CONTROLLER_TYPE_UNKNOWN;
+    } else if (vendor == USB_VENDOR_NINTENDO &&
+               (product == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP ||
+                product == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_PAIR)) {
+            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
 
     } else {
         switch (GuessControllerType(vendor, product)) {
@@ -2007,12 +2009,7 @@ SDL_GetJoystickGameControllerTypeFromVIDPID(Uint16 vendor, Uint16 product, const
             break;
         case k_eControllerType_SwitchJoyConLeft:
         case k_eControllerType_SwitchJoyConRight:
-            /* We always support the Nintendo Online NES Controllers */
-            if (name && SDL_strncmp(name, "NES Controller", 14) == 0) {
-                type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
-            } else {
-                type = SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, SDL_FALSE) ? SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO : SDL_CONTROLLER_TYPE_UNKNOWN;
-            }
+            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
             break;
         default:
             break;
@@ -2084,6 +2081,11 @@ SDL_IsJoystickXboxSeriesX(Uint16 vendor_id, Uint16 product_id)
             return SDL_TRUE;
         }
     }
+    if (vendor_id == USB_VENDOR_8BITDO) {
+        if (product_id == USB_PRODUCT_8BITDO_XBOX_CONTROLLER) {
+            return SDL_TRUE;
+        }
+    }
     return SDL_FALSE;
 }
 
@@ -2125,6 +2127,7 @@ SDL_IsJoystickNintendoSwitchPro(Uint16 vendor_id, Uint16 product_id)
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return (eType == k_eControllerType_SwitchProController ||
             eType == k_eControllerType_SwitchInputOnlyController ||
+            eType == k_eControllerType_SwitchJoyConPair ||
             (vendor_id == USB_VENDOR_NINTENDO && product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP));
 }
 
@@ -2235,25 +2238,26 @@ static SDL_bool SDL_IsJoystickProductArcadeStick(Uint32 vidpid)
 {
     static Uint32 arcadestick_joysticks[] = {
         MAKE_VIDPID(0x0079, 0x181a),    /* Venom Arcade Stick */
-        MAKE_VIDPID(0x0f0d, 0x006a),    /* Real Arcade Pro 4 */
         MAKE_VIDPID(0x0079, 0x181b),    /* Venom Arcade Stick */
         MAKE_VIDPID(0x0c12, 0x0ef6),    /* Hitbox Arcade Stick */
-        MAKE_VIDPID(0x0f0d, 0x008a),    /* HORI Real Arcade Pro 4 */
+        MAKE_VIDPID(0x0e6f, 0x0109),    /* PDP Versus Fighting Pad */
         MAKE_VIDPID(0x0f0d, 0x0016),    /* Hori Real Arcade Pro.EX */
         MAKE_VIDPID(0x0f0d, 0x001b),    /* Hori Real Arcade Pro VX */
+        MAKE_VIDPID(0x0f0d, 0x0063),    /* Hori Real Arcade Pro Hayabusa (USA) Xbox One */
+        MAKE_VIDPID(0x0f0d, 0x006a),    /* Real Arcade Pro 4 */
+        MAKE_VIDPID(0x0f0d, 0x0078),    /* Hori Real Arcade Pro V Kai Xbox One */
+        MAKE_VIDPID(0x0f0d, 0x008a),    /* HORI Real Arcade Pro 4 */
         MAKE_VIDPID(0x0f0d, 0x008c),    /* Hori Real Arcade Pro 4 */
+        MAKE_VIDPID(0x0f0d, 0x00aa),    /* HORI Real Arcade Pro V Hayabusa in Switch Mode */
+        MAKE_VIDPID(0x1532, 0x0a00),    /* Razer Atrox Arcade Stick */
         MAKE_VIDPID(0x1bad, 0xf03d),    /* Street Fighter IV Arcade Stick TE - Chun Li */
         MAKE_VIDPID(0x1bad, 0xf502),    /* Hori Real Arcade Pro.VX SA */
         MAKE_VIDPID(0x1bad, 0xf504),    /* Hori Real Arcade Pro. EX */
         MAKE_VIDPID(0x1bad, 0xf506),    /* Hori Real Arcade Pro.EX Premium VLX */
+        MAKE_VIDPID(0x20d6, 0xa715),    /* PowerA Nintendo Switch Fusion Arcade Stick */
         MAKE_VIDPID(0x24c6, 0x5000),    /* Razer Atrox Arcade Stick */
         MAKE_VIDPID(0x24c6, 0x5501),    /* Hori Real Arcade Pro VX-SA */
         MAKE_VIDPID(0x24c6, 0x550e),    /* Hori Real Arcade Pro V Kai 360 */
-        MAKE_VIDPID(0x0f0d, 0x0063),    /* Hori Real Arcade Pro Hayabusa (USA) Xbox One */
-        MAKE_VIDPID(0x0f0d, 0x0078),    /* Hori Real Arcade Pro V Kai Xbox One */
-        MAKE_VIDPID(0x1532, 0x0a00),    /* Razer Atrox Arcade Stick */
-        MAKE_VIDPID(0x0f0d, 0x00aa),    /* HORI Real Arcade Pro V Hayabusa in Switch Mode */
-        MAKE_VIDPID(0x20d6, 0xa715),    /* PowerA Nintendo Switch Fusion Arcade Stick */
         MAKE_VIDPID(0x2c22, 0x2300),    /* Qanba Obsidian Arcade Joystick in PS4 Mode */
         MAKE_VIDPID(0x2c22, 0x2302),    /* Qanba Obsidian Arcade Joystick in PS3 Mode */
         MAKE_VIDPID(0x2c22, 0x2303),    /* Qanba Obsidian Arcade Joystick in PC Mode */

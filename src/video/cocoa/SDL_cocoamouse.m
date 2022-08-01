@@ -117,7 +117,7 @@ LoadHiddenSystemCursor(NSString *cursorName, SEL fallback)
     const int frames = (int)[[info valueForKey:@"frames"] integerValue];
     NSCursor *cursor;
     NSImage *image = [[NSImage alloc] initWithContentsOfFile:[cursorPath stringByAppendingPathComponent:@"cursor.pdf"]];
-    if ((image == nil) || (image.valid == NO)) {
+    if ((image == nil) || (image.isValid == NO)) {
         return [NSCursor performSelector:fallback];
     }
 
@@ -399,6 +399,12 @@ Cocoa_HandleTitleButtonEvent(_THIS, NSEvent *event)
 {
     SDL_Window *window;
     NSWindow *nswindow = [event window];
+
+    /* You might land in this function before SDL_Init if showing a message box.
+       Don't derefence a NULL pointer if that happens. */
+    if (_this == NULL) {
+        return;
+    }
 
     for (window = _this->windows; window; window = window->next) {
         SDL_WindowData *data = (__bridge SDL_WindowData *)window->driverdata;

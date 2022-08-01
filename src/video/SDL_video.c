@@ -396,12 +396,11 @@ int
 SDL_VideoInit(const char *driver_name)
 {
     SDL_VideoDevice *video;
-    int index;
-    int i;
     SDL_bool init_events = SDL_FALSE;
     SDL_bool init_keyboard = SDL_FALSE;
     SDL_bool init_mouse = SDL_FALSE;
     SDL_bool init_touch = SDL_FALSE;
+    int i;
 
     /* Check to make sure we don't overwrite '_this' */
     if (_this != NULL) {
@@ -431,7 +430,6 @@ SDL_VideoInit(const char *driver_name)
     init_touch = SDL_TRUE;
 
     /* Select the proper video driver */
-    i = index = 0;
     video = NULL;
     if (driver_name == NULL) {
         driver_name = SDL_GetHint(SDL_HINT_VIDEODRIVER);
@@ -446,7 +444,7 @@ SDL_VideoInit(const char *driver_name)
             for (i = 0; bootstrap[i]; ++i) {
                 if ((driver_attempt_len == SDL_strlen(bootstrap[i]->name)) &&
                     (SDL_strncasecmp(bootstrap[i]->name, driver_attempt, driver_attempt_len) == 0)) {
-                    video = bootstrap[i]->create(index);
+                    video = bootstrap[i]->create();
                     break;
                 }
             }
@@ -455,7 +453,7 @@ SDL_VideoInit(const char *driver_name)
         }
     } else {
         for (i = 0; bootstrap[i]; ++i) {
-            video = bootstrap[i]->create(index);
+            video = bootstrap[i]->create();
             if (video != NULL) {
                 break;
             }
@@ -1076,11 +1074,20 @@ SDL_GetDisplay(int displayIndex)
 int
 SDL_GetWindowDisplayIndex(SDL_Window * window)
 {
+    int displayIndex = -1;
+
     CHECK_WINDOW_MAGIC(window, -1);
     if (_this->GetWindowDisplayIndex) {
-        return _this->GetWindowDisplayIndex(_this, window);
+        displayIndex = _this->GetWindowDisplayIndex(_this, window);
+    }
+
+    /* A backend implementation may fail to get a display index for the window
+     * (for example if the window is off-screen), but other code may expect it
+     * to succeed in that situation, so we fall back to a generic position-
+     * based implementation in that case. */
+    if (displayIndex >= 0) {
+        return displayIndex;
     } else {
-        int displayIndex;
         int i, dist;
         int closest = -1;
         int closest_dist = 0x7FFFFFFF;
