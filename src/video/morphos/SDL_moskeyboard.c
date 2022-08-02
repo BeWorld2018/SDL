@@ -71,7 +71,7 @@ static void MOS_UpdateKeymap(_THIS)
         keymap[scancode] = MOS_MapRawKey(i);
     }
 
-    SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES);
+    SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES, SDL_FALSE);
 }
 
 void MOS_InitKeyboard(_THIS)
