@@ -171,37 +171,38 @@ MOS_WarpMouse(SDL_Window * window, int x, int y)
 	if (warpHostPointer) {
 
 		if ((win = data->win)) {
-			struct MsgPort port;
-			struct IOStdReq req;
+			struct MsgPort *port;
+			struct IOStdReq *req;
 
-			port.mp_Flags = PA_IGNORE;
-			NEWLIST(&port.mp_MsgList);
+			port = CreateMsgPort();
+			if (port) {
+				req = CreateIORequest(port, sizeof(*req));
+				if (req) {
+					if (OpenDevice("input.device", 0, (struct IORequest *)req, 0) == 0) {
+						struct InputEvent ie = { 0 };
+						struct IEPointerPixel newpos = { 0 };
 
-			req.io_Message.mn_ReplyPort = &port;
-			req.io_Device = NULL;
-			req.io_Unit = NULL;
+						newpos.iepp_Screen = win->WScreen;
+						newpos.iepp_Position.X = x + win->BorderLeft + win->LeftEdge;
+						newpos.iepp_Position.Y = y + win->BorderTop + win->TopEdge;
 
-			if (OpenDevice("input.device", 0, (struct IORequest *)&req, 0) == 0) {
-				struct InputEvent ie;
-				struct IEPointerPixel newpos;
+						ie.ie_EventAddress = &newpos;
+						ie.ie_NextEvent = NULL;
+						ie.ie_Class = IECLASS_NEWPOINTERPOS;
+						ie.ie_SubClass = IESUBCLASS_PIXEL;
+						ie.ie_Code = IECODE_NOBUTTON;
+						ie.ie_Qualifier = 0;
 
-				newpos.iepp_Screen = win->WScreen;
-				newpos.iepp_Position.X = x + win->BorderLeft + win->LeftEdge;
-				newpos.iepp_Position.Y = y + win->BorderTop + win->TopEdge;
+						req->io_Data = &ie;
+						req->io_Length = sizeof(ie);
+						req->io_Command = IND_WRITEEVENT;
 
-				ie.ie_EventAddress = &newpos;
-				ie.ie_NextEvent = NULL;
-				ie.ie_Class = IECLASS_NEWPOINTERPOS;
-				ie.ie_SubClass = IESUBCLASS_PIXEL;
-				ie.ie_Code = IECODE_NOBUTTON;
-				ie.ie_Qualifier = 0;
+						DoIO((struct IORequest *)req);
+						CloseDevice((struct IORequest *)req);
+					}
+				}
 
-				req.io_Data = &ie;
-				req.io_Length = sizeof(ie);
-				req.io_Command = IND_WRITEEVENT;
-
-				DoIO((struct IORequest *)&req);
-				CloseDevice((struct IORequest *)&req);
+				DeleteMsgPort(port);
 			}
 		}
 	} else {
