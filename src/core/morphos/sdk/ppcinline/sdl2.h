@@ -6880,4 +6880,38 @@
 		(((void (*)(void))*(void**)(__base - 4720))());\
 	})
 
+#define SDL_GetPointDisplayIndex(__p0) \
+	({ \
+		const SDL_Point * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const SDL_Point *))*(void**)(__base - 4726))(__t__p0));\
+	})
+
+#define SDL_GetRectDisplayIndex(__p0) \
+	({ \
+		const SDL_Rect * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const SDL_Rect *))*(void**)(__base - 4732))(__t__p0));\
+	})
+
+#define SDL_ResetHint(__p0) \
+	({ \
+		const char * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(const char *))*(void**)(__base - 4738))(__t__p0));\
+	})
+
+#define SDL_crc16(__p0, __p1, __p2) \
+	({ \
+		Uint16  __t__p0 = __p0;\
+		const void * __t__p1 = __p1;\
+		size_t  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint16 (*)(Uint16 , const void *, size_t ))*(void**)(__base - 4744))(__t__p0, __t__p1, __t__p2));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

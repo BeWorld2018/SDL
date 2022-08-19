@@ -83,6 +83,10 @@ MOS_GL_GetProcAddress(_THIS, const char *proc)
 	void *func = NULL;
 	func = AmiGetGLProc(proc);
 	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
+	if (!func) {
+    	SDL_SetError("Couldn't find OpenGL symbol");
+		return NULL;
+    }
 	return func;
 }
 

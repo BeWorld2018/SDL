@@ -854,7 +854,7 @@
 	STUB(SDL_EncloseFPoints)
 	STUB(SDL_IntersectFRectAndLine)
 	STUB(SDL_RenderGetWindow)
-	
+	// 2.24.0
 	STUB(SDL_bsearch)
 	STUB(SDL_GameControllerPathForIndex)
 	STUB(SDL_GameControllerPath)
@@ -869,3 +869,7 @@
 	STUB(SDL_JoystickGetFirmwareVersion)
 	STUB(SDL_GetOriginalMemoryFunctions)
 	STUB(SDL_ResetKeyboard)	
+	STUB(SDL_GetPointDisplayIndex)
+	STUB(SDL_GetRectDisplayIndex)
+	STUB(SDL_ResetHint)
+	STUB(SDL_crc16)

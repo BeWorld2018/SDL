@@ -27,7 +27,7 @@
 #include "SDL_hints.h"
 
 #include "SDL_mosclipboard.h"
-#include "SDL_mosevents.h"
+
 #include "SDL_mosframebuffer.h"
 #include "SDL_moskeyboard.h"
 #include "SDL_mosmodes.h"
@@ -47,6 +47,8 @@
 #include <proto/intuition.h>
 #include <proto/screennotify.h>
 #include <proto/wb.h>
+
+#include "SDL_mosevents.h"
 
 void
 MOS_CloseDisplay(_THIS)
@@ -258,7 +260,7 @@ MOS_InitBroker(SDL_VideoData *data)
 }
 
 static SDL_VideoDevice *
-MOS_CreateDevice(int devindex)
+MOS_CreateDevice()
 {
 	/* Initialize all variables that we clean on shutdown */
 	SDL_VideoDevice *device = (SDL_VideoDevice *) SDL_calloc(1, sizeof(SDL_VideoDevice));

@@ -81,7 +81,7 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_SUB, (char *)"Letterbox / sidebars", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LLETTER },
 	{ NM_SUB, (char *)"Overscan", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_LOVERS },
 	{ NM_ITEM, (char *)"HINT RENDER BATCHING", 0, 0, 0, (APTR)MID_RBATCHING },
-	{ NM_SUB, (char *)"Ddefault", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_BAUTO },
 	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BENABLE },
 	{ NM_SUB, (char *)"Disabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_BDISABLE },
 	{ NM_ITEM, (char *)"HINT RENDER LINE METHOD", 0, 0, 0, (APTR)MID_RMETHOD },
