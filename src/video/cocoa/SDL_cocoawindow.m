@@ -299,12 +299,14 @@ GetHintCtrlClickEmulateRightClick()
 static NSUInteger
 GetWindowWindowedStyle(SDL_Window * window)
 {
-    NSUInteger style = 0;
+    /* always allow miniaturization, otherwise you can't programatically
+       minimize the window, whether there's a title bar or not */
+    NSUInteger style = NSWindowStyleMaskMiniaturizable;
 
     if (window->flags & SDL_WINDOW_BORDERLESS) {
-        style = NSWindowStyleMaskBorderless;
+        style |= NSWindowStyleMaskBorderless;
     } else {
-        style = (NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable);
+        style |= (NSWindowStyleMaskTitled|NSWindowStyleMaskClosable);
     }
     if (window->flags & SDL_WINDOW_RESIZABLE) {
         style |= NSWindowStyleMaskResizable;
@@ -935,8 +937,6 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 - (void)windowDidEnterFullScreen:(NSNotification *)aNotification
 {
     SDL_Window *window = _data.window;
-    SDL_WindowData *data = (__bridge SDL_WindowData *) window->driverdata;
-    NSWindow *nswindow = data.nswindow;
 
     inFullscreenTransition = NO;
 
@@ -944,11 +944,6 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         pendingWindowOperation = PENDING_OPERATION_NONE;
         [self setFullscreenSpace:NO];
     } else {
-        /* Unset the resizable flag. 
-           This is a workaround for https://bugzilla.libsdl.org/show_bug.cgi?id=3697
-         */
-        SetWindowStyle(window, [nswindow styleMask] & (~NSWindowStyleMaskResizable));
-
         if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
             [NSMenu setMenuBarVisible:NO];
         }
@@ -1364,26 +1359,39 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
     Cocoa_HandleMouseWheel(_data.window, theEvent);
 }
 
+
+- (BOOL)isTouchFromTrackpad:(NSEvent *)theEvent
+{
+    SDL_Window *window = _data.window;
+    SDL_VideoData *videodata = ((__bridge SDL_WindowData *) window->driverdata).videodata;
+
+    /* if this a MacBook trackpad, we'll make input look like a synthesized
+       event. This is backwards from reality, but better matches user
+       expectations. You can make it look like a generic touch device instead
+       with the SDL_HINT_TRACKPAD_IS_TOUCH_ONLY hint. */
+    BOOL istrackpad = NO;
+    if (!videodata.trackpad_is_touch_only) {
+        @try {
+            istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
+        }
+        @catch (NSException *e) {
+            /* if NSEvent type doesn't have subtype, such as NSEventTypeBeginGesture on
+             * macOS 10.5 to 10.10, then NSInternalInconsistencyException is thrown.
+             * This still prints a message to terminal so catching it's not an ideal solution.
+             *
+             * *** Assertion failure in -[NSEvent subtype]
+             */
+        }
+    }
+    return istrackpad;
+}
+
 - (void)touchesBeganWithEvent:(NSEvent *) theEvent
 {
     NSSet *touches;
     SDL_TouchID touchID;
     int existingTouchCount;
-
-    /* probably a MacBook trackpad; make this look like a synthesized event.
-       This is backwards from reality, but better matches user expectations. */
-    BOOL istrackpad = NO;
-    @try {
-        istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
-    }
-    @catch (NSException *e) {
-        /* if NSEvent type doesn't have subtype, such as NSEventTypeBeginGesture on
-         * macOS 10.5 to 10.10, then NSInternalInconsistencyException is thrown.
-         * This still prints a message to terminal so catching it's not an ideal solution.
-         *
-         * *** Assertion failure in -[NSEvent subtype]
-         */
-    }
+    const BOOL istrackpad = [self isTouchFromTrackpad:theEvent];
 
     touches = [theEvent touchesMatchingPhase:NSTouchPhaseAny inView:nil];
     touchID = istrackpad ? SDL_MOUSE_TOUCHID : (SDL_TouchID)(intptr_t)[[touches anyObject] device];
@@ -1431,23 +1439,9 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
 - (void)handleTouches:(NSTouchPhase) phase withEvent:(NSEvent *) theEvent
 {
     NSSet *touches = [theEvent touchesMatchingPhase:phase inView:nil];
+    const BOOL istrackpad = [self isTouchFromTrackpad:theEvent];
     SDL_FingerID fingerId;
     float x, y;
-
-    /* probably a MacBook trackpad; make this look like a synthesized event.
-       This is backwards from reality, but better matches user expectations. */
-    BOOL istrackpad = NO;
-    @try {
-        istrackpad = ([theEvent subtype] == NSEventSubtypeMouseEvent);
-    }
-    @catch (NSException *e) {
-        /* if NSEvent type doesn't have subtype, such as NSEventTypeBeginGesture on
-         * macOS 10.5 to 10.10, then NSInternalInconsistencyException is thrown.
-         * This still prints a message to terminal so catching it's not an ideal solution.
-         *
-         * *** Assertion failure in -[NSEvent subtype]
-         */
-    }
 
     for (NSTouch *touch in touches) {
         const SDL_TouchID touchId = istrackpad ? SDL_MOUSE_TOUCHID : (SDL_TouchID)(intptr_t)[touch device];
@@ -2236,7 +2230,7 @@ Cocoa_GetWindowDisplayIndex(_THIS, SDL_Window * window)
 
     /* Not recognized via CHECK_WINDOW_MAGIC */
     if (data == nil) {
-        return 0;
+        return SDL_SetError("Window data not set");
     }
 
     /* NSWindow.screen may be nil when the window is off-screen. */

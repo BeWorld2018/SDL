@@ -80,8 +80,8 @@ endif()
 
 # See docs/release_checklist.md
 set(SDL_MAJOR_VERSION 2)
-set(SDL_MINOR_VERSION 23)
-set(SDL_MICRO_VERSION 1)
+set(SDL_MINOR_VERSION 24)
+set(SDL_MICRO_VERSION 0)
 set(SDL_VERSION "${SDL_MAJOR_VERSION}.${SDL_MINOR_VERSION}.${SDL_MICRO_VERSION}")
 
 # Set defaults preventing destination file conflicts
@@ -499,8 +499,10 @@ dep_option(SDL_KMSDRM_SHARED       "Dynamically load KMS DRM support" ON "SDL_KM
 set_option(SDL_OFFSCREEN           "Use offscreen video driver" OFF)
 option_string(SDL_BACKGROUNDING_SIGNAL "number to use for magic backgrounding signal or 'OFF'" OFF)
 option_string(SDL_FOREGROUNDING_SIGNAL "number to use for magic foregrounding signal or 'OFF'" OFF)
-set_option(SDL_HIDAPI_JOYSTICK     "Use HIDAPI for low level joystick drivers" ON)
-set_option(SDL_VIRTUAL_JOYSTICK    "Enable the virtual-joystick driver" ON)
+set_option(SDL_HIDAPI              "Enable the HIDAPI subsystem" ON)
+dep_option(SDL_HIDAPI_LIBUSB       "Use libusb for low level joystick drivers" OFF SDL_HIDAPI OFF)
+dep_option(SDL_HIDAPI_JOYSTICK     "Use HIDAPI for low level joystick drivers" ON SDL_HIDAPI OFF)
+dep_option(SDL_VIRTUAL_JOYSTICK    "Enable the virtual-joystick driver" ON SDL_HIDAPI OFF)
 set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors" OFF)
 
 set(SDL_SHARED ${SDL_SHARED_ENABLED_BY_DEFAULT} CACHE BOOL "Build a shared version of the library")
@@ -512,6 +514,14 @@ dep_option(SDL_TESTS           "Build the test directory" OFF SDL_TEST OFF)
 set_option(SDL_INSTALL_TESTS   "Install test-cases" OFF)
 
 set(HAVE_STATIC_PIC "${SDL_STATIC_PIC}")
+
+if(SDL_HIDAPI)
+  if(HIDAPI_ONLY_LIBUSB)
+    set(SDL_HIDAPI_LIBUSB ON CACHE BOOL "" FORCE)
+  elseif(HIDAPI_SKIP_LIBUSB)
+    set(SDL_HIDAPI_LIBUSB OFF CACHE BOOL "" FORCE)
+  endif()
+endif()
 
 if(VITA)
   set_option(VIDEO_VITA_PIB  "Build with PSVita piglet gles2 support" OFF)
@@ -590,13 +600,17 @@ if(USE_GCC OR USE_CLANG)
     list(APPEND EXTRA_CFLAGS "-fno-strict-aliasing")
   endif()
 
-  check_c_compiler_flag(-Wdeclaration-after-statement HAVE_GCC_WDECLARATION_AFTER_STATEMENT)
-  if(HAVE_GCC_WDECLARATION_AFTER_STATEMENT)
-    check_c_compiler_flag(-Werror=declaration-after-statement HAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT)
-    if(HAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT)
-      list(APPEND EXTRA_CFLAGS "-Werror=declaration-after-statement")
+  # Android needs to bring in external files that don't adhere to the declaration-after-statement
+  # warning, so skip this warning on Android.
+  if(NOT ANDROID)
+    check_c_compiler_flag(-Wdeclaration-after-statement HAVE_GCC_WDECLARATION_AFTER_STATEMENT)
+    if(HAVE_GCC_WDECLARATION_AFTER_STATEMENT)
+      check_c_compiler_flag(-Werror=declaration-after-statement HAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT)
+      if(HAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT)
+        list(APPEND EXTRA_CFLAGS "-Werror=declaration-after-statement")
+      endif()
+      list(APPEND EXTRA_CFLAGS "-Wdeclaration-after-statement")
     endif()
-    list(APPEND EXTRA_CFLAGS "-Wdeclaration-after-statement")
   endif()
 
   if(DEPENDENCY_TRACKING)
@@ -2534,7 +2548,7 @@ elseif(PSP)
   endif(NOT SDL2_DISABLE_SDL2MAIN)
 
 elseif(PS2)
-  list(APPEND EXTRA_CFLAGS "-DPS2" "-D__PS2__" "-I$ENV{PS2SDK}/ports/include")
+  list(APPEND EXTRA_CFLAGS "-DPS2" "-D__PS2__" "-I$ENV{PS2SDK}/ports/include" "-I$ENV{PS2DEV}/gsKit/include")
 
   file(GLOB PS2_MAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/ps2/*.c)
   set(SDLMAIN_SOURCES ${SDLMAIN_SOURCES} ${PS2_MAIN_SOURCES})
@@ -2569,9 +2583,19 @@ elseif(PS2)
     list(APPEND SOURCE_FILES ${PS2_TIMER_SOURCES})
     set(HAVE_SDL_TIMERS TRUE)
   endif()
+  if(SDL_VIDEO)
+    set(SDL_VIDEO_DRIVER_PS2 1)
+    set(SDL_VIDEO_RENDER_PS2 1)
+    file(GLOB PS2_VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/ps2/*.c ${SDL2_SOURCE_DIR}/src/render/ps2/*.c)
+    list(APPEND SOURCE_FILES ${PS2_VIDEO_SOURCES})
+    set(SDL_VIDEO_OPENGL 0)
+    set(HAVE_SDL_VIDEO TRUE)
+  endif()
 
   list(APPEND EXTRA_LIBS
     patches
+    gskit
+    dmakit
     ps2_drivers
   )
 
@@ -3028,6 +3052,10 @@ endif()
 
 if(APPLE)
   target_compile_options(sdl-build-options INTERFACE "-fobjc-arc")
+endif()
+
+if(PS2)
+  target_compile_options(sdl-build-options INTERFACE "-Wno-error=declaration-after-statement")
 endif()
 
 if(SDL_SHARED)

@@ -18,38 +18,21 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../SDL_internal.h"
+#include "../../SDL_internal.h"
 
-#include "SDL_stdinc.h"
+#ifndef SDL_ps2video_h_
+#define SDL_ps2video_h_
 
+#include "../SDL_sysvideo.h"
 
-/* Public domain CRC implementation adapted from:
-   http://home.thep.lu.se/~bjorn/crc/crc32_simple.c
+#include <kernel.h>
 
-   This algorithm is compatible with the 32-bit CRC described here:
-   https://www.lammertbies.nl/comm/info/crc-calculation
-*/
-/* NOTE: DO NOT CHANGE THIS ALGORITHM
-   There is code that relies on this in the joystick code
-*/
+#include <gsKit.h>
+#include <dmaKit.h>
 
-static Uint32 crc32_for_byte(Uint32 r)
-{
-    int i;
-    for (i = 0; i < 8; ++i) {
-        r = (r & 1? 0: (Uint32)0xEDB88320L) ^ r >> 1;
-    }
-    return r ^ (Uint32)0xFF000000L;
-}
+#include <gsToolkit.h>
+#include <gsInline.h>
 
-Uint32 SDL_crc32(Uint32 crc, const void *data, size_t len)
-{
-    /* As an optimization we can precalculate a 256 entry table for each byte */
-    size_t i;
-    for(i = 0; i < len; ++i) {
-        crc = crc32_for_byte((Uint8)crc ^ ((const Uint8*)data)[i]) ^ crc >> 8;
-    }
-    return crc;
-}
+#endif /* SDL_ps2video_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

@@ -854,3 +854,7 @@
 ++'_SDL_GetOriginalMemoryFunctions'.'SDL2.dll'.'SDL_GetOriginalMemoryFunctions'
 ++'_SDL_ResetKeyboard'.'SDL2.dll'.'SDL_ResetKeyboard'
 ++'_SDL_GetDefaultAudioInfo'.'SDL2.dll'.'SDL_GetDefaultAudioInfo'
+++'_SDL_GetPointDisplayIndex'.'SDL2.dll'.'SDL_GetPointDisplayIndex'
+++'_SDL_GetRectDisplayIndex'.'SDL2.dll'.'SDL_GetRectDisplayIndex'
+++'_SDL_ResetHint'.'SDL2.dll'.'SDL_ResetHint'
+++'_SDL_crc16'.'SDL2.dll'.'SDL_crc16'

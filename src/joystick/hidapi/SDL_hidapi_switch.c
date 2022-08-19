@@ -110,6 +110,9 @@ typedef enum {
     k_eSwitchDeviceInfoControllerType_ProController  = 3,
     k_eSwitchDeviceInfoControllerType_NESLeft        = 9,
     k_eSwitchDeviceInfoControllerType_NESRight       = 10,
+    k_eSwitchDeviceInfoControllerType_SNES           = 11,
+    k_eSwitchDeviceInfoControllerType_N64            = 12,
+    k_eSwitchDeviceInfoControllerType_SEGA_Genesis   = 13,
 } ESwitchDeviceInfoControllerType;
 
 #define k_unSwitchOutputPacketDataLength 49
@@ -246,10 +249,13 @@ typedef struct
 typedef struct {
     SDL_HIDAPI_Device *device;
     SDL_bool m_bInputOnly;
-    SDL_bool m_bHasHomeLED;
     SDL_bool m_bUsingBluetooth;
     SDL_bool m_bIsGameCube;
     SDL_bool m_bUseButtonLabels;
+    SDL_bool m_bPlayerLights;
+    int      m_nPlayerIndex;
+    SDL_bool m_bSyncWrite;
+    int      m_nMaxWriteAttempts;
     ESwitchDeviceInfoControllerType m_eControllerType;
     Uint8 m_rgucMACAddress[6];
     Uint8 m_nCommandNumber;
@@ -262,7 +268,9 @@ typedef struct {
     Uint32 m_unRumblePending;
     SDL_bool m_bHasSensors;
     SDL_bool m_bReportSensors;
+    SDL_bool m_bHasSensorData;
     Uint32 m_unLastInput;
+    Uint32 m_unLastIMUReset;
 
     SwitchInputOnlyControllerStatePacket_t m_lastInputOnlyState;
     SwitchSimpleStatePacket_t m_lastSimpleState;
@@ -296,8 +304,11 @@ typedef struct {
 
 
 static SDL_bool
-HasHomeLED(int vendor_id, int product_id)
+HasHomeLED(SDL_DriverSwitch_Context *ctx)
 {
+    Uint16 vendor_id = ctx->device->vendor_id;
+    Uint16 product_id = ctx->device->product_id;
+
     /* The Power A Nintendo Switch Pro controllers don't have a Home LED */
     if (vendor_id == 0 && product_id == 0) {
         return SDL_FALSE;
@@ -310,9 +321,7 @@ HasHomeLED(int vendor_id, int product_id)
 
     /* The Nintendo Online classic controllers don't have a Home LED */
     if (vendor_id == USB_VENDOR_NINTENDO &&
-        (product_id == USB_PRODUCT_NINTENDO_N64_CONTROLLER ||
-         product_id == USB_PRODUCT_NINTENDO_SEGA_GENESIS_CONTROLLER ||
-         product_id == USB_PRODUCT_NINTENDO_SNES_CONTROLLER)) {
+        ctx->m_eControllerType > k_eSwitchDeviceInfoControllerType_ProController) {
         return SDL_FALSE;
     }
 
@@ -323,16 +332,15 @@ static SDL_bool
 AlwaysUsesLabels(int vendor_id, int product_id, ESwitchDeviceInfoControllerType eControllerType)
 {
     /* These controllers don't have a diamond button configuration, so always use labels */
-    if (vendor_id == USB_VENDOR_NINTENDO &&
-        (product_id == USB_PRODUCT_NINTENDO_N64_CONTROLLER ||
-         product_id == USB_PRODUCT_NINTENDO_SEGA_GENESIS_CONTROLLER)) {
+    switch (eControllerType) {
+    case k_eSwitchDeviceInfoControllerType_NESLeft:
+    case k_eSwitchDeviceInfoControllerType_NESRight:
+    case k_eSwitchDeviceInfoControllerType_N64:
+    case k_eSwitchDeviceInfoControllerType_SEGA_Genesis:
         return SDL_TRUE;
+    default:
+        return SDL_FALSE;
     }
-    if (eControllerType == k_eSwitchDeviceInfoControllerType_NESLeft ||
-        eControllerType == k_eSwitchDeviceInfoControllerType_NESRight) {
-        return SDL_TRUE;
-    }
-    return SDL_FALSE;
 }
 
 static SDL_bool
@@ -354,6 +362,45 @@ IsGameCubeFormFactor(int vendor_id, int product_id)
 }
 
 static SDL_bool
+HIDAPI_DriverNintendoClassic_IsSupportedDevice(const char *name, SDL_GameControllerType type, Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, int interface_class, int interface_subclass, int interface_protocol)
+{
+    if (vendor_id == USB_VENDOR_NINTENDO) {
+        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_RIGHT) {
+            if (SDL_strncmp(name, "NES Controller", 14) == 0) {
+                return SDL_TRUE;
+            }
+        }
+
+        if (product_id == USB_PRODUCT_NINTENDO_N64_CONTROLLER) {
+            return SDL_TRUE;
+        }
+
+        if (product_id == USB_PRODUCT_NINTENDO_SEGA_GENESIS_CONTROLLER) {
+            return SDL_TRUE;
+        }
+
+        if (product_id == USB_PRODUCT_NINTENDO_SNES_CONTROLLER) {
+            return SDL_TRUE;
+        }
+    }
+
+    return SDL_FALSE;
+}
+
+static SDL_bool
+HIDAPI_DriverJoyCons_IsSupportedDevice(const char *name, SDL_GameControllerType type, Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, int interface_class, int interface_subclass, int interface_protocol)
+{
+    if (vendor_id == USB_VENDOR_NINTENDO) {
+        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_LEFT ||
+            product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_RIGHT ||
+            product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
+            return SDL_TRUE;
+        }
+    }
+    return SDL_FALSE;
+}
+
+static SDL_bool
 HIDAPI_DriverSwitch_IsSupportedDevice(const char *name, SDL_GameControllerType type, Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, int interface_class, int interface_subclass, int interface_protocol)
 {
     /* The HORI Wireless Switch Pad enumerates as a HID device when connected via USB
@@ -366,9 +413,10 @@ HIDAPI_DriverSwitch_IsSupportedDevice(const char *name, SDL_GameControllerType t
         return SDL_FALSE;
     }
 
-    /* We always support the Nintendo Online NES Controllers */
-    if (SDL_strncmp(name, "NES Controller", 14) == 0) {
-        return SDL_TRUE;
+    /* If it's handled by another driver, it's not handled here */
+    if (HIDAPI_DriverNintendoClassic_IsSupportedDevice(name, type, vendor_id, product_id, version, interface_number, interface_class, interface_subclass, interface_protocol) ||
+        HIDAPI_DriverJoyCons_IsSupportedDevice(name, type, vendor_id, product_id, version, interface_number, interface_class, interface_subclass, interface_protocol)) {
+        return SDL_FALSE;
     }
 
     return (type == SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO) ? SDL_TRUE : SDL_FALSE;
@@ -379,18 +427,25 @@ HIDAPI_DriverSwitch_GetDeviceName(const char *name, Uint16 vendor_id, Uint16 pro
 {
     /* Give a user friendly name for this controller */
     if (vendor_id == USB_VENDOR_NINTENDO) {
-        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP) {
-            return "Nintendo Switch Joy-Con Grip";
+        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
+            /* We don't know if this is left or right, just leave it alone */
+            return NULL;
         }
 
-        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_LEFT) {
+        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_LEFT) {
             return "Nintendo Switch Joy-Con (L)";
         }
 
-        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_RIGHT) {
-            /* Use the given name for the Nintendo Online NES Controllers */
+        if (product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_RIGHT) {
             if (SDL_strncmp(name, "NES Controller", 14) == 0) {
-                return name;
+                if (SDL_strstr(name, "(L)") != 0) {
+                    return "Nintendo NES Controller (L)";
+                } else if (SDL_strstr(name, "(R)") != 0) {
+                    return "Nintendo NES Controller (R)";
+                } else {
+                    /* Not sure what this is, just leave it alone */
+                    return NULL;
+                }
             }
             return "Nintendo Switch Joy-Con (R)";
         }
@@ -493,7 +548,9 @@ static void ConstructSubcommand(SDL_DriverSwitch_Context *ctx, ESwitchSubcommand
     SDL_memcpy(outPacket->commonData.rumbleData, ctx->m_RumblePacket.rumbleData, sizeof(ctx->m_RumblePacket.rumbleData));
 
     outPacket->ucSubcommandID = ucCommandID;
-    SDL_memcpy(outPacket->rgucSubcommandData, pBuf, ucLen);
+    if (pBuf) {
+        SDL_memcpy(outPacket->rgucSubcommandData, pBuf, ucLen);
+    }
 
     ctx->m_nCommandNumber = (ctx->m_nCommandNumber + 1) & 0xF;
 }
@@ -513,34 +570,19 @@ static SDL_bool WritePacket(SDL_DriverSwitch_Context *ctx, void *pBuf, Uint8 ucL
         pBuf = rgucBuf;
         ucLen = (Uint8)unWriteSize;
     }
-    return (WriteOutput(ctx, (Uint8 *)pBuf, ucLen) >= 0);
-}
-
-static SDL_bool
-WritePacketSync(SDL_DriverSwitch_Context *ctx, void *pBuf, Uint8 ucLen)
-{
-    Uint8 rgucBuf[k_unSwitchMaxOutputPacketLength];
-    const size_t unWriteSize = ctx->m_bUsingBluetooth ? k_unSwitchBluetoothPacketLength : k_unSwitchUSBPacketLength;
-
-    if (ucLen > k_unSwitchOutputPacketDataLength) {
-        return SDL_FALSE;
+    if (ctx->m_bSyncWrite) {
+        return (SDL_hid_write(ctx->device->dev, (Uint8 *)pBuf, ucLen) >= 0);
+    } else {
+        return (WriteOutput(ctx, (Uint8 *)pBuf, ucLen) >= 0);
     }
-
-    if (ucLen < unWriteSize) {
-        SDL_memcpy(rgucBuf, pBuf, ucLen);
-        SDL_memset(rgucBuf + ucLen, 0, unWriteSize - ucLen);
-        pBuf = rgucBuf;
-        ucLen = (Uint8) unWriteSize;
-    }
-    return (SDL_hid_write(ctx->device->dev, (Uint8 *)pBuf, ucLen) >= 0);
 }
 
 static SDL_bool WriteSubcommand(SDL_DriverSwitch_Context *ctx, ESwitchSubcommandIDs ucCommandID, Uint8 *pBuf, Uint8 ucLen, SwitchSubcommandInputPacket_t **ppReply)
 {
-    int nRetries = 5;
     SwitchSubcommandInputPacket_t *reply = NULL;
+    int nTries;
 
-    while (!reply && nRetries--) {
+    for (nTries = 1; !reply && nTries <= ctx->m_nMaxWriteAttempts; ++nTries) {
         SwitchSubcommandOutputPacket_t commandPacket;
         ConstructSubcommand(ctx, ucCommandID, pBuf, ucLen, &commandPacket);
 
@@ -557,34 +599,11 @@ static SDL_bool WriteSubcommand(SDL_DriverSwitch_Context *ctx, ESwitchSubcommand
     return reply != NULL;
 }
 
-static SDL_bool
-WriteSubcommandSync(SDL_DriverSwitch_Context *ctx, ESwitchSubcommandIDs ucCommandID, Uint8 *pBuf, Uint8 ucLen, SwitchSubcommandInputPacket_t **ppReply)
-{
-    int nRetries = 5;
-    SwitchSubcommandInputPacket_t *reply = NULL;
-
-    while (!reply && nRetries--) {
-        SwitchSubcommandOutputPacket_t commandPacket;
-        ConstructSubcommand(ctx, ucCommandID, pBuf, ucLen, &commandPacket);
-
-        if (!WritePacketSync(ctx, &commandPacket, sizeof(commandPacket))) {
-            continue;
-        }
-
-        reply = ReadSubcommandReply(ctx, ucCommandID);
-    }
-
-    if (ppReply) {
-        *ppReply = reply;
-    }
-    return reply != NULL;
-}
-
 static SDL_bool WriteProprietary(SDL_DriverSwitch_Context *ctx, ESwitchProprietaryCommandIDs ucCommand, Uint8 *pBuf, Uint8 ucLen, SDL_bool waitForReply)
 {
-    int nRetries = 5;
+    int nTries;
 
-    while (nRetries--) {
+    for (nTries = 1; nTries <= ctx->m_nMaxWriteAttempts; ++nTries) {
         SwitchProprietaryOutputPacket_t packet;
 
         if ((!pBuf && ucLen > 0) || ucLen > sizeof(packet.rgucProprietaryData)) {
@@ -603,9 +622,11 @@ static SDL_bool WriteProprietary(SDL_DriverSwitch_Context *ctx, ESwitchProprieta
         }
 
         if (!waitForReply || ReadProprietaryReply(ctx, ucCommand)) {
+//SDL_Log("Succeeded%s after %d tries\n", ctx->m_bSyncWrite ? " (sync)" : "", nTries);
             return SDL_TRUE;
         }
     }
+//SDL_Log("Failed%s after %d tries\n", ctx->m_bSyncWrite ? " (sync)" : "", nTries);
     return SDL_FALSE;
 }
 
@@ -722,6 +743,13 @@ static SDL_bool BReadDeviceInfo(SDL_DriverSwitch_Context *ctx)
         size_t i;
 
         ctx->m_eControllerType = (ESwitchDeviceInfoControllerType)status->ucDeviceType;
+
+        /* The N64 controller reports as a Pro controller over USB */
+        if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_ProController &&
+            ctx->device->product_id == USB_PRODUCT_NINTENDO_N64_CONTROLLER) {
+            ctx->m_eControllerType = k_eSwitchDeviceInfoControllerType_N64;
+        }
+
         for (i = 0; i < sizeof (ctx->m_rgucMACAddress); ++i)
             ctx->m_rgucMACAddress[i] = status->rgucMACAddress[ sizeof(ctx->m_rgucMACAddress) - i - 1 ];
 
@@ -818,10 +846,28 @@ static void SDLCALL SDL_HomeLEDHintChanged(void *userdata, const char *name, con
     }
 }
 
-static SDL_bool SetSlotLED(SDL_DriverSwitch_Context *ctx, Uint8 slot)
+static void UpdateSlotLED(SDL_DriverSwitch_Context *ctx)
 {
-    Uint8 led_data = (1 << slot);
-    return WriteSubcommand(ctx, k_eSwitchSubcommandIDs_SetPlayerLights, &led_data, sizeof(led_data), NULL);
+    if (!ctx->m_bInputOnly) {
+        Uint8 led_data = 0;
+        
+        if (ctx->m_bPlayerLights && ctx->m_nPlayerIndex >= 0) {
+            led_data = (1 << (ctx->m_nPlayerIndex % 4));
+        }
+        WriteSubcommand(ctx, k_eSwitchSubcommandIDs_SetPlayerLights, &led_data, sizeof(led_data), NULL);
+    }
+}
+
+static void SDLCALL SDL_PlayerLEDHintChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
+{
+    SDL_DriverSwitch_Context *ctx = (SDL_DriverSwitch_Context *)userdata;
+    SDL_bool bPlayerLights = SDL_GetStringBoolean(hint, SDL_TRUE);
+
+    if (bPlayerLights != ctx->m_bPlayerLights) {
+        ctx->m_bPlayerLights = bPlayerLights;
+
+        UpdateSlotLED(ctx);
+    }
 }
 
 static SDL_bool SetIMUEnabled(SDL_DriverSwitch_Context* ctx, SDL_bool enabled)
@@ -1023,6 +1069,18 @@ static Uint8 RemapButton(SDL_DriverSwitch_Context *ctx, Uint8 button)
     return button;
 }
  
+static int
+GetMaxWriteAttempts(SDL_HIDAPI_Device *device)
+{
+    if (device->vendor_id == USB_VENDOR_NINTENDO &&
+        device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
+        /* This device is a little slow and we know we're always on USB */
+        return 20;
+    } else {
+        return 5;
+    }
+}
+
 static ESwitchDeviceInfoControllerType
 ReadJoyConControllerType(SDL_HIDAPI_Device *device)
 {
@@ -1031,16 +1089,29 @@ ReadJoyConControllerType(SDL_HIDAPI_Device *device)
     /* Create enough of a context to read the controller type from the device */
     SDL_DriverSwitch_Context *ctx = (SDL_DriverSwitch_Context *)SDL_calloc(1, sizeof(*ctx));
     if (ctx) {
-        SwitchSubcommandInputPacket_t *reply = NULL;
-
         ctx->device = device;
-        ctx->m_bUsingBluetooth = SDL_TRUE;
+        ctx->m_bSyncWrite = SDL_TRUE;
+        ctx->m_nMaxWriteAttempts = GetMaxWriteAttempts(device);
 
         device->dev = SDL_hid_open_path(device->path, 0);
         if (device->dev) {
-            if (WriteSubcommandSync(ctx, k_eSwitchSubcommandIDs_RequestDeviceInfo, NULL, 0, &reply)) {
-                // Byte 2: Controller ID (1=LJC, 2=RJC, 3=Pro)
-                eControllerType = (ESwitchDeviceInfoControllerType) reply->deviceInfo.ucDeviceType;
+            if (WriteProprietary(ctx, k_eSwitchProprietaryCommandIDs_Status, NULL, 0, SDL_TRUE)) {
+                SwitchProprietaryStatusPacket_t *status = (SwitchProprietaryStatusPacket_t *)&ctx->m_rgucReadBuffer[0];
+
+                eControllerType = (ESwitchDeviceInfoControllerType) status->ucDeviceType;
+
+                /* The N64 controller reports as a Pro controller over USB */
+                if (eControllerType == k_eSwitchDeviceInfoControllerType_ProController &&
+                    device->product_id == USB_PRODUCT_NINTENDO_N64_CONTROLLER) {
+                    eControllerType = k_eSwitchDeviceInfoControllerType_N64;
+                }
+            } else {
+                SwitchSubcommandInputPacket_t *reply = NULL;
+
+                ctx->m_bUsingBluetooth = SDL_TRUE;
+                if (WriteSubcommand(ctx, k_eSwitchSubcommandIDs_RequestDeviceInfo, NULL, 0, &reply)) {
+                    eControllerType = (ESwitchDeviceInfoControllerType)reply->deviceInfo.ucDeviceType;
+                }
             }
             SDL_hid_close(device->dev);
             device->dev = NULL;
@@ -1050,25 +1121,70 @@ ReadJoyConControllerType(SDL_HIDAPI_Device *device)
     return eControllerType;
 }
 
+static void
+UpdateDeviceName(SDL_HIDAPI_Device *device, ESwitchDeviceInfoControllerType eControllerType)
+{
+    const char *name = NULL;
+
+    switch (eControllerType) {
+    case k_eSwitchDeviceInfoControllerType_JoyConLeft:
+        name = "Nintendo Switch Joy-Con (L)";
+        break;
+    case k_eSwitchDeviceInfoControllerType_JoyConRight:
+        name = "Nintendo Switch Joy-Con (R)";
+        break;
+    case k_eSwitchDeviceInfoControllerType_ProController:
+        name = "Nintendo Switch Pro Controller";
+        break;
+    case k_eSwitchDeviceInfoControllerType_NESLeft:
+        name = "Nintendo NES Controller (L)";
+        break;
+    case k_eSwitchDeviceInfoControllerType_NESRight:
+        name = "Nintendo NES Controller (R)";
+        break;
+    case k_eSwitchDeviceInfoControllerType_SNES:
+        name = "Nintendo SNES Controller";
+        break;
+    case k_eSwitchDeviceInfoControllerType_N64:
+        name = "Nintendo N64 Controller";
+        break;
+    case k_eSwitchDeviceInfoControllerType_SEGA_Genesis:
+        name = "Nintendo SEGA Genesis Controller";
+        break;
+    default:
+        break;
+    }
+
+    if (name && (!name || SDL_strcmp(name, device->name) != 0)) {
+        SDL_free(device->name);
+        device->name = SDL_strdup(name);
+    }
+}
+
 static SDL_bool
 HIDAPI_DriverSwitch_InitDevice(SDL_HIDAPI_Device *device)
 {
     /* The NES controllers need additional fix up, since we can't detect them without opening the device */
-    if (device->vendor_id == USB_VENDOR_NINTENDO &&
-        device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_RIGHT) {
+    if (device->vendor_id == USB_VENDOR_NINTENDO) {
         ESwitchDeviceInfoControllerType eControllerType = ReadJoyConControllerType(device);
         switch (eControllerType) {
-        case k_eSwitchDeviceInfoControllerType_NESLeft:
-            SDL_free(device->name);
-            device->name = SDL_strdup("NES Controller (L)");
-            device->guid.data[15] = eControllerType;
-            break;
-        case k_eSwitchDeviceInfoControllerType_NESRight:
-            SDL_free(device->name);
-            device->name = SDL_strdup("NES Controller (R)");
-            device->guid.data[15] = eControllerType;
+        case k_eSwitchDeviceInfoControllerType_Unknown:
+            /* This might be a Joy-Con that's missing from a charging grip slot */
+            if (device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
+                if (device->interface_number == 1) {
+                    SDL_free(device->name);
+                    device->name = SDL_strdup("Nintendo Switch Joy-Con (L)");
+                    device->guid.data[15] = k_eSwitchDeviceInfoControllerType_JoyConLeft;
+                } else {
+                    SDL_free(device->name);
+                    device->name = SDL_strdup("Nintendo Switch Joy-Con (R)");
+                    device->guid.data[15] = k_eSwitchDeviceInfoControllerType_JoyConRight;
+                }
+            }
             break;
         default:
+            UpdateDeviceName(device, eControllerType);
+            device->guid.data[15] = eControllerType;
             break;
         }
     }
@@ -1084,6 +1200,15 @@ HIDAPI_DriverSwitch_GetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_Joystick
 static void
 HIDAPI_DriverSwitch_SetDevicePlayerIndex(SDL_HIDAPI_Device *device, SDL_JoystickID instance_id, int player_index)
 {
+    SDL_DriverSwitch_Context *ctx = (SDL_DriverSwitch_Context *)device->context;
+
+    if (!ctx) {
+        return;
+    }
+
+    ctx->m_nPlayerIndex = player_index;
+
+    UpdateSlotLED(ctx);
 }
 
 static SDL_bool
@@ -1105,12 +1230,12 @@ HIDAPI_DriverSwitch_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joysti
         SDL_SetError("Couldn't open %s", device->path);
         goto error;
     }
+    ctx->m_nMaxWriteAttempts = GetMaxWriteAttempts(device);
+    ctx->m_bSyncWrite = SDL_TRUE;
 
     /* Find out whether or not we can send output reports */
     ctx->m_bInputOnly = SDL_IsJoystickNintendoSwitchProInputOnly(device->vendor_id, device->product_id);
     if (!ctx->m_bInputOnly) {
-        ctx->m_bHasHomeLED = HasHomeLED(device->vendor_id, device->product_id);
-
         /* Initialize rumble data */
         SetNeutralRumble(&ctx->m_RumblePacket.rumbleData[0]);
         SetNeutralRumble(&ctx->m_RumblePacket.rumbleData[1]);
@@ -1139,17 +1264,16 @@ HIDAPI_DriverSwitch_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joysti
          * HandleFullControllerState is completely pointless. We need full state if we want battery
          * level and we only care about battery level over bluetooth anyway.
          */
-        if (device->vendor_id == USB_VENDOR_NINTENDO &&
-            (device->product_id == USB_PRODUCT_NINTENDO_SWITCH_PRO ||
-             device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP ||
-             device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_LEFT ||
-             device->product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_RIGHT)) {
+        if (device->vendor_id == USB_VENDOR_NINTENDO) {
             input_mode = k_eSwitchInputReportIDs_FullControllerState;
         }
         
         if (input_mode == k_eSwitchInputReportIDs_FullControllerState &&
             ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_NESLeft &&
-            ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_NESRight) {
+            ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_NESRight &&
+            ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_SNES &&
+            ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_N64 &&
+            ctx->m_eControllerType != k_eSwitchDeviceInfoControllerType_SEGA_Genesis) {
             /* Use the right sensor in the combined Joy-Con pair */
             if (!device->parent ||
                 ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
@@ -1190,11 +1314,16 @@ HIDAPI_DriverSwitch_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joysti
         }
 
         /* Set the LED state */
-        if (ctx->m_bHasHomeLED) {
-            SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED,
-                                SDL_HomeLEDHintChanged, ctx);
+        if (HasHomeLED(ctx)) {
+            if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
+                ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
+                SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED,
+                                    SDL_HomeLEDHintChanged, ctx);
+            } else {
+                SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED,
+                                    SDL_HomeLEDHintChanged, ctx);
+            }
         }
-        SetSlotLED(ctx, (joystick->instance_id % 4));
 
         /* Set the serial number */
         {
@@ -1226,10 +1355,22 @@ HIDAPI_DriverSwitch_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joysti
                             SDL_GameControllerButtonReportingHintChanged, ctx);
     }
 
+    /* Initialize player index (needed for setting LEDs) */
+    ctx->m_nPlayerIndex = SDL_JoystickGetPlayerIndex(joystick);
+    ctx->m_bPlayerLights = SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED, SDL_TRUE);
+    UpdateSlotLED(ctx);
+
+    SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED,
+                        SDL_PlayerLEDHintChanged, ctx);
+
     /* Initialize the joystick capabilities */
     joystick->nbuttons = 16;
     joystick->naxes = SDL_CONTROLLER_AXIS_MAX;
-    joystick->epowerlevel = SDL_JOYSTICK_POWER_WIRED;
+    joystick->epowerlevel = ctx->m_bUsingBluetooth ? SDL_JOYSTICK_POWER_UNKNOWN : SDL_JOYSTICK_POWER_WIRED;
+
+    /* Set up for input */
+    ctx->m_bSyncWrite = SDL_FALSE;
+    ctx->m_unLastIMUReset = ctx->m_unLastInput = SDL_GetTicks();
 
     return SDL_TRUE;
 
@@ -1619,6 +1760,22 @@ static void SendSensorUpdate(SDL_Joystick *joystick, SDL_DriverSwitch_Context *c
         data[1] = -data[1];
     }
 
+    if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft &&
+        !ctx->device->parent) {
+        /* Mini-gamepad mode, swap some axes around */
+        float tmp = data[2];
+        data[2] = -data[0];
+        data[0] = tmp;
+    }
+
+    if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight &&
+        !ctx->device->parent) {
+        /* Mini-gamepad mode, swap some axes around */
+        float tmp = data[2];
+        data[2] = data[0];
+        data[0] = -tmp;
+    }
+
     SDL_PrivateJoystickSensor(joystick, type, data, 3);
 }
 
@@ -1833,13 +1990,43 @@ static void HandleFullControllerState(SDL_Joystick *joystick, SDL_DriverSwitch_C
     }
 
     if (ctx->m_bReportSensors) {
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[2].sGyroX);
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[1].sGyroX);
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[0].sGyroX);
+        SDL_bool bHasSensorData = (packet->imuState[0].sAccelZ != 0 ||
+                                   packet->imuState[0].sAccelY != 0 ||
+                                   packet->imuState[0].sAccelX != 0);
+        if (bHasSensorData) {
+            ctx->m_bHasSensorData = SDL_TRUE;
 
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[2].sAccelX);
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[1].sAccelX);
-        SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[0].sAccelX);
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[2].sGyroX);
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[1].sGyroX);
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_GYRO, &packet->imuState[0].sGyroX);
+
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[2].sAccelX);
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[1].sAccelX);
+            SendSensorUpdate(joystick, ctx, SDL_SENSOR_ACCEL, &packet->imuState[0].sAccelX);
+
+        } else if (ctx->m_bHasSensorData) {
+            /* Uh oh, someone turned off the IMU? */
+            const Uint32 IMU_RESET_DELAY_MS = 3000;
+            Uint32 now = SDL_GetTicks();
+
+            if (SDL_TICKS_PASSED(now, ctx->m_unLastIMUReset + IMU_RESET_DELAY_MS)) {
+                SDL_HIDAPI_Device *device = ctx->device;
+
+                if (device->updating) {
+                    SDL_UnlockMutex(device->dev_lock);
+                }
+
+                SetIMUEnabled(ctx, SDL_TRUE);
+
+                if (device->updating) {
+                    SDL_LockMutex(device->dev_lock);
+                }
+                ctx->m_unLastIMUReset = now;
+            }
+
+        } else {
+            /* We have never gotten IMU data, probably not supported on this device */
+        }
     }
 
     ctx->m_lastFullState = *packet;
@@ -1872,23 +2059,29 @@ HIDAPI_DriverSwitch_UpdateDevice(SDL_HIDAPI_Device *device)
             switch (ctx->m_rgucReadBuffer[0]) {
             case k_eSwitchInputReportIDs_SimpleControllerState:
                 HandleSimpleControllerState(joystick, ctx, (SwitchSimpleStatePacket_t *)&ctx->m_rgucReadBuffer[1]);
-                ctx->m_unLastInput = now;
                 break;
             case k_eSwitchInputReportIDs_FullControllerState:
                 HandleFullControllerState(joystick, ctx, (SwitchStatePacket_t *)&ctx->m_rgucReadBuffer[1]);
-                ctx->m_unLastInput = now;
                 break;
             default:
                 break;
             }
         }
+        ctx->m_unLastInput = now;
     }
 
-    if (!ctx->m_bInputOnly && !ctx->m_bUsingBluetooth) {
+    if (!ctx->m_bInputOnly && !ctx->m_bUsingBluetooth &&
+        ctx->device->product_id != USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
         const Uint32 INPUT_WAIT_TIMEOUT_MS = 100;
         if (SDL_TICKS_PASSED(now, ctx->m_unLastInput + INPUT_WAIT_TIMEOUT_MS)) {
             /* Steam may have put the controller back into non-reporting mode */
             WriteProprietary(ctx, k_eSwitchProprietaryCommandIDs_ForceUSB, NULL, 0, SDL_FALSE);
+        }
+    } else if (ctx->m_bUsingBluetooth) {
+        const Uint32 INPUT_WAIT_TIMEOUT_MS = 3000;
+        if (SDL_TICKS_PASSED(now, ctx->m_unLastInput + INPUT_WAIT_TIMEOUT_MS)) {
+            /* Bluetooth may have disconnected, try reopening the controller */
+            size = -1;
         }
     }
 
@@ -1922,8 +2115,17 @@ HIDAPI_DriverSwitch_CloseJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joyst
     SDL_DelHintCallback(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS,
                         SDL_GameControllerButtonReportingHintChanged, ctx);
 
-    SDL_DelHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED,
-                        SDL_HomeLEDHintChanged, ctx);
+    if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
+        ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
+        SDL_DelHintCallback(SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED,
+                            SDL_HomeLEDHintChanged, ctx);
+    } else {
+        SDL_DelHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED,
+                            SDL_HomeLEDHintChanged, ctx);
+    }
+
+    SDL_DelHintCallback(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED,
+                        SDL_PlayerLEDHintChanged, ctx);
 
     SDL_LockMutex(device->dev_lock);
     {
@@ -1940,6 +2142,50 @@ static void
 HIDAPI_DriverSwitch_FreeDevice(SDL_HIDAPI_Device *device)
 {
 }
+
+SDL_HIDAPI_DeviceDriver SDL_HIDAPI_DriverNintendoClassic =
+{
+    SDL_HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC,
+    SDL_TRUE,
+    SDL_TRUE,
+    HIDAPI_DriverNintendoClassic_IsSupportedDevice,
+    HIDAPI_DriverSwitch_GetDeviceName,
+    HIDAPI_DriverSwitch_InitDevice,
+    HIDAPI_DriverSwitch_GetDevicePlayerIndex,
+    HIDAPI_DriverSwitch_SetDevicePlayerIndex,
+    HIDAPI_DriverSwitch_UpdateDevice,
+    HIDAPI_DriverSwitch_OpenJoystick,
+    HIDAPI_DriverSwitch_RumbleJoystick,
+    HIDAPI_DriverSwitch_RumbleJoystickTriggers,
+    HIDAPI_DriverSwitch_GetJoystickCapabilities,
+    HIDAPI_DriverSwitch_SetJoystickLED,
+    HIDAPI_DriverSwitch_SendJoystickEffect,
+    HIDAPI_DriverSwitch_SetJoystickSensorsEnabled,
+    HIDAPI_DriverSwitch_CloseJoystick,
+    HIDAPI_DriverSwitch_FreeDevice,
+};
+
+SDL_HIDAPI_DeviceDriver SDL_HIDAPI_DriverJoyCons =
+{
+    SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS,
+    SDL_TRUE,
+    SDL_TRUE,
+    HIDAPI_DriverJoyCons_IsSupportedDevice,
+    HIDAPI_DriverSwitch_GetDeviceName,
+    HIDAPI_DriverSwitch_InitDevice,
+    HIDAPI_DriverSwitch_GetDevicePlayerIndex,
+    HIDAPI_DriverSwitch_SetDevicePlayerIndex,
+    HIDAPI_DriverSwitch_UpdateDevice,
+    HIDAPI_DriverSwitch_OpenJoystick,
+    HIDAPI_DriverSwitch_RumbleJoystick,
+    HIDAPI_DriverSwitch_RumbleJoystickTriggers,
+    HIDAPI_DriverSwitch_GetJoystickCapabilities,
+    HIDAPI_DriverSwitch_SetJoystickLED,
+    HIDAPI_DriverSwitch_SendJoystickEffect,
+    HIDAPI_DriverSwitch_SetJoystickSensorsEnabled,
+    HIDAPI_DriverSwitch_CloseJoystick,
+    HIDAPI_DriverSwitch_FreeDevice,
+};
 
 SDL_HIDAPI_DeviceDriver SDL_HIDAPI_DriverSwitch =
 {

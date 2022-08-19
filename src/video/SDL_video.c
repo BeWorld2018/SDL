@@ -91,6 +91,9 @@ static VideoBootStrap *bootstrap[] = {
 #if SDL_VIDEO_DRIVER_ANDROID
     &Android_bootstrap,
 #endif
+#if SDL_VIDEO_DRIVER_PS2
+    &PS2_bootstrap,
+#endif
 #if SDL_VIDEO_DRIVER_PSP
     &PSP_bootstrap,
 #endif
@@ -130,6 +133,9 @@ static VideoBootStrap *bootstrap[] = {
 #endif
 #if SDL_VIDEO_DRIVER_DUMMY
     &DUMMY_bootstrap,
+#if SDL_INPUT_LINUXEV
+    &DUMMY_evdev_bootstrap,
+#endif
 #endif
     NULL
 };
@@ -163,6 +169,18 @@ extern SDL_bool Cocoa_IsWindowInFullscreenSpace(SDL_Window * window);
 extern SDL_bool Cocoa_SetWindowFullscreenSpace(SDL_Window * window, SDL_bool state);
 #endif
 
+/* Convenience functions for reading driver flags */
+static SDL_bool
+DisableDisplayModeSwitching(_THIS)
+{
+    return !!(_this->quirk_flags & VIDEO_DEVICE_QUIRK_DISABLE_DISPLAY_MODE_SWITCHING);
+}
+
+static SDL_bool
+DisableUnsetFullscreenOnMinimize(_THIS)
+{
+    return !!(_this->quirk_flags & VIDEO_DEVICE_QUIRK_DISABLE_UNSET_FULLSCREEN_ON_MINIMIZE);
+}
 
 /* Support for framebuffer emulation using an accelerated renderer */
 
@@ -1071,6 +1089,82 @@ SDL_GetDisplay(int displayIndex)
     return &_this->displays[displayIndex];
 }
 
+/**
+ * If x, y are outside of rect, snaps them to the closest point inside rect
+ * (between rect->x, rect->y, inclusive, and rect->x + w, rect->y + h, exclusive)
+ */
+static void
+SDL_GetClosestPointOnRect(const SDL_Rect *rect, SDL_Point *point)
+{
+    const int right = rect->x + rect->w - 1;
+    const int bottom = rect->y + rect->h - 1;
+
+    if (point->x < rect->x) {
+        point->x = rect->x;
+    } else if (point->x > right) {
+        point->x = right;
+    }
+
+    if (point->y < rect->y) {
+        point->y = rect->y;
+    } else if (point->y > bottom) {
+        point->y = bottom;
+    }
+}
+
+static int
+GetRectDisplayIndex(int x, int y, int w, int h)
+{
+    int i, dist;
+    int closest = -1;
+    int closest_dist = 0x7FFFFFFF;
+    SDL_Point closest_point_on_display;
+    SDL_Point delta;
+    SDL_Point center;
+    center.x = x + w / 2;
+    center.y = y + h / 2;
+
+    for (i = 0; i < _this->num_displays; ++i) {
+        SDL_Rect display_rect;
+        SDL_GetDisplayBounds(i, &display_rect);
+
+        /* Check if the window is fully enclosed */
+        if (SDL_EnclosePoints(&center, 1, &display_rect, NULL)) {
+            return i;
+        }
+
+        /* Snap window center to the display rect */
+        closest_point_on_display = center;
+        SDL_GetClosestPointOnRect(&display_rect, &closest_point_on_display);
+
+        delta.x = center.x - closest_point_on_display.x;
+        delta.y = center.y - closest_point_on_display.y;
+        dist = (delta.x*delta.x + delta.y*delta.y);
+        if (dist < closest_dist) {
+            closest = i;
+            closest_dist = dist;
+        }
+    }
+
+    if (closest < 0) {
+        SDL_SetError("Couldn't find any displays");
+    }
+
+    return closest;
+}
+
+int
+SDL_GetPointDisplayIndex(const SDL_Point *point)
+{
+    return GetRectDisplayIndex(point->x, point->y, 1, 1);
+}
+
+int
+SDL_GetRectDisplayIndex(const SDL_Rect *rect)
+{
+    return GetRectDisplayIndex(rect->x, rect->y, rect->w, rect->h);
+}
+
 int
 SDL_GetWindowDisplayIndex(SDL_Window * window)
 {
@@ -1088,13 +1182,7 @@ SDL_GetWindowDisplayIndex(SDL_Window * window)
     if (displayIndex >= 0) {
         return displayIndex;
     } else {
-        int i, dist;
-        int closest = -1;
-        int closest_dist = 0x7FFFFFFF;
-        SDL_Point center;
-        SDL_Point delta;
-        SDL_Rect rect;
-
+        int i;
         if (SDL_WINDOWPOS_ISUNDEFINED(window->x) ||
             SDL_WINDOWPOS_ISCENTERED(window->x)) {
             displayIndex = (window->x & 0xFFFF);
@@ -1112,7 +1200,7 @@ SDL_GetWindowDisplayIndex(SDL_Window * window)
             return displayIndex;
         }
 
-        /* Find the display containing the window */
+        /* Find the display containing the window if fullscreen */
         for (i = 0; i < _this->num_displays; ++i) {
             SDL_VideoDisplay *display = &_this->displays[i];
 
@@ -1120,26 +1208,8 @@ SDL_GetWindowDisplayIndex(SDL_Window * window)
                 return i;
             }
         }
-        center.x = window->x + window->w / 2;
-        center.y = window->y + window->h / 2;
-        for (i = 0; i < _this->num_displays; ++i) {
-            SDL_GetDisplayBounds(i, &rect);
-            if (SDL_EnclosePoints(&center, 1, &rect, NULL)) {
-                return i;
-            }
 
-            delta.x = center.x - (rect.x + rect.w / 2);
-            delta.y = center.y - (rect.y + rect.h / 2);
-            dist = (delta.x*delta.x + delta.y*delta.y);
-            if (dist < closest_dist) {
-                closest = i;
-                closest_dist = dist;
-            }
-        }
-        if (closest < 0) {
-            SDL_SetError("Couldn't find any displays");
-        }
-        return closest;
+        return GetRectDisplayIndex(window->x, window->y, window->w, window->h);
     }
 }
 
@@ -1370,7 +1440,7 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
                 }
 
                 /* Don't try to change the display mode if the driver doesn't want it. */
-                if (_this->disable_display_mode_switching == SDL_FALSE) {
+                if (DisableDisplayModeSwitching(_this) == SDL_FALSE) {
                     /* only do the mode change if we want exclusive fullscreen */
                     if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
                         if (SDL_SetDisplayModeForDisplay(display, &fullscreen_mode) < 0) {
@@ -2475,7 +2545,9 @@ SDL_MinimizeWindow(SDL_Window * window)
         return;
     }
 
-    SDL_UpdateFullscreenMode(window, SDL_FALSE);
+    if (!DisableUnsetFullscreenOnMinimize(_this)) {
+        SDL_UpdateFullscreenMode(window, SDL_FALSE);
+    }
 
     if (_this->MinimizeWindow) {
         _this->MinimizeWindow(_this, window);
@@ -3023,7 +3095,9 @@ SDL_OnWindowMoved(SDL_Window * window)
 void
 SDL_OnWindowMinimized(SDL_Window * window)
 {
-    SDL_UpdateFullscreenMode(window, SDL_FALSE);
+    if (!DisableUnsetFullscreenOnMinimize(_this)) {
+        SDL_UpdateFullscreenMode(window, SDL_FALSE);
+    }
 }
 
 void
@@ -3107,7 +3181,7 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
     hint = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
     if (!hint || !*hint || SDL_strcasecmp(hint, "auto") == 0) {
         if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP ||
-            _this->disable_display_mode_switching == SDL_TRUE) {
+            DisableDisplayModeSwitching(_this) == SDL_TRUE) {
             return SDL_FALSE;
         } else {
             return SDL_TRUE;
@@ -3530,6 +3604,7 @@ SDL_GL_ResetAttributes()
     _this->gl_config.stereo = 0;
     _this->gl_config.multisamplebuffers = 0;
     _this->gl_config.multisamplesamples = 0;
+    _this->gl_config.floatbuffers = 0;
     _this->gl_config.retained_backing = 1;
     _this->gl_config.accelerated = -1;  /* accelerated or not, both are fine */
 
@@ -3617,6 +3692,9 @@ SDL_GL_SetAttribute(SDL_GLattr attr, int value)
         break;
     case SDL_GL_MULTISAMPLESAMPLES:
         _this->gl_config.multisamplesamples = value;
+        break;
+    case SDL_GL_FLOATBUFFERS:
+        _this->gl_config.floatbuffers = value;
         break;
     case SDL_GL_ACCELERATED_VISUAL:
         _this->gl_config.accelerated = value;

@@ -31,8 +31,10 @@
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/CGLRenderers.h>
 
+#include "SDL_hints.h"
 #include "SDL_loadso.h"
 #include "SDL_opengl.h"
+#include "../../SDL_hints_c.h"
 
 #define DEFAULT_OPENGL  "/System/Library/Frameworks/OpenGL.framework/Libraries/libGL.dylib"
 
@@ -41,6 +43,14 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
+
+static SDL_bool SDL_opengl_async_dispatch = SDL_FALSE;
+
+static void SDLCALL
+SDL_OpenGLAsyncDispatchChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
+{
+    SDL_opengl_async_dispatch = SDL_GetStringBoolean(hint, SDL_FALSE);
+}
 
 @implementation SDLOpenGLContext : NSOpenGLContext
 
@@ -52,6 +62,8 @@
         SDL_AtomicSet(&self->dirty, 0);
         self->window = NULL;
     }
+
+    SDL_AddHintCallback(SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, SDL_OpenGLAsyncDispatchChanged, NULL);
     return self;
 }
 
@@ -135,8 +147,17 @@
     if ([NSThread isMainThread]) {
         [super update];
     } else {
-        dispatch_async(dispatch_get_main_queue(), ^{ [super update]; });
+        if (SDL_opengl_async_dispatch) {
+            dispatch_async(dispatch_get_main_queue(), ^{ [super update]; });
+        } else {
+            dispatch_sync(dispatch_get_main_queue(), ^{ [super update]; });
+        }
     }
+}
+
+- (void)dealloc
+{
+    SDL_DelHintCallback(SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, SDL_OpenGLAsyncDispatchChanged, NULL);
 }
 
 @end
@@ -260,6 +281,9 @@ Cocoa_GL_CreateContext(_THIS, SDL_Window * window)
         attr[i++] = NSOpenGLPFASamples;
         attr[i++] = _this->gl_config.multisamplesamples;
         attr[i++] = NSOpenGLPFANoRecovery;
+    }
+    if (_this->gl_config.floatbuffers) {
+        attr[i++] = NSOpenGLPFAColorFloat;
     }
 
     if (_this->gl_config.accelerated >= 0) {

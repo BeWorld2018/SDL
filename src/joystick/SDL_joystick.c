@@ -27,6 +27,7 @@
 #include "SDL_events.h"
 #include "SDL_sysjoystick.h"
 #include "SDL_hints.h"
+#include "../SDL_hints_c.h"
 
 #if !SDL_EVENTS_DISABLED
 #include "../events/SDL_events_c.h"
@@ -188,7 +189,7 @@ SDL_SetJoystickIDForPlayerIndex(int player_index, SDL_JoystickID instance_id)
         SDL_joystick_players = new_players;
         SDL_memset(&SDL_joystick_players[SDL_joystick_player_count], 0xFF, (player_index - SDL_joystick_player_count + 1) * sizeof(SDL_joystick_players[0]));
         SDL_joystick_player_count = player_index + 1;
-    } else if (SDL_joystick_players[player_index] == instance_id) {
+    } else if (player_index >= 0 && SDL_joystick_players[player_index] == instance_id) {
         /* Joystick is already assigned the requested player index */
         return SDL_TRUE;
     }
@@ -219,7 +220,7 @@ SDL_SetJoystickIDForPlayerIndex(int player_index, SDL_JoystickID instance_id)
 static void SDLCALL
 SDL_JoystickAllowBackgroundEventsChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
 {
-    if (hint && *hint == '1') {
+    if (SDL_GetStringBoolean(hint, SDL_FALSE)) {
         SDL_joystick_allows_background_events = SDL_TRUE;
     } else {
         SDL_joystick_allows_background_events = SDL_FALSE;
@@ -1338,13 +1339,13 @@ void SDL_PrivateJoystickAdded(SDL_JoystickID device_instance)
  * to have the right value for which, because the number of controllers in
  * the system is now one less.
  */
-static void UpdateEventsForDeviceRemoval(int device_index)
+static void UpdateEventsForDeviceRemoval(int device_index, Uint32 type)
 {
     int i, num_events;
     SDL_Event *events;
     SDL_bool isstack;
 
-    num_events = SDL_PeepEvents(NULL, 0, SDL_PEEKEVENT, SDL_JOYDEVICEADDED, SDL_JOYDEVICEADDED);
+    num_events = SDL_PeepEvents(NULL, 0, SDL_PEEKEVENT, type, type);
     if (num_events <= 0) {
         return;
     }
@@ -1354,20 +1355,38 @@ static void UpdateEventsForDeviceRemoval(int device_index)
         return;
     }
 
-    num_events = SDL_PeepEvents(events, num_events, SDL_GETEVENT, SDL_JOYDEVICEADDED, SDL_JOYDEVICEADDED);
+    num_events = SDL_PeepEvents(events, num_events, SDL_GETEVENT, type, type);
     for (i = 0; i < num_events; ++i) {
-        if (events[i].cdevice.which < device_index) {
-            /* No change for index values lower than the removed device */
+        Sint32 which = -1;
+        switch (type) {
+        case SDL_JOYDEVICEADDED:
+            which = events[i].jdevice.which;
+            break;
+        case SDL_CONTROLLERDEVICEADDED:
+            which = events[i].cdevice.which;
+            break;
+        default:
+            break;
         }
-        else if (events[i].cdevice.which == device_index) {
+        if (which < device_index) {
+            /* No change for index values lower than the removed device */
+        } else if (which == device_index) {
             /* Drop this event entirely */
             SDL_memmove(&events[i], &events[i + 1], sizeof(*events) * (num_events - (i + 1)));
             --num_events;
             --i;
-        }
-        else {
+        } else {
             /* Fix up the device index if greater than the removed device */
-            --events[i].cdevice.which;
+            switch (type) {
+            case SDL_JOYDEVICEADDED:
+                --events[i].jdevice.which;
+                break;
+            case SDL_CONTROLLERDEVICEADDED:
+                --events[i].cdevice.which;
+                break;
+            default:
+                break;
+            }
         }
     }
     SDL_PeepEvents(events, num_events, SDL_ADDEVENT, 0, 0);
@@ -1434,7 +1453,8 @@ void SDL_PrivateJoystickRemoved(SDL_JoystickID device_instance)
         SDL_PushEvent(&event);
     }
 
-    UpdateEventsForDeviceRemoval(device_index);
+    UpdateEventsForDeviceRemoval(device_index, SDL_JOYDEVICEADDED);
+    UpdateEventsForDeviceRemoval(device_index, SDL_CONTROLLERDEVICEADDED);
 #endif /* !SDL_EVENTS_DISABLED */
 
     SDL_LockJoysticks();
@@ -1730,7 +1750,8 @@ SDL_JoystickEventState(int state)
 #else
     const Uint32 event_list[] = {
         SDL_JOYAXISMOTION, SDL_JOYBALLMOTION, SDL_JOYHATMOTION,
-        SDL_JOYBUTTONDOWN, SDL_JOYBUTTONUP, SDL_JOYDEVICEADDED, SDL_JOYDEVICEREMOVED
+        SDL_JOYBUTTONDOWN, SDL_JOYBUTTONUP, SDL_JOYDEVICEADDED, SDL_JOYDEVICEREMOVED,
+        SDL_JOYBATTERYUPDATED
     };
     unsigned int i;
 
@@ -1819,11 +1840,6 @@ SDL_CreateJoystickName(Uint16 vendor, Uint16 product, const char *vendor_name, c
     const char *custom_name;
     char *name;
     size_t i, len;
-
-    /* Use the given name for the Nintendo Online NES Controllers */
-    if (product_name && SDL_strncmp(product_name, "NES Controller", 14) == 0) {
-        return SDL_strdup(product_name);
-    }
 
     custom_name = GuessControllerName(vendor, product);
     if (custom_name) {
@@ -1964,13 +1980,29 @@ SDL_GetJoystickGameControllerTypeFromVIDPID(Uint16 vendor, Uint16 product, const
     } else if (vendor == USB_VENDOR_GOOGLE && product == USB_PRODUCT_GOOGLE_STADIA_CONTROLLER) {
         type = SDL_CONTROLLER_TYPE_GOOGLE_STADIA;
 
+    } else if (vendor == USB_VENDOR_NINTENDO && product == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_LEFT) {
+        type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT;
+
+    } else if (vendor == USB_VENDOR_NINTENDO && product == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_RIGHT) {
+        if (name && SDL_strstr(name, "NES Controller") != NULL) {
+            /* We don't have a type for the Nintendo Online NES Controller */
+            type = SDL_CONTROLLER_TYPE_UNKNOWN;
+        } else {
+            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT;
+        }
+
+    } else if (vendor == USB_VENDOR_NINTENDO && product == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP) {
+        if (name && SDL_strstr(name, "(L)") != NULL) {
+            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT;
+        } else {
+            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT;
+        }
+
+    } else if (vendor == USB_VENDOR_NINTENDO && product == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_PAIR) {
+        type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR;
+
     } else if (vendor == USB_VENDOR_NVIDIA && product == USB_PRODUCT_NVIDIA_SHIELD_CONTROLLER) {
         type = SDL_CONTROLLER_TYPE_NVIDIA_SHIELD;
-
-    } else if (vendor == USB_VENDOR_NINTENDO &&
-               (product == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP ||
-                product == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_PAIR)) {
-            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
 
     } else {
         switch (GuessControllerType(vendor, product)) {
@@ -2006,10 +2038,6 @@ SDL_GetJoystickGameControllerTypeFromVIDPID(Uint16 vendor, Uint16 product, const
             } else {
                 type = SDL_CONTROLLER_TYPE_UNKNOWN;
             }
-            break;
-        case k_eControllerType_SwitchJoyConLeft:
-        case k_eControllerType_SwitchJoyConRight:
-            type = SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
             break;
         default:
             break;
@@ -2126,9 +2154,7 @@ SDL_IsJoystickNintendoSwitchPro(Uint16 vendor_id, Uint16 product_id)
 {
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return (eType == k_eControllerType_SwitchProController ||
-            eType == k_eControllerType_SwitchInputOnlyController ||
-            eType == k_eControllerType_SwitchJoyConPair ||
-            (vendor_id == USB_VENDOR_NINTENDO && product_id == USB_PRODUCT_NINTENDO_SWITCH_JOY_CON_GRIP));
+            eType == k_eControllerType_SwitchInputOnlyController);
 }
 
 SDL_bool
@@ -2158,6 +2184,18 @@ SDL_IsJoystickNintendoSwitchJoyConRight(Uint16 vendor_id, Uint16 product_id)
 {
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return (eType == k_eControllerType_SwitchJoyConRight);
+}
+
+SDL_bool
+SDL_IsJoystickNintendoSwitchJoyConGrip(Uint16 vendor_id, Uint16 product_id)
+{
+    return (vendor_id == USB_VENDOR_NINTENDO && product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_GRIP);
+}
+
+SDL_bool
+SDL_IsJoystickNintendoSwitchJoyConPair(Uint16 vendor_id, Uint16 product_id)
+{
+    return (vendor_id == USB_VENDOR_NINTENDO && product_id == USB_PRODUCT_NINTENDO_SWITCH_JOYCON_PAIR);
 }
 
 SDL_bool

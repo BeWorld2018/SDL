@@ -358,16 +358,20 @@ static int
 X11_CaptureMouse(SDL_Window *window)
 {
     Display *display = GetDisplay();
+    SDL_Window *mouse_focus = SDL_GetMouseFocus();
 
     if (window) {
         SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
         const unsigned int mask = ButtonPressMask | ButtonReleaseMask | PointerMotionMask | FocusChangeMask;
+        Window confined = (data->mouse_grabbed ? data->xwindow : None);
         const int rc = X11_XGrabPointer(display, data->xwindow, False,
                                         mask, GrabModeAsync, GrabModeAsync,
-                                        None, None, CurrentTime);
+                                        confined, None, CurrentTime);
         if (rc != GrabSuccess) {
             return SDL_SetError("X server refused mouse capture");
         }
+    } else if (mouse_focus) {
+        SDL_UpdateWindowGrab(mouse_focus);
     } else {
         X11_XUngrabPointer(display, CurrentTime);
     }
@@ -452,6 +456,16 @@ X11_InitMouse(_THIS)
 void
 X11_QuitMouse(_THIS)
 {
+    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_XInput2DeviceInfo *i;
+    SDL_XInput2DeviceInfo *next;
+
+    for (i = data->mouse_device_info; i != NULL; i = next) {
+        next = i->next;
+        SDL_free(i);
+    }
+    data->mouse_device_info = NULL;
+
     X11_DestroyEmptyCursor();
 }
 
