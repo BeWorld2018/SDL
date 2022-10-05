@@ -48,6 +48,7 @@
 #include <proto/graphics.h>
 #include <proto/intuition.h>
 #include <proto/wb.h>
+#include <proto/dos.h>
 
 struct NewMenu SDL_NewMenu[] =
 {
