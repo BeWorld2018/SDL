@@ -35,7 +35,7 @@
 #define SIZEOF_VOIDP sizeof(IPTR)
 
 #define HAVE_GCC_ATOMICS 1
-#define HAVE_GCC_SYNC_LOCK_TEST_AND_SET 1
+/* #undef HAVE_GCC_SYNC_LOCK_TEST_AND_SET */
 
 //#define HAVE_STDDEF_H   1
 
@@ -49,7 +49,7 @@
 #define HAVE_LIMITS_H 1
 #define HAVE_MALLOC_H 1
 #define HAVE_MATH_H 1
-/* #undef HAVE_MEMORY_H */
+#define HAVE_MEMORY_H 1
 #if !defined(BUILD_SDL2_LIBRARY)
 #define HAVE_SIGNAL_H 1
 #endif
@@ -60,7 +60,7 @@
 #define HAVE_STRINGS_H 1
 #define HAVE_STRING_H 1
 #define HAVE_SYS_TYPES_H 1
-#define HAVE_WCHAR_H
+#define HAVE_WCHAR_H 1
 /* #undef HAVE_PTHREAD_NP_H */
 /* #undef HAVE_LIBUNWIND_H */
 
@@ -70,7 +70,12 @@
 #define HAVE_REALLOC    1
 #define HAVE_FREE   1
 #define HAVE_ALLOCA 1
-
+//#ifndef __WIN32__ /* Don't use C runtime versions of these on Windows */
+//#define HAVE_GETENV 1
+//#define HAVE_SETENV 1
+//#define HAVE_PUTENV 1
+//#define HAVE_UNSETENV 1
+//#endif
 #define HAVE_QSORT  1
 #define HAVE_ABS    1
 #define HAVE_BCOPY  1
@@ -165,32 +170,48 @@
 /* #undef HAVE_SYSCTLBYNAME */
 /* #undef HAVE_CLOCK_GETTIME */
 /* #undef HAVE_GETPAGESIZE */
-/* #undef HAVE_MPROTECT */
+#define HAVE_MPROTECT 1
 #define HAVE_ICONV 1
 /* #undef HAVE_PTHREAD_SETNAME_NP */
 /* #undef HAVE_PTHREAD_SET_NAME_NP */
 /* #undef HAVE_SEM_TIMEDWAIT */
 /* #undef HAVE_GETAUXVAL */
-/* #undef HAVE_POLL */
+/* #undef HAVE_ELF_AUX_INFO */
+// #undef HAVE_POLL 1
+// #undef HAVE__EXIT 1
 
+/* #undef HAVE_O_CLOEXEC */
 #define HAVE_ALTIVEC_H 1
 /* #undef HAVE_DBUS_DBUS_H */
-/* #undef HAVE_FCITX_FRONTEND_H */
+/* #undef HAVE_FCITX */
+/* #undef HAVE_SYS_INOTIFY_H */
+/* #undef HAVE_INOTIFY_INIT */
+/* #undef HAVE_INOTIFY_INIT1 */
+/* #undef HAVE_INOTIFY */
 /* #undef HAVE_IBUS_IBUS_H */
 /* #undef HAVE_IMMINTRIN_H */
-/* #undef HAVE_LIBSAMPLERATE_H */
 /* #undef HAVE_LIBUDEV_H */
+/* #undef HAVE_LIBUSB */
+/* #undef HAVE_LIBSAMPLERATE_H */
+/* #undef HAVE_LIBDECOR_H */
+/* #undef HAVE_LSXINTRIN_H */
+/* #undef HAVE_LASXINTRIN_H */
 
 /* #undef HAVE_DDRAW_H */
 /* #undef HAVE_DINPUT_H */
 /* #undef HAVE_DSOUND_H */
 /* #undef HAVE_DXGI_H */
+/* #undef HAVE_WINDOWS_GAMING_INPUT_H */
 /* #undef HAVE_XINPUT_H */
-/* #undef HAVE_ENDPOINTVOLUME_H */
-/* #undef HAVE_MMDEVICEAPI_H */
-/* #undef HAVE_AUDIOCLIENT_H */
 /* #undef HAVE_XINPUT_GAMEPAD_EX */
 /* #undef HAVE_XINPUT_STATE_EX */
+
+/* #undef HAVE_MMDEVICEAPI_H */
+/* #undef HAVE_AUDIOCLIENT_H */
+/* #undef HAVE_TPCSHRD_H */
+/* #undef HAVE_SENSORSAPI_H */
+/* #undef HAVE_ROAPI_H */
+/* #undef HAVE_SHELLSCALINGAPI_H */
 
 /* SDL internal assertion support */
 /* #undef SDL_DEFAULT_ASSERT_LEVEL */
@@ -261,7 +282,7 @@
 /* #undef SDL_INPUT_LINUXKD */
 /* #undef SDL_INPUT_WSCONS */
 /* #undef SDL_JOYSTICK_HAIKU */
-/* #undef SDL_JOYSTICK_DINPUT */ 
+/* #undef SDL_JOYSTICK_DINPUT */
 /* #undef SDL_JOYSTICK_WGI */
 /* #undef SDL_JOYSTICK_XINPUT */
 /* #undef SDL_JOYSTICK_DUMMY */
@@ -304,6 +325,7 @@
 /* #undef SDL_THREAD_PTHREAD_RECURSIVE_MUTEX */
 /* #undef SDL_THREAD_PTHREAD_RECURSIVE_MUTEX_NP */
 /* #undef SDL_THREAD_WINDOWS */
+/* #undef SDL_THREAD_OS2 */
 #define SDL_THREAD_MORPHOS    1
 
 /* Enable various timer systems */
@@ -311,6 +333,7 @@
 /* #undef SDL_TIMER_DUMMY */
 /* #undef SDL_TIMER_UNIX */
 /* #undef SDL_TIMER_WINDOWS */
+/* #undef SDL_TIMER_OS2 */
 #define SDL_TIMER_MORPHOS 1
 
 /* Enable various video drivers */
