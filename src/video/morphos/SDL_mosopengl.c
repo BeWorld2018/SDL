@@ -73,7 +73,7 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 		}
 	}
 
-	SDL_SetError("Failed to open tinygl.library");
+	SDL_SetError("Failed to open tinygl.library 53.0");
 	return -1;
 }
 
@@ -128,14 +128,14 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 			tgltags[0].ti_Tag = TGL_CONTEXT_WINDOW;
 			tgltags[0].ti_Data = (IPTR)data->win;
 		} else {
-			// window not exist but screen yes
-			
+			// window not exist but you want createContext (example: SDL_WINDOW_HIDDEN)
+			// so use Ambient screen and Context Bitmap	?!		
 			if (vd->WScreen == NULL)
-				MOS_GetScreen(vd->VideoDevice, 0, SDL_TRUE);
+				MOS_GetScreen(vd->VideoDevice, 0, (window->flags & SDL_WINDOW_OPENGL) != 0);
 			
 			D("[%s] new context unless window 0x%08lx - 0x%08lx\n", __FUNCTION__, glcont, vd->WScreen);
-			tgltags[0].ti_Tag = TGL_CONTEXT_SCREEN;
-			tgltags[0].ti_Data = (IPTR)vd->WScreen;
+			tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
+			tgltags[0].ti_Data = (IPTR)vd->WScreen->RastPort.BitMap;
 		}
 
 		success = GLAInitializeContext(glcont, tgltags);
@@ -161,7 +161,8 @@ int
 MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-	*SDL2Base->MyGLContext = __tglContext = context;
+	if (context)
+		*SDL2Base->MyGLContext = __tglContext = context;
 	return 0;
 }
 
@@ -211,10 +212,10 @@ int
 MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	SDL_VideoData *video = _this->driverdata;
 	if (!data->win && data->__tglContext)
 		return -1;
 
+	SDL_VideoData *video = _this->driverdata;
 	if (video->vsyncEnabled) {
 		BOOL displayed = getv(data->win->WScreen, SA_Displayed);
 		if (displayed) {
@@ -237,7 +238,6 @@ MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
 	}
 	if (context) {
 		SDL_Window *sdlwin;
-		Uint32 deletions = 0;
 
 		for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
 
@@ -245,11 +245,9 @@ MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
 
 			if (data->__tglContext == context) {
                 D("[%s] Found TinyGL context 0x%08lx, clearing window binding\n", __FUNCTION__, context);
-
-                GLADestroyContext(context);
+                GLADestroyContext(context);		
 				GLClose(context);
                 data->__tglContext = NULL;
-                deletions++;
 			}
 		}
 	}

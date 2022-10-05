@@ -297,7 +297,7 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 	int use_wb_screen = 0;
 	ULONG openError = 0;
 	
-	D("[%s] Use monitor '%s'\n", __FUNCTION__, data->ScrMonName ? data->ScrMonName : (STRPTR)"Workbench");
+	D("[%s] Use monitor '%s' - Screen %d\n", __FUNCTION__, data->ScrMonName ? data->ScrMonName : (STRPTR)"Workbench", data->CustomScreen);
 
 	if (!fullscreen && data->ScrMonName == NULL) {
 		data->CustomScreen = NULL;

@@ -33,12 +33,6 @@
 #include "../core/android/SDL_android.h"
 #endif
 
-#if defined(__MORPHOS__)
-#include <proto/exec.h>
-#include <proto/dos.h>
-static const char home[] = "PROGDIR:home";
-#endif
-
 #include "SDL_stdinc.h"
 
 #if (defined(__WIN32__) || defined(__WINGDK__)) && (!defined(HAVE_SETENV) || !defined(HAVE_GETENV))
@@ -110,7 +104,7 @@ SDL_setenv(const char *name, const char *value, int overwrite)
     SDL_snprintf(new_variable, len, "%s=%s", name, value);
     return putenv(new_variable);
 }
-#elif __MORPHOS__
+/*#elif __MORPHOS__
 int SDL_setenv(const char *name, const char *value, int overwrite)
 {
 	char dummy[2];
@@ -132,7 +126,7 @@ int SDL_setenv(const char *name, const char *value, int overwrite)
 	}
 
 	return 0;
-}
+}*/
 #else /* roll our own */
 static char **SDL_env = (char **) 0;
 int
@@ -243,14 +237,14 @@ SDL_getenv(const char *name)
     }
     return SDL_envmem;
 }
-#elif __MORPHOS__
+/*#elif __MORPHOS__
 char *SDL_getenv(const char *name)
 {
 	char *value = NULL;
 	char dummy[32];
-	size_t len;
+	size_t len;*/
 	/* "portability" hack++ */
-	if (strcmp(name, "HOME") == 0)
+/*	if (strcmp(name, "HOME") == 0)
 	{	
 		BPTR MyLock = Lock(home, ACCESS_READ);
 
@@ -297,7 +291,7 @@ char *SDL_getenv(const char *name)
 		}
 	}
 	return value;
-}
+}*/
 #else
 char *
 SDL_getenv(const char *name)

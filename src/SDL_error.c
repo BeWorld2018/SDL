@@ -66,8 +66,35 @@ SDL_SetError(SDL_PRINTF_FORMAT_STRING const char *fmt, ...)
 int
 SDL_VSetError(const char *fmt, va_list ap)
 {
-	D("[%s] %s\n", __FUNCTION__, fmt);
-	return SDL_SetError(fmt);
+	
+	/* Ignore call if invalid format pointer was passed */
+    if (fmt != NULL) {
+
+		va_list ap_copy;
+        int result;
+        SDL_error *error = SDL_GetErrBuf();
+
+        error->error = 1;  /* mark error as valid */
+        va_copy(ap_copy, ap);
+        result = SDL_vsnprintf(error->str, error->len, fmt, ap_copy);
+        va_end(ap_copy);
+        if (result >= 0 && (size_t)result >= error->len && error->realloc_func) {
+            size_t len = (size_t)result + 1;
+            char *str = (char *)error->realloc_func(error->str, len);
+            if (str) {
+                error->str = str;
+                error->len = len;
+                SDL_vsnprintf(error->str, error->len, fmt, ap);
+            }
+        }
+		
+        if (SDL_LogGetPriority(SDL_LOG_CATEGORY_ERROR) <= SDL_LOG_PRIORITY_DEBUG) {
+            /* If we are in debug mode, print out the error message */
+            SDL_LogDebug(SDL_LOG_CATEGORY_ERROR, "%s", error->str);
+        }
+    }
+
+    return -1;
 }
 #endif
 

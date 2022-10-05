@@ -53,6 +53,7 @@ SOURCES = \
 	src/timer/*.c \
 	src/timer/morphos/*.c \
 	src/video/*.c \
+	src/video/dummy/*.c \
 	src/video/morphos/*.c \
 	src/video/yuv2rgb/*.c \
 	src/misc/*.c \

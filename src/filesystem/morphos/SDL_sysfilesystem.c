@@ -73,23 +73,27 @@ SDL_GetBasePath(void)
 static char *
 SDL_RemoveInvalidChars(const char *src)
 {
-	char *s = SDL_strdup(src);
-	char *p = s;
-
-	if (s)
+	if (src)
 	{
-		char c;
+		char *s = SDL_strdup(src);
+		char *p = s;
 
-		while ((c = *p))
+		if (s)
 		{
-			if (c == '/' || c == ':')
-				*p = ' ';
+			char c;
 
-			p++;
+			while ((c = *p))
+			{
+				if (c == '/' || c == ':')
+					*p = ' ';
+
+				p++;
+			}
 		}
-	}
 
-	return s;
+		return s;
+	} else
+		return NULL;
 }
 
 char *
@@ -97,41 +101,43 @@ SDL_GetPrefPath(const char *org, const char *app)
 {
 	char *p1 = SDL_RemoveInvalidChars(org);
 	char *path = NULL;
+	char *p2 = SDL_RemoveInvalidChars(app);
 
-	if (p1)
+	int len = sizeof("ENVARC:");
+	if (p1) len += SDL_strlen(p1) + 1;
+	if (p2) len += SDL_strlen(p2) + 1;
+	char *tmp = SDL_malloc(len);
+	
+	if (tmp)
 	{
-		char *p2 = SDL_RemoveInvalidChars(app);
+		BPTR lock;
 
+		strcpy(tmp, "ENVARC:");
+		if (p1) {
+			AddPart(tmp, p1, len);
+			if ((lock = CreateDir(tmp)))
+				UnLock(lock);
+
+		}
 		if (p2)
 		{
-			int len = sizeof("ENVARC:") + strlen(p1) + strlen(p2) + 8;
-			char *tmp = SDL_malloc(len);
-
-			if (tmp)
-			{
-				BPTR lock;
-
-				strcpy(tmp, "ENVARC:");
-				AddPart(tmp, p1, len);
-
-				if ((lock = CreateDir(tmp)))
-					UnLock(lock);
-
-				AddPart(tmp, p2, len);
-
-				if ((lock = CreateDir(tmp)))
-					UnLock(lock);
-
-				path = MOS_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
-
-				SDL_free(tmp);
-			}
-
-			SDL_free(p2);
+			AddPart(tmp, p2, len);
+			if ((lock = CreateDir(tmp)))
+				UnLock(lock);
 		}
-
-		SDL_free(p1);
+		
+		path = MOS_ConvertText(tmp, MIBENUM_SYSTEM, MIBENUM_UTF_8);
+		
+		SDL_free(tmp);
+		
+	} else {
+		
+		SDL_OutOfMemory();
+		return NULL;
 	}
+
+	if (p2) SDL_free(p2);
+	if (p1) SDL_free(p1);
 
 	return path;
 }
