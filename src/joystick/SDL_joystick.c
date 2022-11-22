@@ -1008,7 +1008,7 @@ SDL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 h
         result = 0;
     } else {
 #ifdef __MORPHOS__
-		    result = joystick->driver->Rumble(joystick, low_frequency_rumble, high_frequency_rumble, duration_ms);
+		result = joystick->driver->Rumble(joystick, low_frequency_rumble, high_frequency_rumble, duration_ms);
 #else
         result = joystick->driver->Rumble(joystick, low_frequency_rumble, high_frequency_rumble);
 #endif
@@ -1757,7 +1757,11 @@ SDL_JoystickUpdate(void)
 
         if (joystick->rumble_resend &&
             SDL_TICKS_PASSED(now, joystick->rumble_resend)) {
-            joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble);
+#ifdef __MORPHOS__
+			joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble, 100/*duration_ms*/);
+#else
+        	joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble);
+#endif 
             joystick->rumble_resend = now + SDL_RUMBLE_RESEND_MS;
             if (joystick->rumble_resend == 0) {
                 joystick->rumble_resend = 1;

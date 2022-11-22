@@ -36,6 +36,9 @@ static NativeWindowFactory *factories[] = {
 #ifdef TEST_NATIVE_OS2
     &OS2WindowFactory,
 #endif
+#ifdef TEST_NATIVE_MORPHOS
+    &MorphOSWindowFactory,
+#endif
     NULL
 };
 static NativeWindowFactory *factory = NULL;
@@ -179,8 +182,15 @@ main(int argc, char *argv[])
     }
 
     /* Main render loop */
+#ifdef __MORPHOS__
+	done = 2000;
+	while (done) {
+		done--;
+		SDL_Delay(5);
+#else
     done = 0;
     while (!done) {
+#endif
         /* Check for events */
         while (SDL_PollEvent(&event)) {
             switch (event.type) {

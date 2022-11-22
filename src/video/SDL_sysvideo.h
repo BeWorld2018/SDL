@@ -476,7 +476,9 @@ extern VideoBootStrap OFFSCREEN_bootstrap;
 extern VideoBootStrap NGAGE_bootstrap;
 extern VideoBootStrap OS2DIVE_bootstrap;
 extern VideoBootStrap OS2VMAN_bootstrap;
+#ifdef __MORPHOS__
 extern VideoBootStrap MORPHOS_bootstrap;
+#endif
 
 /* Use SDL_OnVideoThread() sparingly, to avoid regressions in use cases that currently happen to work */
 extern SDL_bool SDL_OnVideoThread(void);

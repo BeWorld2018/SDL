@@ -32,6 +32,7 @@
 SDL_WindowShaper*
 MOS_CreateShaper(SDL_Window *window)
 {
+	D("[%s]\n", __FUNCTION__);
 	SDL_WindowShaper *result;
 
 	if ((result = SDL_malloc(sizeof(*result)))) {
@@ -43,6 +44,8 @@ MOS_CreateShaper(SDL_Window *window)
 		result->driverdata = NULL;
 
 		window->shaper = result;
+	} else {
+		SDL_OutOfMemory();
 	}
 
 	return result;
@@ -51,6 +54,7 @@ MOS_CreateShaper(SDL_Window *window)
 int
 MOS_ResizeWindowShape(SDL_Window* window)
 {
+	D("[%s]\n", __FUNCTION__);
 	SDL_WindowShaper *shaper = window->shaper;
 
 	shaper->userx = window->x;
@@ -62,6 +66,7 @@ MOS_ResizeWindowShape(SDL_Window* window)
 static void
 MOS_ShapeToRegion(struct Region *region, SDL_Surface *shape, const SDL_WindowShapeMode mode)
 {
+	D("[%s]\n", __FUNCTION__);
 	Uint32 y, bpr = shape->format->BytesPerPixel, pitch;
 	const Uint8 *pixels;
 	SDL_Color key;

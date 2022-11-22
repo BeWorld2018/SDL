@@ -22,9 +22,6 @@
 
 #if SDL_VIDEO_DRIVER_MORPHOS
 
-/* TinyGL implementation of SDL OpenGL support */
-/* MorphOS/TinyGL support by LouiSe */
-
 #include "SDL_error.h"
 #include "SDL_syswm.h"
 #include "../SDL_sysvideo.h"
@@ -67,13 +64,15 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 				{
 					// tingl < 52.10
 					TinyGl_NewVersion = 0;
+					SDL_SetError("Failed to open tinygl.library 52.10");
+					return -1;
 				}
 				
 				return 0;
 		}
 	}
 
-	SDL_SetError("Failed to open tinygl.library 53.0");
+	SDL_SetError("Failed to open tinygl.library 52.0");
 	return -1;
 }
 
@@ -182,7 +181,7 @@ MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
 int
 MOS_GL_SetSwapInterval(_THIS, int interval)
 {
-	D("[%s] interval=%d\n", __FUNCTION__, interval);
+	//D("[%s] interval=%d\n", __FUNCTION__, interval);
 	SDL_VideoData *data = _this->driverdata;
 	
 	switch (interval) {
@@ -212,7 +211,8 @@ int
 MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (!data->win && data->__tglContext)
+	//D("[%s] context 0x%08lx\n", __FUNCTION__, data->__tglContext, data->win);
+	if (!data->win || !data->__tglContext || !__tglContext)
 		return -1;
 
 	SDL_VideoData *video = _this->driverdata;
@@ -245,7 +245,7 @@ MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
 
 			if (data->__tglContext == context) {
                 D("[%s] Found TinyGL context 0x%08lx, clearing window binding\n", __FUNCTION__, context);
-                GLADestroyContext(context);		
+                GLADestroyContext(context);
 				GLClose(context);
                 data->__tglContext = NULL;
 			}

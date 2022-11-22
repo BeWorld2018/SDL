@@ -873,3 +873,13 @@
 	STUB(SDL_GetRectDisplayIndex)
 	STUB(SDL_ResetHint)
 	STUB(SDL_crc16)
+	STUB(SDL_GetDefaultAudioInfo)
+	// 2.26.0
+	STUB(SDL_GetWindowSizeInPixels)
+	STUB(SDL_GetJoystickGUIDInfo)
+	STUB(SDL_SetPrimarySelectionText)
+	STUB(SDL_GetPrimarySelectionText)
+	STUB(SDL_HasPrimarySelectionText)
+	STUB(SDL_ResetHints)
+	STUB(SDL_strcasestr)
+	

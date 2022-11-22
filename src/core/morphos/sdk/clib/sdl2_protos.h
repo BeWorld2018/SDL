@@ -863,6 +863,15 @@ int SDL_GetPointDisplayIndex(const SDL_Point * point);
 int SDL_GetRectDisplayIndex(const SDL_Rect * rect);
 SDL_bool SDL_ResetHint(const char *name);
 Uint16 SDL_crc16(Uint16 crc, const void *data, size_t len);
+int SDL_GetDefaultAudioInfo(char **name, SDL_AudioSpec *spec, int iscapture);
+/* 2.26.0 */
+void SDL_GetWindowSizeInPixels(SDL_Window * window, int *w, int *h);
+void SDL_GetJoystickGUIDInfo(SDL_JoystickGUID guid, Uint16 *vendor, Uint16 *product, Uint16 *version, Uint16 *crc16);
+int SDL_SetPrimarySelectionText(const char *text);
+char * SDL_GetPrimarySelectionText(void);
+SDL_bool SDL_HasPrimarySelectionText(void);
+void SDL_ResetHints(void);
+char *SDL_strcasestr(const char *haystack, const char *needle);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */

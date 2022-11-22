@@ -656,32 +656,35 @@ MOS_PumpEvents(_THIS)
 			ReplyMsg((struct Message *)m);
 		}
 
-		if (wdata && check_mousecoord)
+		if (wdata && check_mousecoord && wdata->win)
 		{
 			struct Screen *s = wdata->win->WScreen;
-			LONG mx = s->MouseX;
-			LONG my = s->MouseY;
-			LONG ws = wdata->win->LeftEdge + wdata->win->BorderLeft;
-			LONG wy = wdata->win->TopEdge + wdata->win->BorderTop;
-			LONG wx2 = wdata->win->LeftEdge + wdata->win->Width - wdata->win->BorderRight;
-			LONG wy2 = wdata->win->TopEdge + wdata->win->Height - wdata->win->BorderBottom;
-			if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
-				wdata->win->Flags |= WFLG_RMBTRAP;
-				
-				if (data->CurrentPointer) {
-					if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
-						SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
-						if (ac->Pointer.mouseptr)
-							SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+			if (s) 
+			{
+				LONG mx = s->MouseX;
+				LONG my = s->MouseY;
+				LONG ws = wdata->win->LeftEdge + wdata->win->BorderLeft;
+				LONG wy = wdata->win->TopEdge + wdata->win->BorderTop;
+				LONG wx2 = wdata->win->LeftEdge + wdata->win->Width - wdata->win->BorderRight;
+				LONG wy2 = wdata->win->TopEdge + wdata->win->Height - wdata->win->BorderBottom;
+				if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
+					wdata->win->Flags |= WFLG_RMBTRAP;
+					
+					if (data->CurrentPointer) {
+						if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
+							SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
+							if (ac->Pointer.mouseptr)
+								SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+						}
+					} else {
+						size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
+						SetAttrsA(wdata->win, (struct TagItem *)&pointertags);
 					}
+					
 				} else {
-					size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
-					SetAttrsA(wdata->win, (struct TagItem *)&pointertags);
+					wdata->win->Flags &= ~WFLG_RMBTRAP;
+					ClearPointer(wdata->win);
 				}
-				
-			} else {
-				wdata->win->Flags &= ~WFLG_RMBTRAP;
-				ClearPointer(wdata->win);
 			}
 		}
 	}

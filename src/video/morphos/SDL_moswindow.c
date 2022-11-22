@@ -117,11 +117,11 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 		}
 
 		SDL_WindowData *data = (SDL_WindowData *) sdlwin->driverdata;
-		if (data->appmsg) {
+		/*if (data->appmsg) {
 			if (RemoveAppWindow(data->appmsg)) {
 				data->appmsg = NULL;
 			}
-		}
+		}*/
 		
 		if (data->menu) {
 			ClearMenuStrip(win);

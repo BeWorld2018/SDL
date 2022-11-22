@@ -6914,4 +6914,74 @@
 		(((Uint16 (*)(Uint16 , const void *, size_t ))*(void**)(__base - 4744))(__t__p0, __t__p1, __t__p2));\
 	})
 
+#define SDL_GetDefaultAudioInfo(__p0, __p1, __p2) \
+	({ \
+		char ** __t__p0 = __p0;\
+		SDL_AudioSpec * __t__p1 = __p1;\
+		int  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(char **, SDL_AudioSpec *, int ))*(void**)(__base - 4750))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_GetWindowSizeInPixels(__p0, __p1, __p2) \
+	({ \
+		SDL_Window * __t__p0 = __p0;\
+		int * __t__p1 = __p1;\
+		int * __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_Window *, int *, int *))*(void**)(__base - 4756))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_GetJoystickGUIDInfo(__p0, __p1, __p2, __p3, __p4) \
+	({ \
+		SDL_JoystickGUID  __t__p0 = __p0;\
+		Uint16 * __t__p1 = __p1;\
+		Uint16 * __t__p2 = __p2;\
+		Uint16 * __t__p3 = __p3;\
+		Uint16 * __t__p4 = __p4;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(SDL_JoystickGUID , Uint16 *, Uint16 *, Uint16 *, Uint16 *))*(void**)(__base - 4762))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+	})
+
+#define SDL_SetPrimarySelectionText(__p0) \
+	({ \
+		const char * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const char *))*(void**)(__base - 4768))(__t__p0));\
+	})
+
+#define SDL_GetPrimarySelectionText() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((char *(*)(void))*(void**)(__base - 4774))());\
+	})
+
+#define SDL_HasPrimarySelectionText() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((SDL_bool (*)(void))*(void**)(__base - 4780))());\
+	})
+
+#define SDL_ResetHints() \
+	({ \
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((void (*)(void))*(void**)(__base - 4786))());\
+	})
+
+#define SDL_strcasestr(__p0, __p1) \
+	({ \
+		const char * __t__p0 = __p0;\
+		const char * __t__p1 = __p1;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((char *(*)(const char *, const char *))*(void**)(__base - 4792))(__t__p0, __t__p1));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

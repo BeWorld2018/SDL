@@ -49,3 +49,8 @@ extern NativeWindowFactory CocoaWindowFactory;
 #define TEST_NATIVE_OS2
 extern NativeWindowFactory OS2WindowFactory;
 #endif
+
+#ifdef SDL_VIDEO_DRIVER_MORPHOS
+#define TEST_NATIVE_MORPHOS
+extern NativeWindowFactory MorphOSWindowFactory;
+#endif

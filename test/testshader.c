@@ -111,6 +111,7 @@ static ShaderData shaders[NUM_SHADERS] = {
     },
 };
 
+#ifndef __MORPHOS__
 static PFNGLATTACHOBJECTARBPROC glAttachObjectARB;
 static PFNGLCOMPILESHADERARBPROC glCompileShaderARB;
 static PFNGLCREATEPROGRAMOBJECTARBPROC glCreateProgramObjectARB;
@@ -123,6 +124,7 @@ static PFNGLLINKPROGRAMARBPROC glLinkProgramARB;
 static PFNGLSHADERSOURCEARBPROC glShaderSourceARB;
 static PFNGLUNIFORM1IARBPROC glUniform1iARB;
 static PFNGLUSEPROGRAMOBJECTARBPROC glUseProgramObjectARB;
+#endif
 
 static SDL_bool CompileShader(GLhandleARB shader, const char *source)
 {
@@ -240,7 +242,8 @@ static SDL_bool InitShaders()
         SDL_GL_ExtensionSupported("GL_ARB_shading_language_100") &&
         SDL_GL_ExtensionSupported("GL_ARB_vertex_shader") &&
         SDL_GL_ExtensionSupported("GL_ARB_fragment_shader")) {
-        glAttachObjectARB = (PFNGLATTACHOBJECTARBPROC) SDL_GL_GetProcAddress("glAttachObjectARB");
+#ifndef __MORPHOS__
+		glAttachObjectARB = (PFNGLATTACHOBJECTARBPROC) SDL_GL_GetProcAddress("glAttachObjectARB");
         glCompileShaderARB = (PFNGLCOMPILESHADERARBPROC) SDL_GL_GetProcAddress("glCompileShaderARB");
         glCreateProgramObjectARB = (PFNGLCREATEPROGRAMOBJECTARBPROC) SDL_GL_GetProcAddress("glCreateProgramObjectARB");
         glCreateShaderObjectARB = (PFNGLCREATESHADEROBJECTARBPROC) SDL_GL_GetProcAddress("glCreateShaderObjectARB");
@@ -266,7 +269,10 @@ static SDL_bool InitShaders()
             glUseProgramObjectARB) {
             shaders_supported = SDL_TRUE;
         }
-    }
+#else
+		shaders_supported = SDL_TRUE;
+#endif
+	}
 
     if (!shaders_supported) {
         return SDL_FALSE;

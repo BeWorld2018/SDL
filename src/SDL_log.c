@@ -490,9 +490,9 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
         fclose (pFile);
     }
 #elif defined(__MORPHOS__)
-  {
+	{
     	NewRawDoFmt("%s: %s\n", (APTR)1, NULL, SDL_priority_prefixes[priority], message);
-  }
+	}
 #elif defined(__3DS__)
     {
         FILE *pFile;

@@ -276,19 +276,25 @@ SDL_MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble,
 		{
 			DOUBLE lpower=(DOUBLE)(low_frequency_rumble/65535), hpower=(DOUBLE)(high_frequency_rumble/65535);
 			ULONG duration = duration_ms;
-			if (duration != 0 && (lpower > 0.0 || hpower > 0.0)) 
+			D("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration);
+			if (duration > 0 && (lpower > 0.0 || hpower > 0.0)) 
 			{ 
-				D("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration);
-				SetSensorAttrTags(hwdata->rumble[0], 
-					SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower, 
-					SENSORS_HIDInput_Rumble_Duration, duration, 
-					TAG_DONE);
-				SetSensorAttrTags(hwdata->rumble[1], 
-					SENSORS_HIDInput_Rumble_Power , (IPTR)&hpower, 
-					SENSORS_HIDInput_Rumble_Duration, duration, 
-					TAG_DONE);
+				if (lpower > 0) {
+					SetSensorAttrTags(hwdata->rumble[0], 
+						SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower, 
+						SENSORS_HIDInput_Rumble_Duration, duration, 
+						TAG_DONE);
+				}
+				if (hpower > 0) {
+					SetSensorAttrTags(hwdata->rumble[1], 
+						SENSORS_HIDInput_Rumble_Power , (IPTR)&hpower, 
+						SENSORS_HIDInput_Rumble_Duration, duration, 
+						TAG_DONE);
+				}
 			}
-		}	
+		} else {
+			return SDL_Unsupported();
+		}
 	}		
     return 0;
 }

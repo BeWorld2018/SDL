@@ -1073,32 +1073,6 @@ GL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
     return 0;
 }
 
-#if defined(__MORPHOS__)
-/* Hack from AOS4 version: this is due to missing functionnality in MinGL / Warp3D and old TinyGL */
-static void
-GlBlendModeHack(GL_RenderData * data, const SDL_BlendMode mode)
-{
-    switch (mode) {
-        case SDL_BLENDMODE_NONE:
-            data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-            data->glDisable(GL_BLEND);
-            break;
-
-        case SDL_BLENDMODE_ADD:
-            data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-            data->glEnable(GL_BLEND);
-            data->glBlendFunc(GL_SRC_ALPHA, GL_DST_COLOR);
-            break;
-
-        default:
-            data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-            data->glEnable(GL_BLEND);
-            data->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-    }
-}
-#endif
-
 static int
 SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader shader)
 {
@@ -1144,12 +1118,6 @@ SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader 
     }
 
     if (blend != data->drawstate.blend) {
-#ifdef __MORPHOS__ /*MorphOS 3.16 new functions */
-		if (!TinyGl_NewVersion)
-			GlBlendModeHack(data, blend);
-        else
-		{
-#endif
 		if (blend == SDL_BLENDMODE_NONE) {
 			 data->glDisable(GL_BLEND);
         } else {
@@ -1160,9 +1128,6 @@ SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader 
                                       GetBlendFunc(SDL_GetBlendModeDstAlphaFactor(blend)));
             data->glBlendEquation(GetBlendEquation(SDL_GetBlendModeColorOperation(blend)));
         }
-#ifdef __MORPHOS__
-		}
-#endif
         data->drawstate.blend = blend;
     }
 

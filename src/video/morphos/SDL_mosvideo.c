@@ -118,6 +118,17 @@ MOS_ShowApp(_THIS)
 	}
 
 	MOS_OpenWindows(_this);
+	
+	// force to redraw all window's surface 
+	SDL_WindowData *wd;
+	ForeachNode(&data->windowlist, wd) {
+		struct Window *win = wd->win;
+
+		if (win) {
+			SDL_UpdateWindowSurface(wd->window);
+		}
+	}
+	
 	if (__tglContext) MOS_GL_ResizeContext(_this, _this->current_glwin);
 }
 
