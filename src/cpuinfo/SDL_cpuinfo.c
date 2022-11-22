@@ -482,6 +482,8 @@ CPU_haveNEON(void)
     return 1;  /* ARMv8 always has non-optional NEON support. */
 #elif __VITA__
     return 1;
+#elif __3DS__
+    return 0;
 #elif defined(__APPLE__) && defined(__ARM_ARCH) && (__ARM_ARCH >= 7)
     /* (note that sysctlbyname("hw.optional.neon") doesn't work!) */
     return 1;  /* all Apple ARMv7 chips and later have NEON. */
@@ -1177,8 +1179,6 @@ SDL_SIMDRealloc(void *mem, const size_t len)
     }
 
     if (mem) {
-        void **realptr = (void **) mem;
-        realptr--;
         mem = *(((void **) mem) - 1);
 
         /* Check the delta between the real pointer and user pointer */
@@ -1218,8 +1218,6 @@ void
 SDL_SIMDFree(void *ptr)
 {
     if (ptr) {
-        void **realptr = (void **) ptr;
-        realptr--;
         SDL_free(*(((void **) ptr) - 1));
     }
 }

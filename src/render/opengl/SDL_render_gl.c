@@ -25,7 +25,7 @@
 #ifdef __MORPHOS__
 #define _NO_PPCINLINE
 #endif
-
+#include "../../video/SDL_sysvideo.h" /* For SDL_GL_SwapWindowWithResult */
 #include "SDL_opengl.h"
 #include "../SDL_sysrender.h"
 #include "SDL_shaders_gl.h"
@@ -1564,12 +1564,12 @@ GL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
     return status;
 }
 
-static void
+static int
 GL_RenderPresent(SDL_Renderer * renderer)
 {
     GL_ActivateRenderer(renderer);
 
-    SDL_GL_SwapWindow(renderer->window);
+    return SDL_GL_SwapWindowWithResult(renderer->window);
 }
 
 static void
@@ -1819,7 +1819,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
         }
     }
 #endif
-	
+
     renderer = (SDL_Renderer *) SDL_calloc(1, sizeof(*renderer));
     if (!renderer) {
         SDL_OutOfMemory();
@@ -2000,6 +2000,13 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
 #ifdef __MACOSX__
     renderer->info.texture_formats[renderer->info.num_texture_formats++] = SDL_PIXELFORMAT_UYVY;
 #endif
+
+    renderer->rect_index_order[0] = 0;
+    renderer->rect_index_order[1] = 1;
+    renderer->rect_index_order[2] = 3;
+    renderer->rect_index_order[3] = 1;
+    renderer->rect_index_order[4] = 3;
+    renderer->rect_index_order[5] = 2;
 
     if (SDL_GL_ExtensionSupported("GL_EXT_framebuffer_object")) {
         data->GL_EXT_framebuffer_object_supported = SDL_TRUE;
