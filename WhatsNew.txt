@@ -41,6 +41,9 @@ Android:
 * Enabled IME soft keyboard input
 * Added version checking to make sure the SDL Java and C code are compatible
 
+MorphOS:
+* fix redraw surface after iconify window (fix bug with liteXL)
+
 
 ---------------------------------------------------------------------------
 2.24.0:
