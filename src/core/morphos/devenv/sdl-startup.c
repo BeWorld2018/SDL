@@ -74,9 +74,12 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 			NewLock = Lock("PROGDIR:", ACCESS_READ); /* we let libauto open doslib */
 			if(NewLock)
 			{
-				SDL2Base = base;
-				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
 				OldLock = CurrentDir(NewLock);
+				
+				SDL2Base = base;
+				
+				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
+				
 			}
 			else
 			{
@@ -101,8 +104,7 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 	{
 		if (NewLock)
 		{
-			CurrentDir(OldLock);
-			
+			CurrentDir(OldLock);			
 			UnLock(NewLock);
 		}
 		CloseLibrary(base);

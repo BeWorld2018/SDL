@@ -52,9 +52,6 @@ void *SDL_calloc(size_t nmemb, size_t size);
 void *SDL_realloc(void *mem, size_t size);
 void SDL_free(void *mem);
 
-char *SDL_getenv(const char *name);
-int SDL_setenv(const char *name, const char *value, int overwrite);
-
 void SDL_qsort(void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
 
 int SDL_abs(int x);
@@ -723,10 +720,10 @@ int SDL_LockTextureToSurface(SDL_Texture *texture, const SDL_Rect *rect, SDL_Sur
 wchar_t *SDL_wcsstr(const wchar_t *haystack, const wchar_t *needle);
 int SDL_wcsncmp(const wchar_t *str1, const wchar_t *str2, size_t maxlen);
 char *SDL_strtokr(char *s1, const char *s2, char **saveptr);
-int SDL_isupper(int x);
-int SDL_islower(int x);
 
 /* 2.0.13 - 2.0.14 */
+int SDL_isupper(int x);
+int SDL_islower(int x);
 int SDL_JoystickAttachVirtual(SDL_JoystickType type, int naxes, int nbuttons, int nhats);
 int SDL_JoystickDetachVirtual(int device_index);
 SDL_bool SDL_JoystickIsVirtual(int device_index);
@@ -736,10 +733,10 @@ int SDL_JoystickSetVirtualHat(SDL_Joystick * joystick, int hat, Uint8 value);
 char *SDL_GetErrorMsg(char *errstr, int maxlen);
 void SDL_LockSensors(void);
 void SDL_UnlockSensors(void);
-double SDL_trunc(double x);
-float SDL_truncf(float x);
 void *SDL_Metal_GetLayer(SDL_MetalView view);
 void SDL_Metal_GetDrawableSize(SDL_Window* window, int *w, int *h);
+double SDL_trunc(double x);
+float SDL_truncf(float x);
 SDL_Locale * SDL_GetPreferredLocales(void);
 void * SDL_SIMDRealloc(void *mem, const size_t len);
 int SDL_OpenURL(const char *url);
@@ -783,6 +780,9 @@ void SDL_SetWindowKeyboardGrab(SDL_Window * window, SDL_bool grabbed);
 void SDL_SetWindowMouseGrab(SDL_Window * window, SDL_bool grabbed);
 SDL_bool SDL_GetWindowKeyboardGrab(SDL_Window * window);
 SDL_bool SDL_GetWindowMouseGrab(SDL_Window * window);
+int SDL_isalpha(int x);
+int SDL_isalnum(int x);
+int SDL_isblank(int x);
 int SDL_iscntrl(int a);
 int SDL_isxdigit(int a);
 int SDL_ispunct(int a);
@@ -834,6 +834,10 @@ SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 void SDL_hid_ble_scan(SDL_bool active);
 int SDL_PremultiplyAlpha(int width, int height, Uint32 src_format, const void * src, int src_pitch, Uint32 dst_format, void * dst, int dst_pitch);
+
+char *SDL_getenv(const char *name);
+int SDL_setenv(const char *name, const char *value, int overwrite);
+
 /* 2.0.22 */
 const char* SDL_GetTouchName(int index);
 void SDL_ClearComposition(void);

@@ -128,24 +128,6 @@
 		(((void (*)(void *))*(void**)(__base - 106))(__t__p0));\
 	})
 
-#define SDL_getenv(__p0) \
-	({ \
-		const char * __t__p0 = __p0;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((char *(*)(const char *))*(void**)(__base - 4576))(__t__p0));\
-	})
-
-#define SDL_setenv(__p0, __p1, __p2) \
-	({ \
-		const char * __t__p0 = __p0;\
-		const char * __t__p1 = __p1;\
-		int  __t__p2 = __p2;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(const char *, const char *, int ))*(void**)(__base - 4582))(__t__p0, __t__p1, __t__p2));\
-	})
-
 #define SDL_qsort(__p0, __p1, __p2, __p3) \
 	({ \
 		void * __t__p0 = __p0;\
@@ -5810,22 +5792,6 @@
 		(((void (*)(void))*(void**)(__base - 3988))());\
 	})
 
-#define SDL_trunc(__p0) \
-	({ \
-		double  __t__p0 = __p0;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((double (*)(double ))*(void**)(__base - 4006))(__t__p0));\
-	})
-
-#define SDL_truncf(__p0) \
-	({ \
-		float  __t__p0 = __p0;\
-		long __base = (long)(SDL2_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((float (*)(float ))*(void**)(__base - 4012))(__t__p0));\
-	})
-
 #define SDL_Metal_GetLayer(__p0) \
 	({ \
 		SDL_MetalView  __t__p0 = __p0;\
@@ -5842,6 +5808,22 @@
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((void (*)(SDL_Window *, int *, int *))*(void**)(__base - 4000))(__t__p0, __t__p1, __t__p2));\
+	})
+
+#define SDL_trunc(__p0) \
+	({ \
+		double  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((double (*)(double ))*(void**)(__base - 4006))(__t__p0));\
+	})
+
+#define SDL_truncf(__p0) \
+	({ \
+		float  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((float (*)(float ))*(void**)(__base - 4012))(__t__p0));\
 	})
 
 #define SDL_GetPreferredLocales() \
@@ -6209,6 +6191,30 @@
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((SDL_bool (*)(SDL_Window *))*(void**)(__base - 4252))(__t__p0));\
+	})
+
+#define SDL_isalpha(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(int ))*(void**)(__base - 4258))(__t__p0));\
+	})
+
+#define SDL_isalnum(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(int ))*(void**)(__base - 4264))(__t__p0));\
+	})
+
+#define SDL_isblank(__p0) \
+	({ \
+		int  __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(int ))*(void**)(__base - 4270))(__t__p0));\
 	})
 
 #define SDL_iscntrl(__p0) \
@@ -6678,6 +6684,24 @@
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((int (*)(int , int , Uint32 , const void *, int , Uint32 , void *, int ))*(void**)(__base - 4570))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4, __t__p5, __t__p6, __t__p7));\
+	})
+
+#define SDL_getenv(__p0) \
+	({ \
+		const char * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((char *(*)(const char *))*(void**)(__base - 4576))(__t__p0));\
+	})
+
+#define SDL_setenv(__p0, __p1, __p2) \
+	({ \
+		const char * __t__p0 = __p0;\
+		const char * __t__p1 = __p1;\
+		int  __t__p2 = __p2;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((int (*)(const char *, const char *, int ))*(void**)(__base - 4582))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_GetTouchName(__p0) \
