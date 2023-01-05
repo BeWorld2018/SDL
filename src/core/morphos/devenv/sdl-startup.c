@@ -81,6 +81,7 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 			else
 			{
 				CloseLibrary(base);
+				base = NULL;
 			}
 		}
 				
@@ -100,9 +101,12 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 	{
 		if (NewLock)
 		{
-			UnLock(CurrentDir(OldLock));
+			CurrentDir(OldLock);
+			
+			UnLock(NewLock);
 		}
 		CloseLibrary(base);
+		base = NULL;
 	}
 }
 #endif
