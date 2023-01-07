@@ -57,7 +57,6 @@ TARGETS = \
 	testrumble \
 	testscale \
 	testsem \
-	testshader \
 	testshape \
 	testsprite2 \
 	testspriteminimal \
@@ -73,6 +72,7 @@ TARGETS = \
 	testyuv \
 	torturethread \
 	testnative 
+# testshader \
 
 CSRCS = SDL_test_assert.c SDL_test_common.c SDL_test_compare.c \
         SDL_test_crc32.c SDL_test_font.c SDL_test_fuzzer.c SDL_test_harness.c \
