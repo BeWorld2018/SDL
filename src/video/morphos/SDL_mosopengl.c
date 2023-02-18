@@ -36,43 +36,36 @@
 #include <proto/graphics.h>
 
 #include <tgl/gl.h>
+#include <tgl/gla.h>
 #include <tgl/glu.h>
 
 GLContext *__tglContext;
 
-extern void *AmiGetGLProc(const char *proc);
-
 extern struct SDL_Library *SDL2Base;
-
-UWORD TinyGl_NewVersion = 0;
 
 int
 MOS_GL_LoadLibrary(_THIS, const char *path)
 {
 	if (SDL2Base->MyTinyGLBase) {
 		if (!TinyGLBase)
-			TinyGLBase = OpenLibrary("tinygl.library", 52); 
+			TinyGLBase = OpenLibrary("tinygl.library", 53); 
 
 		if (TinyGLBase) {
 				UWORD TinyGl_Version = TinyGLBase->lib_Version;
 				UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
 				D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
-				*SDL2Base->MyTinyGLBase = TinyGLBase;
-				TinyGl_NewVersion = 1;
-				if (TinyGl_Version < 52 ||	
-					(TinyGl_Version == 52 && TinyGl_Revision < 10))
+				if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 7))
 				{
-					// tingl < 52.10
-					TinyGl_NewVersion = 0;
-					SDL_SetError("Failed to open tinygl.library 52.10");
+					// tingl < 53.7
+					SDL_SetError("Failed to open tinygl.library 53.7");
 					return -1;
-				}
-				
+				}		
+				*SDL2Base->MyTinyGLBase = TinyGLBase;					
 				return 0;
 		}
 	}
 
-	SDL_SetError("Failed to open tinygl.library 52.0");
+	SDL_SetError("Failed to open tinygl.library 53.7");
 	return -1;
 }
 
@@ -80,8 +73,7 @@ void *
 MOS_GL_GetProcAddress(_THIS, const char *proc)
 {
 	void *func = NULL;
-	func = AmiGetGLProc(proc);
-	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
+	func = tglGetProcAddress(proc);
 	if (!func) {
     	SDL_SetError("Couldn't find OpenGL symbol");
 		return NULL;
@@ -142,6 +134,18 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 			*SDL2Base->MyGLContext = __tglContext = glcont;
 			data->__tglContext = glcont;
 			D("[%s] new context SUCCES 0x%08lx\n", __FUNCTION__, glcont);
+			
+			// Disabled tglNewExtensions if SDL_RENDER_OPENGL_SHADERS is disabled (per defaut)
+			char *val = val = MOS_getenv("SDL_RENDER_OPENGL_SHADERS");
+			if (val && strlen(val)>0) {
+				if (strcmp(val, "0")!=0) {
+					D("[%s] Using tglEnableNewExtensions(0);\n", __FUNCTION__);
+					tglEnableNewExtensions(0);
+				}
+			} else {
+				D("[%s] Using tglEnableNewExtensions(0);\n", __FUNCTION__);
+				tglEnableNewExtensions(0);
+			}
 			return glcont;
 		}
 		D("[%s] new context FAILED 0x%08lx\n", __FUNCTION__, glcont);

@@ -13,6 +13,7 @@
 #include <proto/sdl2.h>
 #include <proto/tinygl.h>
 #include <proto/openurl.h>
+#include <tgl/gl.h> 
 
 #include "SDL_error.h"
 #include "SDL_rwops.h"
@@ -115,8 +116,6 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 
 #include "sdl-stubs.c"
 
-UWORD TinyGl_NewVersion = 0;
-
 /* SDL_RWops() replacement
  *
  * Functions to read/write stdio file pointers. Will link with libc stdio.
@@ -187,14 +186,11 @@ SDL_RWops *SDL_RWFromFP(void *fp, SDL_bool autoclose)
 	return SDL_RWFromFP_clib(fp, autoclose, stdio_size, stdio_seek, stdio_read, stdio_write, stdio_close);
 }
 
-extern void *AmiGetGLProc(const char *proc);
 void *SDL_GL_GetProcAddress(const char *proc)
 {
 	void *func = NULL;
 
-	func = AmiGetGLProc(proc);
-
-	// D("[%s] proc %s func 0x%08lx\n", __FUNCTION__, proc, func);
-
+	func = tglGetProcAddress(proc); 
+	
 	return func;
 }

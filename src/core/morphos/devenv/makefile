@@ -26,47 +26,34 @@ sdl-startup.o: sdl-startup.c sdl-stubs.c
 	$(COMPILING)
 	@$(CC) $(CFLAGS) -o $@ -c sdl-startup.c
 
-SDL_mosgl_wrapper.o: ../../../video/morphos/SDL_mosgl_wrapper.c
-	$(COMPILING)
-	@$(CC) $(CFLAGS) -o $@ -c $<
-
 sdl-startup-brel.o: sdl-startup.c sdl-stubs.c
 	$(COMPILING)
 	@$(CC) $(CFLAGS) -mresident32 -o $@ -c sdl-startup.c
-
-SDL_mosgl_wrapper-brel.o: ../../../video/morphos/SDL_mosgl_wrapper.c
-	$(COMPILING)
-	@$(CC) $(CFLAGS) -mresident32 -o $@ -c $<
 
 sdl-startup-brel-nc.o: sdl-startup.c sdl-stubs.c
 	$(COMPILING)
 	@$(CC) $(CFLAGS) -mresident32 -o $@ -c sdl-startup.c -D__NO_SDL_CONSTRUCTORS
 
-SDL_mosgl_wrapper-nc.o: ../../../video/morphos/SDL_mosgl_wrapper.c
-	$(COMPILING)
-	@$(CC) $(CFLAGS) -mresident32 -o $@ -c $< -D__NO_SDL_CONSTRUCTORS
-
-lib/libSDL2.a: sdl-startup.o SDL_mosgl_wrapper.o ../sdk/fd/sdl2_lib.fd
+lib/libSDL2.a: sdl-startup.o ../sdk/fd/sdl2_lib.fd
 	$(ARCHIVING)
 	@mkdir -p lib
 	@-rm -f $@
 	@$(CVI) --fd=../sdk/fd/sdl2_lib.fd --clib=../sdk/clib/sdl2_protos.h --gluelib=$@
-	@$(AR) crus $@ sdl-startup.o SDL_mosgl_wrapper.o
+	@$(AR) crus $@ sdl-startup.o 
 
-lib/libb32/libSDL2.a: sdl-startup-brel.o SDL_mosgl_wrapper-brel.o ../sdk/fd/sdl2_lib.fd
+lib/libb32/libSDL2.a: sdl-startup-brel.o  ../sdk/fd/sdl2_lib.fd
 	$(ARCHIVING)
 	@mkdir -p lib/libb32
 	@-rm -f $@
 	@$(CVI) --fd=../sdk/fd/sdl2_lib.fd --clib=../sdk/clib/sdl2_protos.h --brelgluelib=$@
-	@$(AR) crus $@ sdl-startup-brel.o SDL_mosgl_wrapper-brel.o
+	@$(AR) crus $@ sdl-startup-brel.o
 
-lib/libb32/libSDL2-nc.a: sdl-startup-brel-nc.o SDL_mosgl_wrapper-nc.o ../sdk/fd/sdl2_lib.fd
+lib/libb32/libSDL2-nc.a: sdl-startup-brel-nc.o ../sdk/fd/sdl2_lib.fd
 	$(ARCHIVING)
 	@mkdir -p lib/libb32
 	@-rm -f $@
 	@$(CVI) --fd=../sdk/fd/sdl2_lib.fd --clib=../sdk/clib/sdl2_protos.h --brelgluelib=$@
-	@$(AR) crus $@ sdl-startup-brel-nc.o SDL_mosgl_wrapper-nc.o
-
+	@$(AR) crus $@ sdl-startup-brel-nc.o
 clean:
 	@-rm -rf lib *.s *.o
 
