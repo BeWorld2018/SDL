@@ -262,6 +262,7 @@ static int SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, U
                     }
                 }
             }
+#endif
             if (renderer == NULL) {
                 return SDL_SetError("No hardware accelerated renderers available");
             }
