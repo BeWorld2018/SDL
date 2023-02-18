@@ -215,14 +215,13 @@ HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
         NX_ALTERNATEMASK,
         NX_COMMANDMASK };
 
-    for (int i = 0; i < 12; i++)
-    {
-        if (code == codes[i])
-        {
-            if (modifierFlags & modifiers[i])
+    for (int i = 0; i < 12; i++) {
+        if (code == codes[i]) {
+            if (modifierFlags & modifiers[i]) {
                 SDL_SendKeyboardKey(SDL_PRESSED, code);
-            else
+            } else {
                 SDL_SendKeyboardKey(SDL_RELEASED, code);
+            }
         }
     }
 }
@@ -308,7 +307,7 @@ Cocoa_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
 
     data.modifierFlags = (unsigned int)[NSEvent modifierFlags];
-    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) != 0);
+    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) ? SDL_TRUE : SDL_FALSE);
 }
 
 void

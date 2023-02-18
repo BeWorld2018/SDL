@@ -81,7 +81,8 @@ SDL_MetalViewEventWatch(void *userdata, SDL_Event *event)
                       highDPI:(BOOL)highDPI
                      windowID:(Uint32)windowID;
 {
-    if ((self = [super initWithFrame:frame])) {
+    self = [super initWithFrame:frame];
+    if (self != nil) {
         self.highDPI = highDPI;
         self.sdlWindowID = windowID;
         self.wantsLayer = YES;
@@ -93,7 +94,7 @@ SDL_MetalViewEventWatch(void *userdata, SDL_Event *event)
 
         [self updateDrawableSize];
     }
-  
+
     return self;
 }
 
@@ -144,10 +145,14 @@ Cocoa_Metal_CreateView(_THIS, SDL_Window * window)
                                                 highDPI:highDPI
                                                 windowID:windowID];
     if (newview == nil) {
+        SDL_OutOfMemory();
         return NULL;
     }
 
     [view addSubview:newview];
+
+    /* Make sure the drawable size is up to date after attaching the view. */
+    [newview updateDrawableSize];
 
     metalview = (SDL_MetalView)CFBridgingRetain(newview);
 
