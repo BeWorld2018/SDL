@@ -44,9 +44,6 @@
  * these should match the defaults selected in SDL_GL_ResetAttributes
  */
 
-#ifdef __MORPHOS__
-extern UWORD TinyGl_NewVersion;
-#endif
 #define RENDERER_CONTEXT_MAJOR 2
 #define RENDERER_CONTEXT_MINOR 1
 
@@ -251,12 +248,6 @@ GL_LoadFunctions(GL_RenderData * data)
 #define SDL_PROC(ret,func,params) data->func=func;
 #else
     int retval = 0;
-#if defined(__MORPHOS__)
-#define SDL_PROC(ret,func,params) \
-    do { \
-        data->func = SDL_GL_GetProcAddress(#func); \
-    } while ( 0 );
-#else
 #define SDL_PROC(ret,func,params) \
     do { \
         data->func = SDL_GL_GetProcAddress(#func); \
@@ -264,7 +255,6 @@ GL_LoadFunctions(GL_RenderData * data)
             retval = SDL_SetError("Couldn't load GL function %s: %s", #func, SDL_GetError()); \
         } \
     } while ( 0 );
-#endif
 #endif /* __SDL_NOGETPROCADDR__ */
 
 #include "SDL_glfuncs.h"

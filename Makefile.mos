@@ -1,5 +1,8 @@
 # Makefile to build the SDL2 library MORPHOS
 #
+# You need tinygl.library 53.7 and last SDK with last tinyGL SDK
+
+#
 # Enable debug with -D__SDL_DEBUG
 #
 
@@ -82,7 +85,12 @@ headers:
 	$(HEADERING)
 	@cvinclude.pl --fd=src/core/morphos/sdk/fd/sdl2_lib.fd --clib=src/core/morphos/sdk/clib/sdl2_protos.h --proto=src/core/morphos/sdk/proto/sdl2.h
 	@cvinclude.pl --fd=src/core/morphos/sdk/fd/sdl2_lib.fd --clib=src/core/morphos/sdk/clib/sdl2_protos.h --inline=src/core/morphos/sdk/ppcinline/sdl2.h
-
+	@perl -pe "s/va_list  __t__p1 = __p1;/va_list __t__p1;\\\\\n\t\tva_copy(__t__p1, __p1);/g" src/core/morphos/sdk/ppcinline/sdl2.h > src/core/morphos/sdk/ppcinline/sdl2tmp.h
+	@perl -pe "s/va_list  __t__p2 = __p2;/va_list __t__p2;\\\\\n\t\tva_copy(__t__p2, __p2);/g" src/core/morphos/sdk/ppcinline/sdl2tmp.h > src/core/morphos/sdk/ppcinline/sdl2.h
+	@perl -pe "s/va_list  __t__p3 = __p3;/va_list __t__p3;\\\\\n\t\tva_copy(__t__p3, __p3);/g" src/core/morphos/sdk/ppcinline/sdl2.h > src/core/morphos/sdk/ppcinline/sdl2tmp.h
+	@rm src/core/morphos/sdk/ppcinline/sdl2.h
+	@rename src/core/morphos/sdk/ppcinline/sdl2tmp.h src/core/morphos/sdk/ppcinline/sdl2.h
+	
 lib:
 	@cd src/core/morphos/devenv; if ! $(MAKE) $(MAKECMDGOALS); then exit 1; fi;
 

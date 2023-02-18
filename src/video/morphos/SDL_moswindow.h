@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -127,6 +127,8 @@ extern int MOS_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int *
 
 extern int MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation);
 extern int MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
+extern char *MOS_getenv(const char *name);
+
 
 #endif /* _SDL_moswindow_h */
 
