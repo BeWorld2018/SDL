@@ -90,6 +90,10 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_SUB, (char *)"Point API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MPOINT },
 	{ NM_SUB, (char *)"Line API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MLINE },
 	{ NM_SUB, (char *)"Geometry API", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_MGEO },
+	{ NM_ITEM, (char *)"HINT RENDER SHADERS", 0, 0, 0, (APTR)MID_SHADERS },
+	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_SHADERS_AUTO },
+	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_SHADERS_ENABLE },
+	{ NM_SUB, (char *)"Disabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_SHADERS_DISABLE },
 	{ NM_END , NULL, NULL, 0, 0, NULL }
 };
 
@@ -608,6 +612,13 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 						MOS_GlobalMenu(data->menu, 1, 8, 2, (strcmp(val, "2")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 8, 3, (strcmp(val, "3")==0 ? 1 : 0));
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, (strcmp(val, "1")==0 ? "1" : (strcmp(val, "2")==0 ? "2" : "3")));
+					}
+					val = MOS_getenv("SDL_RENDER_OPENGL_SHADERS");
+					if (val && strlen(val)>0) {
+						MOS_GlobalMenu(data->menu, 1, 9, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 9, 1, (strcmp(val, "1")==0 ? 1 : 0));
+						MOS_GlobalMenu(data->menu, 1, 9, 2, (strcmp(val, "0")==0 ? 1 : 0));
+						SDL_SetHint(SDL_HINT_RENDER_OPENGL_SHADERS, (strcmp(val, "0")==0 ? "0" : "1"));
 					}
 				}
 			}

@@ -484,6 +484,24 @@ MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
 								SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, "3");
 								MOS_setenv("SDL_RENDER_LINE_METHOD", "3", SDL_TRUE);
 								break;	
+							case MID_SHADERS_AUTO:
+								MOS_GlobalMenu(data->menu, 1, 9, 1, 0);
+								MOS_GlobalMenu(data->menu, 1, 9, 2, 0);
+								SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
+								MOS_setenv("SDL_RENDER_OPENGL_SHADERS", "", SDL_TRUE);
+								break;	
+							case MID_SHADERS_ENABLE:
+								MOS_GlobalMenu(data->menu, 1, 9, 0, 0);
+								MOS_GlobalMenu(data->menu, 1, 9, 2, 0);
+								SDL_SetHint(SDL_HINT_RENDER_OPENGL_SHADERS, "1");
+								MOS_setenv("SDL_RENDER_OPENGL_SHADERS", "1", SDL_TRUE);
+								break;	
+							case MID_SHADERS_DISABLE:
+								MOS_GlobalMenu(data->menu, 1, 9, 0, 0);
+								MOS_GlobalMenu(data->menu, 1, 9, 1, 0);
+								SDL_SetHint(SDL_HINT_RENDER_OPENGL_SHADERS, "0");
+								MOS_setenv("SDL_RENDER_OPENGL_SHADERS", "0", SDL_TRUE);
+								break;	
 							case MID_JOYSTICK:
 								MOS_Joystick(data->win);
 								break;	
