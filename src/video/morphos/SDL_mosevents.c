@@ -641,6 +641,7 @@ MOS_CheckWBEvents(_THIS)
 						}
 					}
 					SDL_SendDropComplete(window);
+                    SDL_RaiseWindow(window);
 				}
 				break;
 			case AMTYPE_APPICON:
