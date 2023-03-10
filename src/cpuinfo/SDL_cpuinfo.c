@@ -400,7 +400,7 @@ static int CPU_haveARMSIMD(void)
     fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
     if (fd >= 0) {
         Elf32_auxv_t aux;
-        while (read(fd, &aux, sizeof aux) == sizeof aux) {
+        while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
             if (aux.a_type == AT_PLATFORM) {
                 const char *plat = (const char *)aux.a_un.a_val;
                 if (plat) {
@@ -1200,7 +1200,7 @@ SDL_SIMDAlloc(const size_t len)
     Uint8 *ptr;
     size_t to_allocate;
 
-    /* alignment + padding + sizeof (void *) is bounded (a few hundred
+    /* alignment + padding + sizeof(void *) is bounded (a few hundred
      * bytes max), so no need to check for overflow within that argument */
     if (SDL_size_add_overflow(len, alignment + padding + sizeof(void *), &to_allocate)) {
         return NULL;
@@ -1227,7 +1227,7 @@ SDL_SIMDRealloc(void *mem, const size_t len)
     Uint8 *ptr;
     size_t to_allocate;
 
-    /* alignment + padding + sizeof (void *) is bounded (a few hundred
+    /* alignment + padding + sizeof(void *) is bounded (a few hundred
      * bytes max), so no need to check for overflow within that argument */
     if (SDL_size_add_overflow(len, alignment + padding + sizeof(void *), &to_allocate)) {
         return NULL;

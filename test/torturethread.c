@@ -52,7 +52,7 @@ ThreadFunc(void *data)
 
     for (i = 0; i < NUMTHREADS; i++) {
         char name[64];
-        (void)SDL_snprintf(name, sizeof name, "Child%d_%d", tid, i);
+        (void)SDL_snprintf(name, sizeof(name), "Child%d_%d", tid, i);
         flags[i] = 0;
         sub_threads[i] = SDL_CreateThread(SubThreadFunc, name, &flags[i]);
     }
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 #endif
     for (i = 0; i < NUMTHREADS; i++) {
         char name[64];
-        (void)SDL_snprintf(name, sizeof name, "Parent%d", i);
+        (void)SDL_snprintf(name, sizeof(name), "Parent%d", i);
         SDL_AtomicSet(&time_for_threads_to_die[i], 0);
         threads[i] = SDL_CreateThread(ThreadFunc, name, (void *)(uintptr_t)i);
 
