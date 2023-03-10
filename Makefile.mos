@@ -37,19 +37,13 @@ SOURCES = \
 	src/events/*.c \
 	src/file/*.c \
 	src/filesystem/morphos/*.c \
-	src/haptic/*.c \
-	src/haptic/dummy/*.c \
-	src/hidapi/*.c \
 	src/joystick/*.c \
 	src/joystick/morphos/*.c \
-	src/loadso/dlopen/*.c \
 	src/power/*.c \
 	src/power/morphos/*.c \
 	src/render/*.c \
 	src/render/software/*.c \
 	src/render/opengl/*.c \
-	src/sensor/*.c \
-	src/sensor/dummy/*.c \
 	src/stdlib/*.c \
 	src/thread/*.c \
 	src/thread/morphos/*.c \
@@ -63,7 +57,13 @@ SOURCES = \
 	src/misc/morphos/*.c \
 	src/locale/*.c \
 	src/locale/morphos/*.c
-
+#	src/loadso/dlopen/*.c \
+#	src/sensor/*.c \
+#	src/sensor/dummy/*.c \
+#	src/haptic/*.c \
+#	src/haptic/dummy/*.c \
+#	src/hidapi/*.c \
+	
 CORESOURCES = src/core/morphos/*.c
 COREOBJECTS = $(shell echo $(CORESOURCES) | sed -e 's,\.c,\.o,g')
 

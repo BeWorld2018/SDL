@@ -223,10 +223,10 @@
 /* #undef SDL_EVENTS_DISABLED */
 /* #undef SDL_FILE_DISABLED */
 /* #undef SDL_JOYSTICK_DISABLED */
-/* #undef SDL_HAPTIC_DISABLED */
-/* #undef SDL_HIDAPI_DISABLED */
-/* #undef SDL_SENSOR_DISABLED */
-/* #undef SDL_LOADSO_DISABLED */
+#define SDL_HAPTIC_DISABLED 1
+#define SDL_HIDAPI_DISABLED 1
+#define SDL_SENSOR_DISABLED 1
+#define SDL_LOADSO_DISABLED 1
 /* #undef SDL_RENDER_DISABLED */
 /* #undef SDL_THREADS_DISABLED */
 /* #undef SDL_TIMERS_DISABLED */
@@ -297,7 +297,7 @@
 /* #undef SDL_JOYSTICK_RAWINPUT */
 /* #undef SDL_JOYSTICK_EMSCRIPTEN */
 /* #undef SDL_JOYSTICK_VIRTUAL */
-#define SDL_HAPTIC_DUMMY 1
+/* #undef SDL_HAPTIC_DUMMY */
 /* #undef SDL_HAPTIC_ANDROID */
 /* #undef SDL_HAPTIC_LINUX */
 /* #undef SDL_HAPTIC_IOKIT */
@@ -310,10 +310,10 @@
 /* #undef SDL_SENSOR_ANDROID */
 /* #undef SDL_SENSOR_COREMOTION */
 /* #undef SDL_SENSOR_WINDOWS */
-#define SDL_SENSOR_DUMMY 1
+/* #undef SDL_SENSOR_DUMMY */
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_DLOPEN   1
+/* #undef SDL_LOADSO_DLOPEN */
 /* #undef SDL_LOADSO_DUMMY */
 /* #undef SDL_LOADSO_LDG */
 /* #undef SDL_LOADSO_WINDOWS */
