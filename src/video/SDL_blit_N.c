@@ -914,7 +914,7 @@ static enum blit_features GetBlitFeatures(void)
                         | ((SDL_HasAltiVec()) ? BLIT_FEATURE_HAS_ALTIVEC : 0)
                         /* Feature 4 is dont-use-prefetch */
 #if defined(__MORPHOS__)
-                        | (SDL_IsG5() ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0)
+                        | ((SDL_IsG5()) ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0));
 #else
                         /* !!!! FIXME: Check for G5 or later, not the cache size! Always prefetch on a G4. */
                         | ((GetL3CacheSize() == 0) ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0));
