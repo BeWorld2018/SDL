@@ -42,13 +42,8 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 		char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
 		if (message) {
-			size_t i, tlen = 1;
+			size_t i, tlen = 1024;
 			char *btxt;
-
-			for (i = mbd->numbuttons; i > 0; i--) {
-                if (mbd->buttons[i].text)
-				    tlen += ConvertTagList((APTR)mbd->buttons[i].text, -1, NULL, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL) + 3;
-			}
 
 			btxt = SDL_malloc(tlen);
 
