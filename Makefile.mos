@@ -56,12 +56,12 @@ SOURCES = \
 	src/misc/*.c \
 	src/misc/morphos/*.c \
 	src/locale/*.c \
-	src/locale/morphos/*.c
-#	src/loadso/dlopen/*.c \
+	src/locale/morphos/*.c \
+	src/haptic/*.c \
+	src/haptic/dummy/*.c \
+#	src/loadso/dlopen/*.c
 #	src/sensor/*.c \
 #	src/sensor/dummy/*.c \
-#	src/haptic/*.c \
-#	src/haptic/dummy/*.c \
 #	src/hidapi/*.c \
 	
 CORESOURCES = src/core/morphos/*.c

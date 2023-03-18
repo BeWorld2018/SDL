@@ -223,7 +223,7 @@
 /* #undef SDL_EVENTS_DISABLED */
 /* #undef SDL_FILE_DISABLED */
 /* #undef SDL_JOYSTICK_DISABLED */
-#define SDL_HAPTIC_DISABLED 1
+//#define SDL_HAPTIC_DISABLED 1
 #define SDL_HIDAPI_DISABLED 1
 #define SDL_SENSOR_DISABLED 1
 #define SDL_LOADSO_DISABLED 1
@@ -297,13 +297,12 @@
 /* #undef SDL_JOYSTICK_RAWINPUT */
 /* #undef SDL_JOYSTICK_EMSCRIPTEN */
 /* #undef SDL_JOYSTICK_VIRTUAL */
-/* #undef SDL_HAPTIC_DUMMY */
+#define SDL_HAPTIC_DUMMY 1
 /* #undef SDL_HAPTIC_ANDROID */
 /* #undef SDL_HAPTIC_LINUX */
 /* #undef SDL_HAPTIC_IOKIT */
 /* #undef SDL_HAPTIC_DINPUT */
 /* #undef SDL_HAPTIC_XINPUT */
-/* #define SDL_JOYSTICK_AMIGA  1 */ /*  Enable lowlevel.library JOYSTICK/GAMEPAD */
 #define SDL_JOYSTICK_MORPHOS   1 /* Enable MORPHOS SENSORS JOYSTICK/GAMEPAD */ 
 
 /* Enable various sensor drivers */
