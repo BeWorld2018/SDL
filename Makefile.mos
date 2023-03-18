@@ -47,6 +47,8 @@ SOURCES = \
 	src/stdlib/*.c \
 	src/thread/*.c \
 	src/thread/morphos/*.c \
+	src/thread/generic/SDL_syscond.c \
+	src/thread/generic/SDL_systls.c \
 	src/timer/*.c \
 	src/timer/morphos/*.c \
 	src/video/*.c \
