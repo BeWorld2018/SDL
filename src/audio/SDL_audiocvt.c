@@ -196,7 +196,7 @@ static Sint32 ResamplerPadding(const Sint32 inrate, const Sint32 outrate)
     return RESAMPLER_SAMPLES_PER_ZERO_CROSSING;
 }
 
-/* lpadding and rpadding are expected to be buffers of (ResamplePadding(inrate, outrate) * chans * sizeof (float)) bytes. */
+/* lpadding and rpadding are expected to be buffers of (ResamplePadding(inrate, outrate) * chans * sizeof(float)) bytes. */
 static int SDL_ResampleAudio(const int chans, const int inrate, const int outrate,
                              const float *lpadding, const float *rpadding,
                              const float *inbuf, const int inbuflen,
@@ -212,14 +212,14 @@ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrat
     const int framelen = chans * (int)sizeof(float);
     const int inframes = inbuflen / framelen;
     /* outbuflen isn't total to write, it's total available. */
-    const int wantedoutframes = ((Sint64)inframes) * outrate / inrate;
+    const int wantedoutframes = (int)((Sint64)inframes * outrate / inrate);
     const int maxoutframes = outbuflen / framelen;
     const int outframes = SDL_min(wantedoutframes, maxoutframes);
     float *dst = outbuf;
     int i, j, chan;
 
     for (i = 0; i < outframes; i++) {
-        const int srcindex = ((Sint64)i) * inrate / outrate;
+        const int srcindex = (int)((Sint64)i * inrate / outrate);
         /* Calculating the following way avoids subtraction or modulo of large
          * floats which have low result precision.
          *   interpolation1
