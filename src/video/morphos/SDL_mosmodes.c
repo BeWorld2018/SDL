@@ -159,7 +159,7 @@ MOS_InitModes(_THIS)
 	mode.format = SDL_PIXELFORMAT_BGRA8888;
 	mode.driverdata = NULL;
 
-	s = LockPubScreen("Workbench");
+	s = LockPubScreen(NULL);
 	mon = NULL;
 
 	if (s) {
@@ -171,8 +171,6 @@ MOS_InitModes(_THIS)
 
 		pixfmt = MOS_GetSDLPixelFormat(getv(s, SA_PixelFormat), SDL_PIXELFORMAT_BGRA8888);
 		mon = (APTR)getv(s, SA_MonitorObject);
-
-		UnlockPubScreen(NULL, s);
 
 		modedata = SDL_malloc(sizeof(*modedata));
 
@@ -188,7 +186,6 @@ MOS_InitModes(_THIS)
 			display.desktop_mode = mode;
 			display.current_mode = mode;
 			display.driverdata = modedata;
-			//display.name = (char *)getv(m, MA_MonitorName);
 			GetAttr(MA_MonitorName, mon, (ULONG*)&monitorname);
 			display.name = monitorname;
 
@@ -197,8 +194,9 @@ MOS_InitModes(_THIS)
 
 			mode.driverdata = NULL;
 
-			D("[%s] Added Workbench screen - monitor = %d\n", __FUNCTION__, mon);
+			D("[%s] Added Workbench screen - monitor=%d - name='%s'\n", __FUNCTION__, mon, display.name);
 		}
+		UnlockPubScreen(NULL, s);
 	}
 
 	// Add other monitors (not desktop)
@@ -301,7 +299,7 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 
 	if (!fullscreen && data->ScrMonName == NULL) {
 		data->CustomScreen = NULL;
-		screen = LockPubScreen("Workbench");
+		screen = LockPubScreen(NULL);
 		use_wb_screen = 1;
 	} else {
 		struct TagItem screentags[] =
@@ -335,7 +333,8 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 				TAG_MORE, (IPTR)screentags);
 		}
 
-		data->CustomScreen = screen;
+		if (screen)
+			data->CustomScreen = screen;
 	}
 
 	if (screen == NULL) {

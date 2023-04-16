@@ -46,23 +46,24 @@ extern struct SDL_Library *SDL2Base;
 int
 MOS_GL_LoadLibrary(_THIS, const char *path)
 {
-	if (SDL2Base->MyTinyGLBase) {
-		if (!TinyGLBase)
-			TinyGLBase = OpenLibrary("tinygl.library", 53); 
 
-		if (TinyGLBase) {
-				UWORD TinyGl_Version = TinyGLBase->lib_Version;
-				UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
-				D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
-				if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 7))
-				{
-					// tingl < 53.7
-					SDL_SetError("Failed to open tinygl.library 53.7");
-					return -1;
-				}		
-				*SDL2Base->MyTinyGLBase = TinyGLBase;					
-				return 0;
-		}
+	if (!TinyGLBase)
+		TinyGLBase = OpenLibrary("tinygl.library", 53); 
+
+	if (TinyGLBase) {
+			UWORD TinyGl_Version = TinyGLBase->lib_Version;
+			UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
+			D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
+			if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 7))
+			{
+				// tingl < 53.7
+				SDL_SetError("Failed to open tinygl.library 53.7");
+				return -1;
+			}
+			if (SDL2Base->MyTinyGLBase)				
+				*SDL2Base->MyTinyGLBase = TinyGLBase;	
+			
+			return 0;
 	}
 
 	SDL_SetError("Failed to open tinygl.library 53.7");

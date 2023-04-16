@@ -54,7 +54,7 @@ void
 MOS_CloseDisplay(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
-	D("[%s]\n", __FUNCTION__);
+	D("[%s] CustomScreen=0x%08lx  WScreen=0x%08lx \n", __FUNCTION__, data->CustomScreen, data->WScreen);
 
 	if (data->CustomScreen) {
 		CloseScreen(data->CustomScreen);
@@ -317,7 +317,7 @@ MOS_CreateDevice()
 			device->VideoInit = MOS_VideoInit;
 			device->VideoQuit = MOS_VideoQuit;
 			device->GetDisplayModes = MOS_GetDisplayModes;
-			device->GetDisplayBounds = MOS_GetDisplayBounds;;
+			device->GetDisplayBounds = MOS_GetDisplayBounds;
 			device->SetDisplayMode = MOS_SetDisplayMode;
 			device->SuspendScreenSaver = MOS_SuspendScreenSaver;
 			device->PumpEvents = MOS_PumpEvents;

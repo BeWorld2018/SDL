@@ -674,7 +674,7 @@ void
 MOS_MaximizeWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	SDL_VideoData *videodata = (SDL_VideoData *) data->videodata;
+	SDL_VideoData *vd = (SDL_VideoData *) data->videodata;
 	struct Screen *scr = data->win->WScreen;
 	ULONG bh = 0;
 
@@ -685,7 +685,7 @@ MOS_MaximizeWindow(_THIS, SDL_Window * window)
 		data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
 		data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
 		
-		if (videodata->CustomScreen == NULL)
+		if (vd->CustomScreen == NULL)
 			bh = scr->BarHeight + 1;
 
 		ChangeWindowBox(data->win, 0, bh, data->win->MaxWidth, data->win->MaxHeight);

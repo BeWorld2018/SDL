@@ -332,7 +332,7 @@ int SDL_InitSubSystem(Uint32 flags)
         }
         SDL_PrivateSubsystemRefCountIncr(SDL_INIT_SENSOR);
         flags_initialized |= SDL_INIT_SENSOR;
-#else
+#elif !__MORPHOS__
         SDL_SetError("SDL not built with sensor support");
         goto quit_and_error;
 #endif
