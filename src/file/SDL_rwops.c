@@ -749,8 +749,7 @@ static int SDLCALL mem_close(SDL_RWops *context)
 
 /* Functions to create SDL_RWops structures from various data sources */
 
-SDL_RWops *
-SDL_RWFromFile(const char *file, const char *mode)
+SDL_RWops *SDL_RWFromFile(const char *file, const char *mode)
 {
     SDL_RWops *rwops = NULL;
     if (file == NULL || !*file || mode == NULL || !*mode) {
@@ -869,8 +868,7 @@ SDL_RWFromFile(const char *file, const char *mode)
 }
 
 #if defined(HAVE_STDIO_H) && !defined(__MORPHOS__)
-SDL_RWops *
-SDL_RWFromFP(FILE * fp, SDL_bool autoclose)
+SDL_RWops *SDL_RWFromFP(FILE * fp, SDL_bool autoclose)
 {
     SDL_RWops *rwops = NULL;
 
@@ -888,16 +886,14 @@ SDL_RWFromFP(FILE * fp, SDL_bool autoclose)
     return rwops;
 }
 #else
-SDL_RWops *
-SDL_RWFromFP(void * fp, SDL_bool autoclose)
+SDL_RWops *SDL_RWFromFP(void * fp, SDL_bool autoclose)
 {
     SDL_SetError("SDL not compiled with stdio support");
     return NULL;
 }
 #endif /* HAVE_STDIO_H */
 
-SDL_RWops *
-SDL_RWFromMem(void *mem, int size)
+SDL_RWops *SDL_RWFromMem(void *mem, int size)
 {
     SDL_RWops *rwops = NULL;
     if (mem == NULL) {
@@ -924,8 +920,7 @@ SDL_RWFromMem(void *mem, int size)
     return rwops;
 }
 
-SDL_RWops *
-SDL_RWFromConstMem(const void *mem, int size)
+SDL_RWops *SDL_RWFromConstMem(const void *mem, int size)
 {
     SDL_RWops *rwops = NULL;
     if (mem == NULL) {
@@ -952,8 +947,7 @@ SDL_RWFromConstMem(const void *mem, int size)
     return rwops;
 }
 
-SDL_RWops *
-SDL_AllocRW(void)
+SDL_RWops *SDL_AllocRW(void)
 {
     SDL_RWops *area;
 
@@ -976,8 +970,7 @@ void SDL_FreeRW(SDL_RWops *area)
 }
 
 /* Load all the data from an SDL data stream */
-void *
-SDL_LoadFile_RW(SDL_RWops *src, size_t *datasize, int freesrc)
+void *SDL_LoadFile_RW(SDL_RWops *src, size_t *datasize, int freesrc)
 {
     static const Sint64 FILE_CHUNK_SIZE = 1024;
     Sint64 size;
@@ -1028,26 +1021,22 @@ done:
     return data;
 }
 
-void *
-SDL_LoadFile(const char *file, size_t *datasize)
+void *SDL_LoadFile(const char *file, size_t *datasize)
 {
     return SDL_LoadFile_RW(SDL_RWFromFile(file, "rb"), datasize, 1);
 }
 
-Sint64
-SDL_RWsize(SDL_RWops *context)
+Sint64 SDL_RWsize(SDL_RWops *context)
 {
     return context->size(context);
 }
 
-Sint64
-SDL_RWseek(SDL_RWops *context, Sint64 offset, int whence)
+Sint64 SDL_RWseek(SDL_RWops *context, Sint64 offset, int whence)
 {
     return context->seek(context, offset, whence);
 }
 
-Sint64
-SDL_RWtell(SDL_RWops *context)
+Sint64 SDL_RWtell(SDL_RWops *context)
 {
     return context->seek(context, 0, RW_SEEK_CUR);
 }
@@ -1079,8 +1068,7 @@ Uint8 SDL_ReadU8(SDL_RWops *src)
     return value;
 }
 
-Uint16
-SDL_ReadLE16(SDL_RWops *src)
+Uint16 SDL_ReadLE16(SDL_RWops *src)
 {
     Uint16 value = 0;
 
@@ -1088,8 +1076,7 @@ SDL_ReadLE16(SDL_RWops *src)
     return SDL_SwapLE16(value);
 }
 
-Uint16
-SDL_ReadBE16(SDL_RWops *src)
+Uint16 SDL_ReadBE16(SDL_RWops *src)
 {
     Uint16 value = 0;
 
@@ -1097,8 +1084,7 @@ SDL_ReadBE16(SDL_RWops *src)
     return SDL_SwapBE16(value);
 }
 
-Uint32
-SDL_ReadLE32(SDL_RWops *src)
+Uint32 SDL_ReadLE32(SDL_RWops *src)
 {
     Uint32 value = 0;
 
@@ -1106,8 +1092,7 @@ SDL_ReadLE32(SDL_RWops *src)
     return SDL_SwapLE32(value);
 }
 
-Uint32
-SDL_ReadBE32(SDL_RWops *src)
+Uint32 SDL_ReadBE32(SDL_RWops *src)
 {
     Uint32 value = 0;
 
@@ -1115,8 +1100,7 @@ SDL_ReadBE32(SDL_RWops *src)
     return SDL_SwapBE32(value);
 }
 
-Uint64
-SDL_ReadLE64(SDL_RWops *src)
+Uint64 SDL_ReadLE64(SDL_RWops *src)
 {
     Uint64 value = 0;
 
@@ -1124,8 +1108,7 @@ SDL_ReadLE64(SDL_RWops *src)
     return SDL_SwapLE64(value);
 }
 
-Uint64
-SDL_ReadBE64(SDL_RWops *src)
+Uint64 SDL_ReadBE64(SDL_RWops *src)
 {
     Uint64 value = 0;
 

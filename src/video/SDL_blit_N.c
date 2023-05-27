@@ -54,8 +54,7 @@ enum blit_features
 #endif
 #ifdef __MACOSX__
 #include <sys/sysctl.h>
-static size_t
-GetL3CacheSize(void)
+static size_t GetL3CacheSize(void)
 {
     const char key[] = "hw.l3cachesize";
     u_int64_t result = 0;
@@ -87,8 +86,7 @@ SDL_IsG5(void)
     return is_g5;
 }
 #else
-static size_t
-GetL3CacheSize(void)
+static size_t GetL3CacheSize(void)
 {
     /* XXX: Just guess G4 */
     return 2097152;
@@ -3366,8 +3364,7 @@ static const struct blit_table *const normal_blit[] = {
 /* Mask matches table, or table entry is zero */
 #define MASKOK(x, y) (((x) == (y)) || ((y) == 0x00000000))
 
-SDL_BlitFunc
-SDL_CalculateBlitN(SDL_Surface *surface)
+SDL_BlitFunc SDL_CalculateBlitN(SDL_Surface *surface)
 {
     SDL_PixelFormat *srcfmt;
     SDL_PixelFormat *dstfmt;
