@@ -1893,12 +1893,7 @@ int SDL_RecreateWindow(SDL_Window *window, Uint32 flags)
     }
 
     /* Tear down the old native window */
-    if (window->surface) {
-        window->surface->flags &= ~SDL_DONTFREE;
-        SDL_FreeSurface(window->surface);
-        window->surface = NULL;
-        window->surface_valid = SDL_FALSE;
-    }
+    SDL_DestroyWindowSurface(window);
 
     if (_this->checked_texture_framebuffer) { /* never checked? No framebuffer to destroy. Don't risk calling the wrong implementation. */
         if (_this->DestroyWindowFramebuffer) {
@@ -2679,16 +2674,19 @@ static SDL_Surface *SDL_CreateWindowFramebuffer(SDL_Window *window)
     return SDL_CreateRGBSurfaceFrom(pixels, window->w, window->h, bpp, pitch, Rmask, Gmask, Bmask, Amask);
 }
 
+SDL_bool SDL_HasWindowSurface(SDL_Window *window)
+{
+    CHECK_WINDOW_MAGIC(window, SDL_FALSE);
+
+    return window->surface ? SDL_TRUE : SDL_FALSE;
+}
+
 SDL_Surface *SDL_GetWindowSurface(SDL_Window *window)
 {
     CHECK_WINDOW_MAGIC(window, NULL);
 
     if (!window->surface_valid) {
-        if (window->surface) {
-            window->surface->flags &= ~SDL_DONTFREE;
-            SDL_FreeSurface(window->surface);
-            window->surface = NULL;
-        }
+        SDL_DestroyWindowSurface(window);
         window->surface = SDL_CreateWindowFramebuffer(window);
         if (window->surface) {
             window->surface_valid = SDL_TRUE;
@@ -2768,6 +2766,19 @@ int SDL_SetWindowOpacity(SDL_Window * window, float opacity)
     }
 
     return retval;
+}
+
+int SDL_DestroyWindowSurface(SDL_Window *window)
+{
+    CHECK_WINDOW_MAGIC(window, -1);
+
+    if (window->surface) {
+        window->surface->flags &= ~SDL_DONTFREE;
+        SDL_FreeSurface(window->surface);
+        window->surface = NULL;
+        window->surface_valid = SDL_FALSE;
+    }
+    return 0;
 }
 
 int SDL_GetWindowOpacity(SDL_Window *window, float *out_opacity)
@@ -3220,12 +3231,7 @@ void SDL_DestroyWindow(SDL_Window *window)
         }
     }
 
-    if (window->surface) {
-        window->surface->flags &= ~SDL_DONTFREE;
-        SDL_FreeSurface(window->surface);
-        window->surface = NULL;
-        window->surface_valid = SDL_FALSE;
-    }
+    SDL_DestroyWindowSurface(window);
     if (_this->checked_texture_framebuffer) { /* never checked? No framebuffer to destroy. Don't risk calling the wrong implementation. */
         if (_this->DestroyWindowFramebuffer) {
             _this->DestroyWindowFramebuffer(_this, window);
