@@ -882,4 +882,8 @@
 	STUB(SDL_HasPrimarySelectionText)
 	STUB(SDL_ResetHints)
 	STUB(SDL_strcasestr)
+	// 2.28.0
+	STUB(SDL_HasWindowSurface)
+	STUB(SDL_DestroyWindowSurface)
+	
 	

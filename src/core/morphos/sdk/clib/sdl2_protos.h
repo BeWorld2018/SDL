@@ -876,6 +876,9 @@ char * SDL_GetPrimarySelectionText(void);
 SDL_bool SDL_HasPrimarySelectionText(void);
 void SDL_ResetHints(void);
 char *SDL_strcasestr(const char *haystack, const char *needle);
+/* 2.28.0 */
+SDL_bool SDL_HasWindowSurface(SDL_Window *window);
+int SDL_DestroyWindowSurface(SDL_Window *window);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */
