@@ -18,6 +18,7 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
+
 #include "../SDL_internal.h"
 
 /* The high-level video driver subsystem */
@@ -130,15 +131,15 @@ static VideoBootStrap *bootstrap[] = {
 #if SDL_VIDEO_DRIVER_QNX
     &QNX_bootstrap,
 #endif
-#if SDL_VIDEO_DRIVER_OFFSCREEN
-    &OFFSCREEN_bootstrap,
+#if SDL_VIDEO_DRIVER_OS2
+    &OS2DIVE_bootstrap,
+    &OS2VMAN_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_NGAGE
     &NGAGE_bootstrap,
 #endif
-#if SDL_VIDEO_DRIVER_OS2
-    &OS2DIVE_bootstrap,
-    &OS2VMAN_bootstrap,
+#if SDL_VIDEO_DRIVER_OFFSCREEN
+    &OFFSCREEN_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_DUMMY
     &DUMMY_bootstrap,
@@ -1407,6 +1408,9 @@ static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
 #endif
 
     display = SDL_GetDisplayForWindow(window);
+    if (display == NULL) { /* No display connected, nothing to do. */
+        return 0;
+    }
 
     if (fullscreen) {
         /* Hide any other fullscreen windows */
@@ -1628,9 +1632,11 @@ SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint
     }
 
     /* Some platforms blow up if the windows are too large. Raise it later? */
-    if ((w > 16384) || (h > 16384)) {
-        SDL_SetError("Window is too large.");
-        return NULL;
+    if (w > 16384) {
+        w = 16384;
+    }
+    if (h > 16384) {
+        h = 16384;
     }
 
     /* ensure no more than one of these flags is set */
