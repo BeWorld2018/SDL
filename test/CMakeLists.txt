@@ -479,6 +479,11 @@ if(SDL_INSTALL_TESTS)
             DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/installed-tests/SDL2
         )
     endif()
+    if(MSVC)
+        foreach(test ${SDL_TEST_EXECUTABLES})
+            SDL_install_pdb(${test} "${CMAKE_INSTALL_LIBEXECDIR}/installed-tests/SDL2")
+        endforeach()
+    endif()
     install(
         FILES ${RESOURCE_FILES}
         DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/installed-tests/SDL2

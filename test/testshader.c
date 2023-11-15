@@ -137,7 +137,7 @@ static SDL_bool CompileShader(GLhandleARB shader, const char *source)
 
         glGetObjectParameterivARB(shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &length);
         info = (char *)SDL_malloc((size_t)length + 1);
-        if (info == NULL) {
+        if (!info) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Out of memory!");
         } else {
             glGetInfoLogARB(shader, length, NULL, info);
@@ -165,7 +165,7 @@ static SDL_bool LinkProgram(ShaderData *data)
 
         glGetObjectParameterivARB(data->program, GL_OBJECT_INFO_LOG_LENGTH_ARB, &length);
         info = (char *)SDL_malloc((size_t)length + 1);
-        if (info == NULL) {
+        if (!info) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Out of memory!");
         } else {
             glGetInfoLogARB(data->program, length, NULL, info);
@@ -335,7 +335,7 @@ SDL_GL_LoadTexture(SDL_Surface *surface, GLfloat *texcoord)
                                  0x00FF0000, 0x0000FF00, 0x000000FF
 #endif
     );
-    if (image == NULL) {
+    if (!image) {
         return 0;
     }
 
@@ -468,7 +468,7 @@ int main(int argc, char **argv)
 
     /* Create a 640x480 OpenGL screen */
     window = SDL_CreateWindow("Shader Demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_OPENGL);
-    if (window == NULL) {
+    if (!window) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create OpenGL window: %s\n", SDL_GetError());
         SDL_Quit();
         exit(2);
@@ -481,7 +481,7 @@ int main(int argc, char **argv)
     }
 
     surface = SDL_LoadBMP("icon.bmp");
-    if (surface == NULL) {
+    if (!surface) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to load icon.bmp: %s\n", SDL_GetError());
         SDL_Quit();
         exit(3);

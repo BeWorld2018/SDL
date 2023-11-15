@@ -330,7 +330,7 @@ if test x$enable_libc = xyes; then
 dnl Check for C library headers
 dnl AC_CHECK_INCLUDES_DEFAULT is an autoconf-2.7x thing where AC_HEADER_STDC is deprecated.
     m4_ifdef([AC_CHECK_INCLUDES_DEFAULT], [AC_CHECK_INCLUDES_DEFAULT], [AC_HEADER_STDC])
-    AC_CHECK_HEADERS(sys/types.h stdio.h stdlib.h stddef.h stdarg.h malloc.h memory.h string.h strings.h wchar.h inttypes.h stdint.h limits.h ctype.h math.h float.h iconv.h signal.h linux/input.h)
+    AC_CHECK_HEADERS(sys/types.h stdio.h stdlib.h stddef.h stdarg.h malloc.h memory.h string.h strings.h wchar.h inttypes.h stdint.h limits.h ctype.h math.h float.h iconv.h signal.h)
 
 dnl Check for typedefs, structures, etc.
     AC_TYPE_SIZE_T
@@ -2758,6 +2758,8 @@ dnl See if we can use the new unified event interface in Linux 2.4
 CheckInputEvents()
 {
 dnl Check for Linux 2.4 unified input event interface support
+        AC_CHECK_HEADERS(linux/input.h)
+
         AC_MSG_CHECKING(for Linux 2.4 unified input interface)
         use_input_events=no
         AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -3367,32 +3369,9 @@ asdf
 [AS_HELP_STRING([--enable-xinput], [use Xinput for Windows [default=yes]])],
                                 , enable_xinput=yes)
     if test x$enable_xinput = xyes; then
-        have_xinput_gamepadex=no
-        have_xinput_stateex=no
         AC_CHECK_HEADER(xinput.h, have_xinput=yes)
-        AC_MSG_CHECKING(for struct XINPUT_GAMEPAD_EX)
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <windows.h>
-#include <xinput.h>
-XINPUT_GAMEPAD_EX x1;
-            ]],[])], [have_xinput_gamepadex=yes],[])
-        AC_MSG_RESULT($have_xinput_gamepadex)
-        AC_MSG_CHECKING(for struct XINPUT_STATE_EX)
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <windows.h>
-#include <xinput.h>
-XINPUT_STATE_EX s1;
-            ]],[])], [have_xinput_stateex=yes],[])
-        AC_MSG_RESULT($have_xinput_stateex)
-
         if test x$have_xinput = xyes; then
             AC_DEFINE(HAVE_XINPUT_H, 1, [ ])
-        fi
-        if test x$have_xinput_gamepadex = xyes; then
-            AC_DEFINE(HAVE_XINPUT_GAMEPAD_EX, 1, [ ])
-        fi
-        if test x$have_xinput_stateex = xyes; then
-            AC_DEFINE(HAVE_XINPUT_STATE_EX, 1, [ ])
         fi
     fi
 

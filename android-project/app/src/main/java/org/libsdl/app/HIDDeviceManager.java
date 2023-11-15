@@ -273,6 +273,7 @@ public class HIDDeviceManager {
         final int XB1_IFACE_SUBCLASS = 71;
         final int XB1_IFACE_PROTOCOL = 208;
         final int[] SUPPORTED_VENDORS = {
+            0x03f0, // HP
             0x044f, // Thrustmaster
             0x045e, // Microsoft
             0x0738, // Mad Catz
@@ -284,6 +285,7 @@ public class HIDDeviceManager {
             0x24c6, // PowerA
             0x2dc8, // 8BitDo
             0x2e24, // Hyperkin
+            0x3537, // GameSir
         };
 
         if (usbInterface.getId() == 0 &&
