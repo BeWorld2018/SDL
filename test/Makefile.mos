@@ -125,6 +125,7 @@ testautomation: testautomation.o \
 		      testautomation_rwops.o \
 		      testautomation_sdltest.o \
 		      testautomation_stdlib.o \
+		      testautomation_subsystems.o \
 		      testautomation_surface.o \
 		      testautomation_syswm.o \
 		      testautomation_timer.o \

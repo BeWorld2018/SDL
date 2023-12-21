@@ -209,7 +209,6 @@ AHIAUD_OpenDevice(_THIS, const char *devname)
 	hidden->buffers[0] = (Uint8 *) SDL_malloc(this->spec.size);
 	hidden->buffers[1] = (Uint8 *) SDL_malloc(this->spec.size);
 	if (hidden->buffers[0] == NULL || hidden->buffers[1] == NULL) {
-        D("[%s]No memory for audio buffer\n", __FUNCTION__);
         SDL_SetError("No memory for audio buffer");
         return -1;
     }

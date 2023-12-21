@@ -40,5 +40,7 @@ extern void MOS_GL_DeleteContext(_THIS, SDL_GLContext context);
 
 /* Non-SDL functions */
 extern int MOS_GL_ResizeContext(_THIS, SDL_Window *window);
+extern SDL_bool MOS_GL_AllocBitmap(_THIS, SDL_Window * window);
+extern SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window, GLContext *glcont);
 
 #endif /* _SDL_mosopengl_h */

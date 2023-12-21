@@ -149,7 +149,7 @@ MOS_InitModes(_THIS)
 	Object **monitors;
 	STRPTR monitorname = NULL;
 	struct Screen *s;
-	APTR mon;
+	APTR mon = NULL;
 
 	SDL_zero(display);
 
@@ -160,7 +160,6 @@ MOS_InitModes(_THIS)
 	mode.driverdata = NULL;
 
 	s = LockPubScreen(NULL);
-	mon = NULL;
 
 	if (s) {
 		SDL_DisplayModeData *modedata;
@@ -295,43 +294,28 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 	int use_wb_screen = 0;
 	ULONG openError = 0;
 	
-	D("[%s] Use monitor '%s' - Screen %d\n", __FUNCTION__, data->ScrMonName ? data->ScrMonName : (STRPTR)"Workbench", data->CustomScreen);
 
 	if (!fullscreen && data->ScrMonName == NULL) {
 		data->CustomScreen = NULL;
 		screen = LockPubScreen(NULL);
 		use_wb_screen = 1;
+		D("[%s] Use Ambient Screen (Workbench)\n", __FUNCTION__);
+
 	} else {
-		struct TagItem screentags[] =
-		{
-			{SA_Quiet, TRUE},
-			{SA_ShowTitle, FALSE},
-			{SA_AutoScroll, TRUE},
-			{SA_Title, (IPTR)"SDL2"},
-			{SA_AdaptSize, TRUE},
-			{SA_ErrorCode, (ULONG)&openError},
-			{support3d ? SA_3DSupport : TAG_IGNORE, TRUE},
-			{SA_GammaControl, TRUE},
-			{TAG_DONE}
-		};
 
-		D("[%s] Open screen %ldx%ldx%ld\n", __FUNCTION__, data->ScrWidth, data->ScrHeight, data->ScrDepth);
-
-		if (fullscreen && data->ScrMonName == NULL) {
-			screen = OpenScreenTags(NULL,
-				//SA_LikeWorkbench, TRUE,
+		screen = OpenScreenTags(NULL,
+				/*support3d ? SA_3DSupport : TAG_IGNORE, TRUE,*/
+				SA_GammaControl, TRUE,
 				SA_Width, data->ScrWidth,
 				SA_Height, data->ScrHeight,
 				SA_Depth, data->ScrDepth,
-				TAG_MORE, (IPTR)screentags);
-		} else {
-			screen = OpenScreenTags(NULL,
-				SA_Width, data->ScrWidth,
-				SA_Height, data->ScrHeight,
-				SA_Depth, data->ScrDepth,
-				SA_MonitorName, data->ScrMonName,
-				TAG_MORE, (IPTR)screentags);
-		}
+				data->ScrMonName ? SA_MonitorName : TAG_IGNORE , data->ScrMonName,
+				SA_Quiet, TRUE,
+				SA_ShowTitle, FALSE,
+				SA_Title, (IPTR)"SDL2",
+				SA_AdaptSize, TRUE,
+				SA_ErrorCode, (ULONG)&openError,
+				TAG_DONE);
 
 		if (screen)
 			data->CustomScreen = screen;

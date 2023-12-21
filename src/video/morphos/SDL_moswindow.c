@@ -121,12 +121,6 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 		}
 
 		SDL_WindowData *data = (SDL_WindowData *) sdlwin->driverdata;
-		/*if (data->appmsg) {
-			if (RemoveAppWindow(data->appmsg)) {
-				data->appmsg = NULL;
-			}
-		}*/
-		
 		if (data->menu) {
 			ClearMenuStrip(win);
 			FreeMenus(data->menu);
@@ -196,6 +190,7 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 	if (wd) {
 		window->driverdata = wd;
 		ADDHEAD(&data->windowlist, wd);
+		wd->bitmap = NULL;
 		wd->region = NULL;
 		wd->fb = NULL;
 		wd->window = window;
@@ -269,15 +264,10 @@ MOS_SetWindowTitle(_THIS, SDL_Window * window)
 
 	if (data->win) {
 		APTR old = data->window_title;
-		APTR title = NULL;
-
-		title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
-
+		APTR title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 		D("[%s] %s to %s (0x%08lx)\n", __FUNCTION__, window->title, title, data->win);
 		SetWindowTitles(data->win, title, title);
-			
 		data->window_title = title;
-
 		SDL_free(old);
 	}
 }
@@ -297,13 +287,9 @@ MOS_SetWindowPosition(_THIS, SDL_Window * window)
 
 	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
-		struct Screen *scr = vd->WScreen;
-		size_t bh = 0, top = window->y;
+		size_t top = window->y;
 
-		if (vd->CustomScreen == NULL)
-			bh = scr->BarHeight + 1;
-
-		top = MAX(bh, top);
+		top = MAX((vd->CustomScreen == NULL ? vd->WScreen->BarHeight + 1 : 0), top);
 
 		ChangeWindowBox(data->win, window->x, top, data->win->Width, data->win->Height);
 	}
@@ -317,18 +303,14 @@ MOS_SetWindowMinimumSize(_THIS, SDL_Window * window)
 
 	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
-		struct Screen *scr = vd->WScreen;
-		size_t bh = 0, min_h = window->min_h, min_w = window->min_w;
+		size_t min_h = window->min_h, min_w = window->min_w;
 
 		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			min_w += data->win->BorderLeft + data->win->BorderRight;
 			min_h += data->win->BorderTop + data->win->BorderBottom;
 		}
 
-		if (vd->CustomScreen == NULL)
-			bh = scr->BarHeight + 1;
-
-		min_h = MIN(scr->Height - bh, min_h);
+		min_h = MIN(vd->WScreen->Height - (vd->CustomScreen == NULL ? vd->WScreen->BarHeight + 1 : 0), min_h);
 
 		WindowLimits(data->win, min_w, min_h, data->win->MaxWidth, MAX(data->win->MaxHeight, min_h));
 	}
@@ -342,18 +324,14 @@ MOS_SetWindowMaximumSize(_THIS, SDL_Window * window)
 
 	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
-		struct Screen *scr = vd->WScreen;
-		size_t bh = 0, max_h = window->max_h, max_w = window->max_w;
+		size_t max_h = window->max_h, max_w = window->max_w;
 
 		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			max_w += data->win->BorderLeft + data->win->BorderRight;
 			max_h += data->win->BorderTop + data->win->BorderBottom;
 		}
 
-		if (vd->CustomScreen == NULL)
-			bh = scr->BarHeight + 1;
-
-		max_h = MIN(scr->Height - bh, max_h);
+		max_h = MIN(vd->WScreen->Height - (vd->CustomScreen == NULL ? vd->WScreen->BarHeight + 1 : 0), max_h);
 
 		WindowLimits(data->win, data->win->MinWidth, MIN(data->win->MinHeight, max_h), max_w, max_h);
 	}
@@ -367,18 +345,14 @@ MOS_SetWindowSize(_THIS, SDL_Window * window)
 
 	if (data->win) {
 		SDL_VideoData *vd = data->videodata;
-		struct Screen *scr = vd->WScreen;
-		size_t bh = 0, h = window->h, w = window->w; 
+		size_t h = window->h, w = window->w; 
 
 		if ((window->flags & SDL_WINDOW_BORDERLESS) == 0) {
 			w += data->win->BorderLeft + data->win->BorderRight;
 			h += data->win->BorderTop + data->win->BorderBottom;
 		}
 
-		if (vd->CustomScreen == NULL)
-			bh = scr->BarHeight + 1;
-
-		h = MIN(scr->Height - bh, h);
+		h = MIN(vd->WScreen->Height - (vd->CustomScreen == NULL ? vd->WScreen->BarHeight + 1 : 0), h);
 
 		ChangeWindowBox(data->win, data->win->LeftEdge, data->win->TopEdge, w, h);
 	}
@@ -675,9 +649,6 @@ MOS_MaximizeWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = (SDL_VideoData *) data->videodata;
-	struct Screen *scr = data->win->WScreen;
-	ULONG bh = 0;
-
 	D("[%s] wnd 0x%08lx - w=%d, h=%d\n", __FUNCTION__, data->win, data->win->MaxWidth, data->win->MaxHeight);
 	
 	if (data->win && window->flags & SDL_WINDOW_RESIZABLE) {
@@ -685,10 +656,7 @@ MOS_MaximizeWindow(_THIS, SDL_Window * window)
 		data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
 		data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
 		
-		if (vd->CustomScreen == NULL)
-			bh = scr->BarHeight + 1;
-
-		ChangeWindowBox(data->win, 0, bh, data->win->MaxWidth, data->win->MaxHeight);
+		ChangeWindowBox(data->win, 0, (vd->CustomScreen == NULL ? data->win->WScreen->BarHeight + 1 : 0), data->win->MaxWidth, data->win->MaxHeight);
 	}
 }
 
@@ -758,6 +726,7 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 	vd->FullScreen = fullscreen;
 
 	MOS_OpenWindows(_this);
+	
 	if (data->__tglContext) MOS_GL_ResizeContext(_this, window);
 }
 
@@ -812,12 +781,14 @@ MOS_DestroyWindow(_THIS, SDL_Window * window)
 
 	if (data) {
 		SDL_VideoData *videodata = (SDL_VideoData *) data->videodata;
-
+		
+		if (data->__tglContext)
+			MOS_GL_DeleteContext(_this, data->__tglContext);
+		
 		REMOVE(&data->node);
 
 		if (data->win) {
 			MOS_CloseWindowSafely(window, data->win);
-			data->__tglContext = NULL;
 			data->win = NULL;
 		}
 		if (data->region)
@@ -896,11 +867,8 @@ MOS_RecreateWindow(_THIS, SDL_Window * window)
 
     MOS_ShowWindow_Internal(_this, window);
 
-    if (data->win) {
-        // Make sure the new window is active
+    if (data->win) { // Make sure the new window is active
         MOS_ShowWindow(_this, window);
-    } else {
-        D("[%s] Failed to re-create window '%s'\n", __FUNCTION__, window->title);
     }
 }
 
@@ -991,7 +959,8 @@ MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operation)
 	D("[%s]\n", __FUNCTION__);
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (!data->win) return 0;
+	if (!data->win) 
+		return 0;
 	
 	switch(operation)
 	{
@@ -1025,5 +994,3 @@ MOS_GetWindowBordersSize(_THIS, SDL_Window * window, int *top, int *left, int *b
 	
 	return 0;
 }
-
-/* vi: set ts=4 sw=4 expandtab: */

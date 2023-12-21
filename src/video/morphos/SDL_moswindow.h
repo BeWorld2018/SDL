@@ -87,6 +87,9 @@ typedef struct
 	
 	APTR visualinfo;
 	struct Menu *menu;
+	
+	struct BitMap *bitmap;
+	
 } SDL_WindowData;
 
 /* Is this window shown (not iconified) */

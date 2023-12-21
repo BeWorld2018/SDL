@@ -120,16 +120,17 @@ MOS_ShowApp(_THIS)
 	MOS_OpenWindows(_this);
 	
 	// force to redraw all window's surface 
-	SDL_WindowData *wd;
-	ForeachNode(&data->windowlist, wd) {
-		struct Window *win = wd->win;
-
-		if (win) {
-			SDL_UpdateWindowSurface(wd->window);
+	if (__tglContext) 
+		MOS_GL_ResizeContext(_this, _this->current_glwin);
+	else { 
+		SDL_WindowData *wd;
+		ForeachNode(&data->windowlist, wd) {
+			struct Window *win = wd->win;
+			if (win)
+				SDL_UpdateWindowSurface(wd->window);
 		}
 	}
 	
-	if (__tglContext) MOS_GL_ResizeContext(_this, _this->current_glwin);
 }
 
 static int
@@ -163,8 +164,8 @@ MOS_VideoQuit(_THIS)
 static void
 MOS_DeleteDevice(SDL_VideoDevice * device)
 {
-	SDL_VideoData *data = (SDL_VideoData *) device->driverdata;
 	D("[%s]\n", __FUNCTION__);
+	SDL_VideoData *data = (SDL_VideoData *) device->driverdata;
 
 	FreeSignal(data->ScreenNotifyPort.mp_SigBit);
 	FreeSignal(data->BrokerPort.mp_SigBit);
