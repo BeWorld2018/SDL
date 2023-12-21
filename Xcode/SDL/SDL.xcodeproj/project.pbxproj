@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -3396,6 +3396,51 @@
 		F34B9895291DEFF500AAC96E /* SDL_hidapi_steam.c in Sources */ = {isa = PBXBuildFile; fileRef = A75FDAAC23E2795C00529352 /* SDL_hidapi_steam.c */; };
 		F34B9896291DEFF700AAC96E /* SDL_hidapi_steam.c in Sources */ = {isa = PBXBuildFile; fileRef = A75FDAAC23E2795C00529352 /* SDL_hidapi_steam.c */; };
 		F34B9897291DEFFA00AAC96E /* SDL_hidapi_steam.c in Sources */ = {isa = PBXBuildFile; fileRef = A75FDAAC23E2795C00529352 /* SDL_hidapi_steam.c */; };
+		F362B9322B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9332B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9342B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9352B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9362B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9372B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9382B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B9392B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B93A2B33916600D30B94 /* controller_list.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B91F2B33916600D30B94 /* controller_list.h */; };
+		F362B93D2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B93E2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B93F2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9402B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9412B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9422B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9432B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9442B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9452B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */; };
+		F362B9462B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B9472B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B9482B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B9492B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B94A2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B94B2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B94C2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B94D2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B94E2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */; };
+		F362B9522B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9532B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9542B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9552B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9562B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9572B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9582B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B9592B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B95A2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */; };
+		F362B95B2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B95C2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B95D2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B95E2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B95F2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B9602B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B9612B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B9622B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
+		F362B9632B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */ = {isa = PBXBuildFile; fileRef = F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */; };
 		F3631C6424884ACF004F28EA /* SDL_locale.h in Headers */ = {isa = PBXBuildFile; fileRef = 566E26792462701100718109 /* SDL_locale.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F3631C652488534E004F28EA /* SDL_locale.h in Headers */ = {isa = PBXBuildFile; fileRef = 566E26792462701100718109 /* SDL_locale.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F376F6192559B29300CFC0BC /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F376F6182559B29300CFC0BC /* OpenGLES.framework */; platformFilter = ios; };
@@ -4107,6 +4152,11 @@
 		F31A92C628D4CB39003BFD6A /* SDL_offscreenopengles.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDL_offscreenopengles.h; sourceTree = "<group>"; };
 		F31A92C728D4CB39003BFD6A /* SDL_offscreenopengles.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SDL_offscreenopengles.c; sourceTree = "<group>"; };
 		F32305FE28939F6400E66D30 /* SDL_hidapi_combined.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SDL_hidapi_combined.c; sourceTree = "<group>"; };
+		F362B91F2B33916600D30B94 /* controller_list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = controller_list.h; sourceTree = "<group>"; };
+		F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SDL_hidapi_steamdeck.c; sourceTree = "<group>"; };
+		F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDL_hidapi_nintendo.h; sourceTree = "<group>"; };
+		F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SDL_steam_virtual_gamepad.h; sourceTree = "<group>"; };
+		F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SDL_steam_virtual_gamepad.c; sourceTree = "<group>"; };
 		F376F6182559B29300CFC0BC /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.1.sdk/System/Library/Frameworks/OpenGLES.framework; sourceTree = DEVELOPER_DIR; };
 		F376F61A2559B2AF00CFC0BC /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/iOSSupport/System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		F376F6312559B31D00CFC0BC /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/iOSSupport/System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
@@ -4950,12 +5000,15 @@
 				A7D8A7AA23E2513E00DCD162 /* iphoneos */,
 				A7D8A7A123E2513E00DCD162 /* steam */,
 				75E09157241EA924004729E1 /* virtual */,
-				A7D8A7AD23E2513E00DCD162 /* SDL_gamecontroller.c */,
-				A7D8A7A923E2513E00DCD162 /* SDL_joystick.c */,
+				F362B91F2B33916600D30B94 /* controller_list.h */,
 				F3820712284F3609004DD584 /* controller_type.c */,
 				A7D8A7D923E2513E00DCD162 /* controller_type.h */,
+				A7D8A7AD23E2513E00DCD162 /* SDL_gamecontroller.c */,
 				A7D8A79E23E2513E00DCD162 /* SDL_gamecontrollerdb.h */,
 				A7D8A7D023E2513E00DCD162 /* SDL_joystick_c.h */,
+				A7D8A7A923E2513E00DCD162 /* SDL_joystick.c */,
+				F362B9512B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c */,
+				F362B9502B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h */,
 				A7D8A7CF23E2513E00DCD162 /* SDL_sysjoystick.h */,
 				A7D8A7CB23E2513E00DCD162 /* usb_ids.h */,
 			);
@@ -4994,6 +5047,7 @@
 				F32305FE28939F6400E66D30 /* SDL_hidapi_combined.c */,
 				A7D8A7C923E2513E00DCD162 /* SDL_hidapi_gamecube.c */,
 				F3F07D59269640160074468B /* SDL_hidapi_luna.c */,
+				F362B93C2B33920400D30B94 /* SDL_hidapi_nintendo.h */,
 				F388C95428B5F6F600661ECF /* SDL_hidapi_ps3.c */,
 				A7D8A7C323E2513E00DCD162 /* SDL_hidapi_ps4.c */,
 				F3A4909D2554D38500E92A8B /* SDL_hidapi_ps5.c */,
@@ -5002,6 +5056,7 @@
 				9846B07B287A9020000C35C8 /* SDL_hidapi_shield.c */,
 				F3984CCF25BCC92800374F43 /* SDL_hidapi_stadia.c */,
 				A75FDAAC23E2795C00529352 /* SDL_hidapi_steam.c */,
+				F362B93B2B33920400D30B94 /* SDL_hidapi_steamdeck.c */,
 				A7D8A7C623E2513E00DCD162 /* SDL_hidapi_switch.c */,
 				F3D60A8228C16A1800788A3A /* SDL_hidapi_wii.c */,
 				A7D8A7C223E2513E00DCD162 /* SDL_hidapi_xbox360.c */,
@@ -5393,6 +5448,7 @@
 				A75FCD0223E25AB700529352 /* close_code.h in Headers */,
 				A75FCD0323E25AB700529352 /* SDL.h in Headers */,
 				A75FCD0423E25AB700529352 /* SDL_uikitmetalview.h in Headers */,
+				F362B9592B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A75FCD0523E25AB700529352 /* SDL_assert.h in Headers */,
 				A75FCD0623E25AB700529352 /* SDL_shape_internals.h in Headers */,
 				A75FCD0723E25AB700529352 /* SDL_glfuncs.h in Headers */,
@@ -5456,6 +5512,7 @@
 				A75FCD4323E25AB700529352 /* SDL_keyboard.h in Headers */,
 				A75FCD4423E25AB700529352 /* SDL_uikitevents.h in Headers */,
 				A75FCD4523E25AB700529352 /* SDL_gesture_c.h in Headers */,
+				F362B9392B33916600D30B94 /* controller_list.h in Headers */,
 				A75FCD4623E25AB700529352 /* SDL_shaders_gl.h in Headers */,
 				A75FCD4723E25AB700529352 /* SDL_systhread_c.h in Headers */,
 				A1BB8B7327F6CF330057CFA8 /* SDL_list.h in Headers */,
@@ -5602,6 +5659,7 @@
 				A75FCDDE23E25AB700529352 /* SDL_video.h in Headers */,
 				A75FCDDF23E25AB700529352 /* SDL_opengles2_gl2.h in Headers */,
 				A75FCDE023E25AB700529352 /* SDL_sensor.h in Headers */,
+				F362B94D2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A75FCDE123E25AB700529352 /* SDL_sysvideo.h in Headers */,
 				F386F6EE2884663E001840AA /* SDL_log_c.h in Headers */,
 				A75FCDE223E25AB700529352 /* SDL_opengles2_gl2platform.h in Headers */,
@@ -5622,6 +5680,7 @@
 				A75FCEBB23E25AC700529352 /* close_code.h in Headers */,
 				A75FCEBC23E25AC700529352 /* SDL.h in Headers */,
 				A75FCEBD23E25AC700529352 /* SDL_uikitmetalview.h in Headers */,
+				F362B95A2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A75FCEBE23E25AC700529352 /* SDL_assert.h in Headers */,
 				A75FCEBF23E25AC700529352 /* SDL_shape_internals.h in Headers */,
 				A75FCEC023E25AC700529352 /* SDL_glfuncs.h in Headers */,
@@ -5685,6 +5744,7 @@
 				A75FCEFC23E25AC700529352 /* SDL_keyboard.h in Headers */,
 				A75FCEFD23E25AC700529352 /* SDL_uikitevents.h in Headers */,
 				A75FCEFE23E25AC700529352 /* SDL_gesture_c.h in Headers */,
+				F362B93A2B33916600D30B94 /* controller_list.h in Headers */,
 				A75FCEFF23E25AC700529352 /* SDL_shaders_gl.h in Headers */,
 				A75FCF0023E25AC700529352 /* SDL_systhread_c.h in Headers */,
 				A1BB8B7427F6CF330057CFA8 /* SDL_list.h in Headers */,
@@ -5831,6 +5891,7 @@
 				A75FCF9723E25AC700529352 /* SDL_video.h in Headers */,
 				A75FCF9823E25AC700529352 /* SDL_opengles2_gl2.h in Headers */,
 				A75FCF9923E25AC700529352 /* SDL_sensor.h in Headers */,
+				F362B94E2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A75FCF9A23E25AC700529352 /* SDL_sysvideo.h in Headers */,
 				F386F6EF2884663E001840AA /* SDL_log_c.h in Headers */,
 				A75FCF9B23E25AC700529352 /* SDL_opengles2_gl2platform.h in Headers */,
@@ -5911,6 +5972,7 @@
 				A769B0E523E259AE00872273 /* vulkan_android.h in Headers */,
 				A769B0E623E259AE00872273 /* yuv_rgb_std_func.h in Headers */,
 				A769B0E723E259AE00872273 /* vulkan_core.h in Headers */,
+				F362B9572B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A769B0E823E259AE00872273 /* SDL_syssensor.h in Headers */,
 				A769B0E923E259AE00872273 /* SDL_dynapi.h in Headers */,
 				A769B0EA23E259AE00872273 /* SDL_assert_c.h in Headers */,
@@ -5941,6 +6003,7 @@
 				A769B10D23E259AE00872273 /* SDL_sysjoystick.h in Headers */,
 				A769B10E23E259AE00872273 /* scancodes_linux.h in Headers */,
 				A769B11023E259AE00872273 /* SDL_touch_c.h in Headers */,
+				F362B94B2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A769B11123E259AE00872273 /* SDL_gamecontrollerdb.h in Headers */,
 				A769B11223E259AE00872273 /* SDL_cocoavulkan.h in Headers */,
 				A769B11323E259AE00872273 /* gl2platform.h in Headers */,
@@ -5997,6 +6060,7 @@
 				A769B15623E259AE00872273 /* SDL_syshaptic.h in Headers */,
 				A769B15723E259AE00872273 /* SDL_vulkan_internal.h in Headers */,
 				A769B15923E259AE00872273 /* SDL_cocoaevents.h in Headers */,
+				F362B9372B33916600D30B94 /* controller_list.h in Headers */,
 				A769B15A23E259AE00872273 /* vk_icd.h in Headers */,
 				A769B15B23E259AE00872273 /* SDL_nullframebuffer_c.h in Headers */,
 				A769B15D23E259AE00872273 /* SDL_dynapi_procs.h in Headers */,
@@ -6161,6 +6225,7 @@
 				A7D8B5D623E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B61223E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B9D823E2514400DCD162 /* SDL_sysrender.h in Headers */,
+				F362B9472B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8A97C23E2514000DCD162 /* SDL_syssensor.h in Headers */,
 				A7D88A5323E2437C00DCD162 /* SDL_system.h in Headers */,
 				A7D8B3E723E2514300DCD162 /* SDL_systhread.h in Headers */,
@@ -6199,6 +6264,7 @@
 				A7D8B9CC23E2514400DCD162 /* SDL_yuv_sw_c.h in Headers */,
 				A7D88A1623E2437C00DCD162 /* begin_code.h in Headers */,
 				A7D8BB4623E2514500DCD162 /* blank_cursor.h in Headers */,
+				F362B9532B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A7D88A1823E2437C00DCD162 /* close_code.h in Headers */,
 				A7D8B5B823E2514300DCD162 /* controller_type.h in Headers */,
 				A7D8BB4C23E2514500DCD162 /* default_cursor.h in Headers */,
@@ -6234,6 +6300,7 @@
 				A7D8B25B23E2514200DCD162 /* vulkan_vi.h in Headers */,
 				A7D8B27923E2514200DCD162 /* vulkan_wayland.h in Headers */,
 				A7D8B27F23E2514200DCD162 /* vulkan_win32.h in Headers */,
+				F362B9332B33916600D30B94 /* controller_list.h in Headers */,
 				A7D8B29123E2514200DCD162 /* vulkan_xcb.h in Headers */,
 				A7D8B29D23E2514200DCD162 /* vulkan_xlib.h in Headers */,
 				A7D8B28B23E2514200DCD162 /* vulkan_xlib_xrandr.h in Headers */,
@@ -6395,6 +6462,7 @@
 				A7D8B5D723E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B61323E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B9D923E2514400DCD162 /* SDL_sysrender.h in Headers */,
+				F362B9482B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8A97D23E2514000DCD162 /* SDL_syssensor.h in Headers */,
 				A7D88C0E23E24BED00DCD162 /* SDL_system.h in Headers */,
 				A7D8B3E823E2514300DCD162 /* SDL_systhread.h in Headers */,
@@ -6433,6 +6501,7 @@
 				A7D8B9CD23E2514400DCD162 /* SDL_yuv_sw_c.h in Headers */,
 				A7D88BCC23E24BED00DCD162 /* begin_code.h in Headers */,
 				A7D8BB4723E2514500DCD162 /* blank_cursor.h in Headers */,
+				F362B9542B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A7D88BCE23E24BED00DCD162 /* close_code.h in Headers */,
 				A7D8B5B923E2514300DCD162 /* controller_type.h in Headers */,
 				A7D8BB4D23E2514500DCD162 /* default_cursor.h in Headers */,
@@ -6468,6 +6537,7 @@
 				A7D8B25C23E2514200DCD162 /* vulkan_vi.h in Headers */,
 				A7D8B27A23E2514200DCD162 /* vulkan_wayland.h in Headers */,
 				A7D8B28023E2514200DCD162 /* vulkan_win32.h in Headers */,
+				F362B9342B33916600D30B94 /* controller_list.h in Headers */,
 				A7D8B29223E2514200DCD162 /* vulkan_xcb.h in Headers */,
 				A7D8B29E23E2514200DCD162 /* vulkan_xlib.h in Headers */,
 				A7D8B28C23E2514200DCD162 /* vulkan_xlib_xrandr.h in Headers */,
@@ -6548,6 +6618,7 @@
 				A7D8B2B823E2514200DCD162 /* vulkan_android.h in Headers */,
 				A7D8B3D223E2514300DCD162 /* yuv_rgb_std_func.h in Headers */,
 				A7D8B2AC23E2514200DCD162 /* vulkan_core.h in Headers */,
+				F362B9562B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A7D8A97F23E2514000DCD162 /* SDL_syssensor.h in Headers */,
 				A7D8AB0E23E2514100DCD162 /* SDL_dynapi.h in Headers */,
 				A7D8B61B23E2514300DCD162 /* SDL_assert_c.h in Headers */,
@@ -6578,6 +6649,7 @@
 				A7D8B58523E2514300DCD162 /* SDL_sysjoystick.h in Headers */,
 				A7D8BB6123E2514500DCD162 /* scancodes_linux.h in Headers */,
 				A7D8BB6723E2514500DCD162 /* SDL_touch_c.h in Headers */,
+				F362B94A2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8B4B023E2514300DCD162 /* SDL_gamecontrollerdb.h in Headers */,
 				A7D8AEEC23E2514100DCD162 /* SDL_cocoavulkan.h in Headers */,
 				A7D8B23423E2514200DCD162 /* gl2platform.h in Headers */,
@@ -6634,6 +6706,7 @@
 				A7D8AAD823E2514100DCD162 /* SDL_syshaptic.h in Headers */,
 				A7D8AD2123E2514100DCD162 /* SDL_vulkan_internal.h in Headers */,
 				A7D8AF1623E2514100DCD162 /* SDL_cocoaevents.h in Headers */,
+				F362B9362B33916600D30B94 /* controller_list.h in Headers */,
 				A7D8B25823E2514200DCD162 /* vk_icd.h in Headers */,
 				A7D8ABE923E2514100DCD162 /* SDL_nullframebuffer_c.h in Headers */,
 				A7D8AB2023E2514100DCD162 /* SDL_dynapi_procs.h in Headers */,
@@ -6798,6 +6871,7 @@
 				A7D8B5D523E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B61123E2514300DCD162 /* SDL_syspower.h in Headers */,
 				A7D8B9D723E2514400DCD162 /* SDL_sysrender.h in Headers */,
+				F362B9462B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8A97B23E2514000DCD162 /* SDL_syssensor.h in Headers */,
 				AA75584E1595D4D800BBD41B /* SDL_system.h in Headers */,
 				A7D8B3E623E2514300DCD162 /* SDL_systhread.h in Headers */,
@@ -6836,6 +6910,7 @@
 				A7D8B9CB23E2514400DCD162 /* SDL_yuv_sw_c.h in Headers */,
 				AA7557FA1595D4D800BBD41B /* begin_code.h in Headers */,
 				A7D8BB4523E2514500DCD162 /* blank_cursor.h in Headers */,
+				F362B9522B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				AA7557FC1595D4D800BBD41B /* close_code.h in Headers */,
 				A7D8B5B723E2514300DCD162 /* controller_type.h in Headers */,
 				A7D8BB4B23E2514500DCD162 /* default_cursor.h in Headers */,
@@ -6871,6 +6946,7 @@
 				A7D8B25A23E2514200DCD162 /* vulkan_vi.h in Headers */,
 				A7D8B27823E2514200DCD162 /* vulkan_wayland.h in Headers */,
 				A7D8B27E23E2514200DCD162 /* vulkan_win32.h in Headers */,
+				F362B9322B33916600D30B94 /* controller_list.h in Headers */,
 				A7D8B29023E2514200DCD162 /* vulkan_xcb.h in Headers */,
 				A7D8B29C23E2514200DCD162 /* vulkan_xlib.h in Headers */,
 				A7D8B28A23E2514200DCD162 /* vulkan_xlib_xrandr.h in Headers */,
@@ -6888,6 +6964,7 @@
 				A7D8AC0C23E2514100DCD162 /* SDL_shape_internals.h in Headers */,
 				A7D8BA7C23E2514400DCD162 /* SDL_glfuncs.h in Headers */,
 				A7D8AC0623E2514100DCD162 /* SDL_rect_c.h in Headers */,
+				F362B9352B33916600D30B94 /* controller_list.h in Headers */,
 				75E09166241EA924004729E1 /* SDL_virtualjoystick_c.h in Headers */,
 				A7D8B99E23E2514400DCD162 /* SDL_shaders_metal_osx.h in Headers */,
 				A7D8B98F23E2514400DCD162 /* SDL_shaders_metal_ios.h in Headers */,
@@ -6904,6 +6981,7 @@
 				A7D8B3EF23E2514300DCD162 /* SDL_thread_c.h in Headers */,
 				A7D8AF0923E2514100DCD162 /* SDL_cocoamessagebox.h in Headers */,
 				A7D8BA0423E2514400DCD162 /* SDL_blendfillrect.h in Headers */,
+				F362B9552B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				A7D8B55A23E2514300DCD162 /* SDL_hidapijoystick_c.h in Headers */,
 				A7D8B2C323E2514200DCD162 /* SDL_pixels_c.h in Headers */,
 				A7D8B58A23E2514300DCD162 /* SDL_joystick_c.h in Headers */,
@@ -7000,6 +7078,7 @@
 				A7D8BB4E23E2514500DCD162 /* default_cursor.h in Headers */,
 				A7D8B9FE23E2514400DCD162 /* SDL_render_sw_c.h in Headers */,
 				A7D8BBED23E2574800DCD162 /* SDL_uikitappdelegate.h in Headers */,
+				F362B9492B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8BBF923E2574800DCD162 /* SDL_uikitopengles.h in Headers */,
 				F31A92CC28D4CB39003BFD6A /* SDL_offscreenopengles.h in Headers */,
 				A7D8ABFA23E2514100DCD162 /* SDL_nullvideo.h in Headers */,
@@ -7059,6 +7138,7 @@
 				DB313FC917554B71006C0E22 /* close_code.h in Headers */,
 				DB313FF917554B71006C0E22 /* SDL.h in Headers */,
 				A7D8AC6223E2514100DCD162 /* SDL_uikitmetalview.h in Headers */,
+				F362B9582B33EB7300D30B94 /* SDL_steam_virtual_gamepad.h in Headers */,
 				DB313FCA17554B71006C0E22 /* SDL_assert.h in Headers */,
 				A7D8AC0E23E2514100DCD162 /* SDL_shape_internals.h in Headers */,
 				A7D8BA7E23E2514400DCD162 /* SDL_glfuncs.h in Headers */,
@@ -7122,6 +7202,7 @@
 				DB313FDA17554B71006C0E22 /* SDL_keyboard.h in Headers */,
 				A7D8ACC223E2514100DCD162 /* SDL_uikitevents.h in Headers */,
 				A7D8BB3E23E2514500DCD162 /* SDL_gesture_c.h in Headers */,
+				F362B9382B33916600D30B94 /* controller_list.h in Headers */,
 				A7D8BA7823E2514400DCD162 /* SDL_shaders_gl.h in Headers */,
 				A7D8B42D23E2514300DCD162 /* SDL_systhread_c.h in Headers */,
 				A1BB8B7227F6CF330057CFA8 /* SDL_list.h in Headers */,
@@ -7268,6 +7349,7 @@
 				AAC070FE195606770073DCDF /* SDL_opengles2_gl2.h in Headers */,
 				F3950CDA212BC88D00F51292 /* SDL_sensor.h in Headers */,
 				A75FDBCB23EA380300529352 /* SDL_hidapi_rumble.h in Headers */,
+				F362B94C2B33920500D30B94 /* SDL_hidapi_nintendo.h in Headers */,
 				A7D8AC4423E2514100DCD162 /* SDL_sysvideo.h in Headers */,
 				F386F6ED2884663E001840AA /* SDL_log_c.h in Headers */,
 				AAC07104195606770073DCDF /* SDL_opengles2_gl2platform.h in Headers */,
@@ -7779,6 +7861,7 @@
 				A75FCE1923E25AB700529352 /* SDL_offscreenevents.c in Sources */,
 				A75FCE1A23E25AB700529352 /* SDL_uikitview.m in Sources */,
 				A75FCE1B23E25AB700529352 /* SDL_nullevents.c in Sources */,
+				F362B9442B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A75FCE1C23E25AB700529352 /* SDL_audiodev.c in Sources */,
 				A75FCE1D23E25AB700529352 /* SDL_cocoaclipboard.m in Sources */,
 				A75FCE1E23E25AB700529352 /* SDL_blit_slow.c in Sources */,
@@ -7910,6 +7993,7 @@
 				A75FCE9B23E25AB700529352 /* SDL_drawpoint.c in Sources */,
 				A75FCE9C23E25AB700529352 /* e_sqrt.c in Sources */,
 				A75FCE9D23E25AB700529352 /* SDL_cocoavideo.m in Sources */,
+				F362B9622B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A75FCE9F23E25AB700529352 /* SDL.c in Sources */,
 				A75FCEA123E25AB700529352 /* SDL_cocoavulkan.m in Sources */,
 				A75FCEA223E25AB700529352 /* SDL_uikitappdelegate.m in Sources */,
@@ -7975,6 +8059,7 @@
 				A75FCFD223E25AC700529352 /* SDL_offscreenevents.c in Sources */,
 				A75FCFD323E25AC700529352 /* SDL_uikitview.m in Sources */,
 				A75FCFD423E25AC700529352 /* SDL_nullevents.c in Sources */,
+				F362B9452B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A75FCFD523E25AC700529352 /* SDL_audiodev.c in Sources */,
 				A75FCFD623E25AC700529352 /* SDL_cocoaclipboard.m in Sources */,
 				A75FCFD723E25AC700529352 /* SDL_blit_slow.c in Sources */,
@@ -8106,6 +8191,7 @@
 				A75FD05423E25AC700529352 /* SDL_drawpoint.c in Sources */,
 				A75FD05523E25AC700529352 /* e_sqrt.c in Sources */,
 				A75FD05623E25AC700529352 /* SDL_cocoavideo.m in Sources */,
+				F362B9632B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A75FD05823E25AC700529352 /* SDL.c in Sources */,
 				A75FD05A23E25AC700529352 /* SDL_cocoavulkan.m in Sources */,
 				A75FD05B23E25AC700529352 /* SDL_uikitappdelegate.m in Sources */,
@@ -8145,6 +8231,7 @@
 				A769B18D23E259AE00872273 /* SDL_offscreenframebuffer.c in Sources */,
 				A769B18E23E259AE00872273 /* yuv_rgb.c in Sources */,
 				A769B18F23E259AE00872273 /* SDL_render_gles.c in Sources */,
+				F362B9602B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A769B19023E259AE00872273 /* SDL_systhread.c in Sources */,
 				A769B19123E259AE00872273 /* SDL_windowevents.c in Sources */,
 				A769B19223E259AE00872273 /* s_scalbn.c in Sources */,
@@ -8157,6 +8244,7 @@
 				A769B19A23E259AE00872273 /* SDL_syssem.c in Sources */,
 				A769B19B23E259AE00872273 /* SDL_hidapi_xbox360.c in Sources */,
 				A769B19C23E259AE00872273 /* SDL_coreaudio.m in Sources */,
+				F362B9422B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A769B19D23E259AE00872273 /* SDL_blendline.c in Sources */,
 				A769B19E23E259AE00872273 /* SDL_blit_A.c in Sources */,
 				A769B19F23E259AE00872273 /* SDL_d3dmath.c in Sources */,
@@ -8368,6 +8456,7 @@
 				A7D8ABF223E2514100DCD162 /* SDL_nullevents.c in Sources */,
 				A7D8B81923E2514400DCD162 /* SDL_audiodev.c in Sources */,
 				A7D8AF0D23E2514100DCD162 /* SDL_cocoaclipboard.m in Sources */,
+				F362B93E2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A7D8ABCE23E2514100DCD162 /* SDL_blit_slow.c in Sources */,
 				A7D8BA9823E2514400DCD162 /* s_copysign.c in Sources */,
 				A7D8AAB723E2514100DCD162 /* SDL_haptic.c in Sources */,
@@ -8499,6 +8588,7 @@
 				A7D8BA2623E2514400DCD162 /* SDL_drawpoint.c in Sources */,
 				A7D8BAF823E2514500DCD162 /* e_sqrt.c in Sources */,
 				A7D8AEAD23E2514100DCD162 /* SDL_cocoavideo.m in Sources */,
+				F362B95C2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8A94C23E2514000DCD162 /* SDL.c in Sources */,
 				A7D8AEA123E2514100DCD162 /* SDL_cocoavulkan.m in Sources */,
 				A7D8AC6423E2514100DCD162 /* SDL_uikitappdelegate.m in Sources */,
@@ -8564,6 +8654,7 @@
 				A7D8ABF323E2514100DCD162 /* SDL_nullevents.c in Sources */,
 				A7D8B81A23E2514400DCD162 /* SDL_audiodev.c in Sources */,
 				A7D8AF0E23E2514100DCD162 /* SDL_cocoaclipboard.m in Sources */,
+				F362B93F2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A7D8ABCF23E2514100DCD162 /* SDL_blit_slow.c in Sources */,
 				A7D8BA9923E2514400DCD162 /* s_copysign.c in Sources */,
 				A7D8AAB823E2514100DCD162 /* SDL_haptic.c in Sources */,
@@ -8695,6 +8786,7 @@
 				A7D8BA2723E2514400DCD162 /* SDL_drawpoint.c in Sources */,
 				A7D8BAF923E2514500DCD162 /* e_sqrt.c in Sources */,
 				A7D8AEAE23E2514100DCD162 /* SDL_cocoavideo.m in Sources */,
+				F362B95D2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8A94D23E2514000DCD162 /* SDL.c in Sources */,
 				A7D8AEA223E2514100DCD162 /* SDL_cocoavulkan.m in Sources */,
 				A7D8AC6523E2514100DCD162 /* SDL_uikitappdelegate.m in Sources */,
@@ -8734,6 +8826,7 @@
 				A7D8AB7723E2514100DCD162 /* SDL_offscreenframebuffer.c in Sources */,
 				A7D8B3C323E2514200DCD162 /* yuv_rgb.c in Sources */,
 				A7D8BA4123E2514400DCD162 /* SDL_render_gles.c in Sources */,
+				F362B95F2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8B43823E2514300DCD162 /* SDL_systhread.c in Sources */,
 				A7D8BB3723E2514500DCD162 /* SDL_windowevents.c in Sources */,
 				A7D8BABF23E2514400DCD162 /* s_scalbn.c in Sources */,
@@ -8746,6 +8839,7 @@
 				A7D8B42623E2514300DCD162 /* SDL_syssem.c in Sources */,
 				A7D8B53D23E2514300DCD162 /* SDL_hidapi_xbox360.c in Sources */,
 				A7D8B8D623E2514400DCD162 /* SDL_coreaudio.m in Sources */,
+				F362B9412B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A7D8BA2323E2514400DCD162 /* SDL_blendline.c in Sources */,
 				A7D8ADF623E2514100DCD162 /* SDL_blit_A.c in Sources */,
 				A7D8BA3B23E2514400DCD162 /* SDL_d3dmath.c in Sources */,
@@ -8966,6 +9060,7 @@
 				A7D8BBE523E2574800DCD162 /* SDL_uikitview.m in Sources */,
 				A7D8BBE923E2574800DCD162 /* SDL_uikitvulkan.m in Sources */,
 				A7D8ABCD23E2514100DCD162 /* SDL_blit_slow.c in Sources */,
+				F362B93D2B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				A7D8BA9723E2514400DCD162 /* s_copysign.c in Sources */,
 				F3984CD025BCC92900374F43 /* SDL_hidapi_stadia.c in Sources */,
 				A7D8AAB623E2514100DCD162 /* SDL_haptic.c in Sources */,
@@ -8974,6 +9069,7 @@
 				A7D8BBC523E2561500DCD162 /* SDL_steamcontroller.c in Sources */,
 				A7D8AD3223E2514100DCD162 /* SDL_blit_N.c in Sources */,
 				A7D8BB7B23E2514500DCD162 /* SDL_dropevents.c in Sources */,
+				F362B95B2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8BACD23E2514500DCD162 /* e_atan2.c in Sources */,
 				A7D8BA8B23E2514400DCD162 /* s_sin.c in Sources */,
 				A7D8BBEB23E2574800DCD162 /* SDL_uikitwindow.m in Sources */,
@@ -9161,6 +9257,7 @@
 				A7D8ABD023E2514100DCD162 /* SDL_blit_slow.c in Sources */,
 				A7D8BA9A23E2514400DCD162 /* s_copysign.c in Sources */,
 				A7D8AAB923E2514100DCD162 /* SDL_haptic.c in Sources */,
+				F362B9402B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				F3984CD325BCC92900374F43 /* SDL_hidapi_stadia.c in Sources */,
 				A7D8AF2723E2514100DCD162 /* SDL_cocoametalview.m in Sources */,
 				A7D8B86323E2514400DCD162 /* SDL_audiotypecvt.c in Sources */,
@@ -9169,6 +9266,7 @@
 				A7D8BBFA23E2574800DCD162 /* SDL_uikitopengles.m in Sources */,
 				A7D8BAD023E2514500DCD162 /* e_atan2.c in Sources */,
 				A7D8BA8E23E2514400DCD162 /* s_sin.c in Sources */,
+				F362B95E2B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8B5EA23E2514300DCD162 /* SDL_power.c in Sources */,
 				A7D8AED923E2514100DCD162 /* SDL_cocoakeyboard.m in Sources */,
 				A7D8AB1923E2514100DCD162 /* SDL_dynapi.c in Sources */,
@@ -9356,6 +9454,7 @@
 				A7D8BA9C23E2514400DCD162 /* s_copysign.c in Sources */,
 				A7D8AABB23E2514100DCD162 /* SDL_haptic.c in Sources */,
 				A7D8AC9223E2514100DCD162 /* SDL_uikitvulkan.m in Sources */,
+				F362B9432B33920500D30B94 /* SDL_hidapi_steamdeck.c in Sources */,
 				F3984CD625BCC92900374F43 /* SDL_hidapi_stadia.c in Sources */,
 				A7D8AF2923E2514100DCD162 /* SDL_cocoametalview.m in Sources */,
 				A7D8B86523E2514400DCD162 /* SDL_audiotypecvt.c in Sources */,
@@ -9364,6 +9463,7 @@
 				A7D8AD3723E2514100DCD162 /* SDL_blit_N.c in Sources */,
 				A7D8BB8023E2514500DCD162 /* SDL_dropevents.c in Sources */,
 				A7D8BAD223E2514500DCD162 /* e_atan2.c in Sources */,
+				F362B9612B33EB7300D30B94 /* SDL_steam_virtual_gamepad.c in Sources */,
 				A7D8BA9023E2514400DCD162 /* s_sin.c in Sources */,
 				A7D8B5EC23E2514300DCD162 /* SDL_power.c in Sources */,
 				A7D8AEDB23E2514100DCD162 /* SDL_cocoakeyboard.m in Sources */,

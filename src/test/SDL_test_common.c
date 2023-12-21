@@ -803,6 +803,82 @@ static void SDLTest_PrintWindowFlags(char *text, size_t maxlen, Uint32 flags)
     }
 }
 
+static void SDLTest_PrintModStateFlag(char *text, size_t maxlen, SDL_Keymod flag)
+{
+    switch (flag) {
+    case KMOD_LSHIFT:
+        SDL_snprintfcat(text, maxlen, "LSHIFT");
+        break;
+    case KMOD_RSHIFT:
+        SDL_snprintfcat(text, maxlen, "RSHIFT");
+        break;
+    case KMOD_LCTRL:
+        SDL_snprintfcat(text, maxlen, "LCTRL");
+        break;
+    case KMOD_RCTRL:
+        SDL_snprintfcat(text, maxlen, "RCTRL");
+        break;
+    case KMOD_LALT:
+        SDL_snprintfcat(text, maxlen, "LALT");
+        break;
+    case KMOD_RALT:
+        SDL_snprintfcat(text, maxlen, "RALT");
+        break;
+    case KMOD_LGUI:
+        SDL_snprintfcat(text, maxlen, "LGUI");
+        break;
+    case KMOD_RGUI:
+        SDL_snprintfcat(text, maxlen, "RGUI");
+        break;
+    case KMOD_NUM:
+        SDL_snprintfcat(text, maxlen, "NUM");
+        break;
+    case KMOD_CAPS:
+        SDL_snprintfcat(text, maxlen, "CAPS");
+        break;
+    case KMOD_MODE:
+        SDL_snprintfcat(text, maxlen, "MODE");
+        break;
+    case KMOD_SCROLL:
+        SDL_snprintfcat(text, maxlen, "SCROLL");
+        break;
+    default:
+        SDL_snprintfcat(text, maxlen, "0x%8.8x", (unsigned int) flag);
+        break;
+    }
+}
+
+static void SDLTest_PrintModState(char *text, size_t maxlen, SDL_Keymod keymod)
+{
+    const SDL_Keymod kmod_flags[] = {
+        KMOD_LSHIFT,
+        KMOD_RSHIFT,
+        KMOD_LCTRL,
+        KMOD_RCTRL,
+        KMOD_LALT,
+        KMOD_RALT,
+        KMOD_LGUI,
+        KMOD_RGUI,
+        KMOD_NUM,
+        KMOD_CAPS,
+        KMOD_MODE,
+        KMOD_SCROLL
+    };
+
+    int i;
+    int count = 0;
+    for (i = 0; i < SDL_arraysize(kmod_flags); ++i) {
+        const SDL_Keymod flag = kmod_flags[i];
+        if ((keymod & flag) == flag) {
+            if (count > 0) {
+                SDL_snprintfcat(text, maxlen, " | ");
+            }
+            SDLTest_PrintModStateFlag(text, maxlen, flag);
+            ++count;
+        }
+    }
+}
+
 static void SDLTest_PrintButtonMask(char *text, size_t maxlen, Uint32 flags)
 {
     int i;
@@ -851,6 +927,12 @@ static void SDLTest_PrintPixelFormat(char *text, size_t maxlen, Uint32 format)
         break;
     case SDL_PIXELFORMAT_INDEX1MSB:
         SDL_snprintfcat(text, maxlen, "Index1MSB");
+        break;
+    case SDL_PIXELFORMAT_INDEX2LSB:
+        SDL_snprintfcat(text, maxlen, "Index2LSB");
+        break;
+    case SDL_PIXELFORMAT_INDEX2MSB:
+        SDL_snprintfcat(text, maxlen, "Index2MSB");
         break;
     case SDL_PIXELFORMAT_INDEX4LSB:
         SDL_snprintfcat(text, maxlen, "Index4LSB");
@@ -1121,7 +1203,7 @@ SDL_bool SDLTest_CommonInit(SDLTest_CommonState *state)
             SDL_DisplayMode mode;
             int bpp;
             Uint32 Rmask, Gmask, Bmask, Amask;
-#if SDL_VIDEO_DRIVER_WINDOWS
+#ifdef SDL_VIDEO_DRIVER_WINDOWS
             int adapterIndex = 0;
             int outputIndex = 0;
 #endif
@@ -1184,7 +1266,7 @@ SDL_bool SDLTest_CommonInit(SDLTest_CommonState *state)
                     }
                 }
 
-#if SDL_VIDEO_DRIVER_WINDOWS && !defined(__XBOXONE__) && !defined(__XBOXSERIES__)
+#if defined(SDL_VIDEO_DRIVER_WINDOWS) && !defined(__XBOXONE__) && !defined(__XBOXSERIES__)
                 /* Print the D3D9 adapter index */
                 adapterIndex = SDL_Direct3D9GetAdapterIndex(i);
                 SDL_Log("D3D9 Adapter Index: %d", adapterIndex);
@@ -1548,19 +1630,23 @@ static void SDLTest_PrintEvent(SDL_Event *event)
         }
         break;
     case SDL_KEYDOWN:
-        SDL_Log("SDL EVENT: Keyboard: key pressed  in window %" SDL_PRIu32 ": scancode 0x%08X = %s, keycode 0x%08" SDL_PRIX32 " = %s",
+    case SDL_KEYUP: {
+        char modstr[64];
+        if (event->key.keysym.mod) {
+            modstr[0] = '\0';
+            SDLTest_PrintModState(modstr, sizeof (modstr), event->key.keysym.mod);
+        } else {
+            SDL_strlcpy(modstr, "NONE", sizeof (modstr));
+        }
+        SDL_Log("SDL EVENT: Keyboard: key %s in window %" SDL_PRIu32 ": scancode 0x%08X = %s, keycode 0x%08" SDL_PRIX32 " = %s, mods = %s",
+                (event->type == SDL_KEYDOWN) ? "pressed" : "released",
                 event->key.windowID,
                 event->key.keysym.scancode,
                 SDL_GetScancodeName(event->key.keysym.scancode),
-                event->key.keysym.sym, SDL_GetKeyName(event->key.keysym.sym));
+                event->key.keysym.sym, SDL_GetKeyName(event->key.keysym.sym),
+                modstr);
         break;
-    case SDL_KEYUP:
-        SDL_Log("SDL EVENT: Keyboard: key released in window %" SDL_PRIu32 ": scancode 0x%08X = %s, keycode 0x%08" SDL_PRIX32 " = %s",
-                event->key.windowID,
-                event->key.keysym.scancode,
-                SDL_GetScancodeName(event->key.keysym.scancode),
-                event->key.keysym.sym, SDL_GetKeyName(event->key.keysym.sym));
-        break;
+    }
     case SDL_TEXTEDITING:
         SDL_Log("SDL EVENT: Keyboard: text editing \"%s\" in window %" SDL_PRIu32,
                 event->edit.text, event->edit.windowID);
@@ -2392,6 +2478,19 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
     flags = SDL_GetGlobalMouseState(&x, &y);
     (void)SDL_snprintf(text, sizeof(text), "SDL_GetGlobalMouseState: %d,%d ", x, y);
     SDLTest_PrintButtonMask(text, sizeof(text), flags);
+    SDLTest_DrawString(renderer, 0, textY, text);
+    textY += lineHeight;
+
+    /* Keyboard */
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDLTest_DrawString(renderer, 0, textY, "-- Keyboard --");
+    textY += lineHeight;
+
+    SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+
+    (void)SDL_snprintf(text, sizeof(text), "SDL_GetModState: ");
+    SDLTest_PrintModState(text, sizeof(text), SDL_GetModState());
     SDLTest_DrawString(renderer, 0, textY, text);
     textY += lineHeight;
 

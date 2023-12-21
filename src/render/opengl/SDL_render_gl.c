@@ -20,7 +20,7 @@
 */
 #include "../../SDL_internal.h"
 
-#if SDL_VIDEO_RENDER_OGL && !SDL_RENDER_DISABLED
+#if defined(SDL_VIDEO_RENDER_OGL) && !defined(SDL_RENDER_DISABLED)
 #include "SDL_hints.h"
 #ifdef __MORPHOS__
 #define _NO_PPCINLINE
@@ -464,6 +464,7 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
     GL_ActivateRenderer(renderer);
 
     renderdata->drawstate.texture = NULL; /* we trash this state. */
+    renderdata->drawstate.texturing = SDL_FALSE; /* we trash this state. */
 
     if (texture->access == SDL_TEXTUREACCESS_TARGET &&
         !renderdata->GL_EXT_framebuffer_object_supported) {
@@ -1680,7 +1681,7 @@ static int GL_SetVSync(SDL_Renderer *renderer, const int vsync)
     if (retval != 0) {
         return retval;
     }
-    if (SDL_GL_GetSwapInterval() > 0) {
+    if (SDL_GL_GetSwapInterval() != 0) {
         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
     } else {
         renderer->info.flags &= ~SDL_RENDERER_PRESENTVSYNC;
@@ -1825,7 +1826,7 @@ static SDL_Renderer *GL_CreateRenderer(SDL_Window *window, Uint32 flags)
     } else {
         SDL_GL_SetSwapInterval(0);
     }
-    if (SDL_GL_GetSwapInterval() > 0) {
+    if (SDL_GL_GetSwapInterval() != 0) {
         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
     }
 

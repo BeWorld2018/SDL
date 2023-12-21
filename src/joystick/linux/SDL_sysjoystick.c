@@ -157,6 +157,7 @@ typedef struct SDL_joylist_item
     char *name; /* "SideWinder 3D Pro" or whatever */
     SDL_JoystickGUID guid;
     dev_t devnum;
+    int steam_virtual_gamepad_slot;
     struct joystick_hwdata *hwdata;
     struct SDL_joylist_item *next;
 
@@ -220,6 +221,23 @@ static SDL_bool IsVirtualJoystick(Uint16 vendor, Uint16 product, Uint16 version,
 }
 #endif /* SDL_JOYSTICK_HIDAPI */
 
+static SDL_bool GetSteamVirtualGamepadSlot(int fd, int *slot)
+{
+    char name[128];
+
+    if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) > 0) {
+        const char *digits = SDL_strstr(name, "pad ");
+        if (digits) {
+            digits += 4;
+            if (SDL_isdigit(*digits)) {
+                *slot = SDL_atoi(digits);
+                return SDL_TRUE;
+            }
+        }
+    }
+    return SDL_FALSE;
+}
+
 static int GuessDeviceClass(int fd)
 {
     unsigned long evbit[NBITS(EV_MAX)] = { 0 };
@@ -255,7 +273,7 @@ static int GuessIsSensor(int fd)
     return 0;
 }
 
-static int IsJoystick(const char *path, int fd, char **name_return, SDL_JoystickGUID *guid)
+static int IsJoystick(const char *path, int fd, char **name_return, Uint16 *vendor_return, Uint16 *product_return, SDL_JoystickGUID *guid)
 {
     struct input_id inpid;
     char *name;
@@ -263,7 +281,7 @@ static int IsJoystick(const char *path, int fd, char **name_return, SDL_Joystick
 
     if (ioctl(fd, JSIOCGNAME(sizeof(product_string)), product_string) >= 0) {
         SDL_zero(inpid);
-#if SDL_USE_LIBUDEV
+#ifdef SDL_USE_LIBUDEV
         SDL_UDEV_GetProductInfo(path, &inpid.vendor, &inpid.product, &inpid.version);
 #endif
     } else {
@@ -301,13 +319,15 @@ static int IsJoystick(const char *path, int fd, char **name_return, SDL_Joystick
     SDL_Log("Joystick: %s, bustype = %d, vendor = 0x%.4x, product = 0x%.4x, version = %d\n", name, inpid.bustype, inpid.vendor, inpid.product, inpid.version);
 #endif
 
-    *guid = SDL_CreateJoystickGUID(inpid.bustype, inpid.vendor, inpid.product, inpid.version, name, 0, 0);
+    *guid = SDL_CreateJoystickGUID(inpid.bustype, inpid.vendor, inpid.product, inpid.version, NULL, product_string, 0, 0);
 
     if (SDL_ShouldIgnoreJoystick(name, *guid)) {
         SDL_free(name);
         return 0;
     }
     *name_return = name;
+    *vendor_return = inpid.vendor;
+    *product_return = inpid.product;
     return 1;
 }
 
@@ -328,7 +348,7 @@ static int IsSensor(const char *path, int fd)
     return GuessIsSensor(fd);
 }
 
-#if SDL_USE_LIBUDEV
+#ifdef SDL_USE_LIBUDEV
 static void joystick_udev_callback(SDL_UDEV_deviceevent udev_type, int udev_class, const char *devpath)
 {
     if (!devpath) {
@@ -385,6 +405,7 @@ static void MaybeAddDevice(const char *path)
     struct stat sb;
     int fd = -1;
     char *name = NULL;
+    Uint16 vendor, product;
     SDL_JoystickGUID guid;
     SDL_joylist_item *item;
     SDL_sensorlist_item *item_sensor;
@@ -420,11 +441,10 @@ static void MaybeAddDevice(const char *path)
     SDL_Log("Checking %s\n", path);
 #endif
 
-    if (IsJoystick(path, fd, &name, &guid)) {
+    if (IsJoystick(path, fd, &name, &vendor, &product, &guid)) {
 #ifdef DEBUG_INPUT_EVENTS
         SDL_Log("found joystick: %s\n", path);
 #endif
-        close(fd);
         item = (SDL_joylist_item *)SDL_calloc(1, sizeof(SDL_joylist_item));
         if (!item) {
             SDL_free(name);
@@ -432,9 +452,15 @@ static void MaybeAddDevice(const char *path)
         }
 
         item->devnum = sb.st_rdev;
+        item->steam_virtual_gamepad_slot = -1;
         item->path = SDL_strdup(path);
         item->name = name;
         item->guid = guid;
+
+        if (vendor == USB_VENDOR_VALVE &&
+            product == USB_PRODUCT_STEAM_VIRTUAL_GAMEPAD) {
+            GetSteamVirtualGamepadSlot(fd, &item->steam_virtual_gamepad_slot);
+        }
 
         if ((!item->path) || (!item->name)) {
             FreeJoylistItem(item);
@@ -460,7 +486,6 @@ static void MaybeAddDevice(const char *path)
 #ifdef DEBUG_INPUT_EVENTS
         SDL_Log("found sensor: %s\n", path);
 #endif
-        close(fd);
         item_sensor = (SDL_sensorlist_item *)SDL_calloc(1, sizeof(SDL_sensorlist_item));
         if (!item_sensor) {
             goto done;
@@ -478,8 +503,10 @@ static void MaybeAddDevice(const char *path)
         goto done;
     }
 
-    close(fd);
 done:
+    if (fd >= 0) {
+        close(fd);
+    }
     SDL_UnlockJoysticks();
 }
 
@@ -828,6 +855,89 @@ static int sort_entries(const void *_a, const void *_b)
     return numA - numB;
 }
 
+typedef struct
+{
+    char *path;
+    int slot;
+} VirtualGamepadEntry;
+
+static int SDLCALL sort_virtual_gamepads(const void *_a, const void *_b)
+{
+    const VirtualGamepadEntry *a = (const VirtualGamepadEntry *)_a;
+    const VirtualGamepadEntry *b = (const VirtualGamepadEntry *)_b;
+    return a->slot - b->slot;
+}
+
+static void LINUX_ScanSteamVirtualGamepads(void)
+{
+    int i, count;
+    int fd;
+    struct dirent **entries = NULL;
+    char path[PATH_MAX];
+    struct input_id inpid;
+    int num_virtual_gamepads = 0;
+    int virtual_gamepad_slot;
+    VirtualGamepadEntry *virtual_gamepads = NULL;
+
+    count = scandir("/dev/input", &entries, filter_entries, NULL);
+    for (i = 0; i < count; ++i) {
+        (void)SDL_snprintf(path, SDL_arraysize(path), "/dev/input/%s", entries[i]->d_name);
+
+        fd = open(path, O_RDONLY | O_CLOEXEC, 0);
+        if (fd >= 0) {
+            if (ioctl(fd, EVIOCGID, &inpid) == 0 &&
+                inpid.vendor == USB_VENDOR_VALVE &&
+                inpid.product == USB_PRODUCT_STEAM_VIRTUAL_GAMEPAD &&
+                GetSteamVirtualGamepadSlot(fd, &virtual_gamepad_slot)) {
+                VirtualGamepadEntry *new_virtual_gamepads = (VirtualGamepadEntry *)SDL_realloc(virtual_gamepads, (num_virtual_gamepads + 1) * sizeof(*virtual_gamepads));
+                if (new_virtual_gamepads) {
+                    VirtualGamepadEntry *entry = &new_virtual_gamepads[num_virtual_gamepads];
+                    entry->path = SDL_strdup(path);
+                    entry->slot = virtual_gamepad_slot;
+                    if (entry->path) {
+                        virtual_gamepads = new_virtual_gamepads;
+                        ++num_virtual_gamepads;
+                    } else {
+                        SDL_free(entry->path);
+                        SDL_free(new_virtual_gamepads);
+                    }
+                }
+            }
+            close(fd);
+        }
+        free(entries[i]); /* This should NOT be SDL_free() */
+    }
+    free(entries); /* This should NOT be SDL_free() */
+
+    if (num_virtual_gamepads > 1) {
+        SDL_qsort(virtual_gamepads, num_virtual_gamepads, sizeof(*virtual_gamepads), sort_virtual_gamepads);
+    }
+    for (i = 0; i < num_virtual_gamepads; ++i) {
+        MaybeAddDevice(virtual_gamepads[i].path);
+        SDL_free(virtual_gamepads[i].path);
+    }
+    SDL_free(virtual_gamepads);
+}
+
+static void LINUX_ScanInputDevices(void)
+{
+    int i, count;
+    struct dirent **entries = NULL;
+    char path[PATH_MAX];
+
+    count = scandir("/dev/input", &entries, filter_entries, NULL);
+    if (count > 1) {
+        SDL_qsort(entries, count, sizeof(*entries), sort_entries);
+    }
+    for (i = 0; i < count; ++i) {
+        (void)SDL_snprintf(path, SDL_arraysize(path), "/dev/input/%s", entries[i]->d_name);
+        MaybeAddDevice(path);
+
+        free(entries[i]); /* This should NOT be SDL_free() */
+    }
+    free(entries); /* This should NOT be SDL_free() */
+}
+
 static void LINUX_FallbackJoystickDetect(void)
 {
     const Uint32 SDL_JOY_DETECT_INTERVAL_MS = 3000; /* Update every 3 seconds */
@@ -838,21 +948,10 @@ static void LINUX_FallbackJoystickDetect(void)
 
         /* Opening input devices can generate synchronous device I/O, so avoid it if we can */
         if (stat("/dev/input", &sb) == 0 && sb.st_mtime != last_input_dir_mtime) {
-            int i, count;
-            struct dirent **entries = NULL;
-            char path[PATH_MAX];
+            /* Look for Steam virtual gamepads first, and sort by Steam controller slot */
+            LINUX_ScanSteamVirtualGamepads();
 
-            count = scandir("/dev/input", &entries, filter_entries, NULL);
-            if (count > 1) {
-                qsort(entries, count, sizeof(*entries), sort_entries);
-            }
-            for (i = 0; i < count; ++i) {
-                (void)SDL_snprintf(path, SDL_arraysize(path), "/dev/input/%s", entries[i]->d_name);
-                MaybeAddDevice(path);
-
-                free(entries[i]); /* This should NOT be SDL_free() */
-            }
-            free(entries); /* This should NOT be SDL_free() */
+            LINUX_ScanInputDevices();
 
             last_input_dir_mtime = sb.st_mtime;
         }
@@ -863,7 +962,7 @@ static void LINUX_FallbackJoystickDetect(void)
 
 static void LINUX_JoystickDetect(void)
 {
-#if SDL_USE_LIBUDEV
+#ifdef SDL_USE_LIBUDEV
     if (enumeration_method == ENUMERATION_LIBUDEV) {
         SDL_UDEV_Poll();
     } else
@@ -916,7 +1015,7 @@ static int LINUX_JoystickInit(void)
     /* Manually scan first, since we sort by device number and udev doesn't */
     LINUX_JoystickDetect();
 
-#if SDL_USE_LIBUDEV
+#ifdef SDL_USE_LIBUDEV
     if (enumeration_method == ENUMERATION_UNSET) {
         if (SDL_GetHintBoolean("SDL_JOYSTICK_DISABLE_UDEV", SDL_FALSE)) {
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT,
@@ -1013,6 +1112,11 @@ static const char *LINUX_JoystickGetDeviceName(int device_index)
 static const char *LINUX_JoystickGetDevicePath(int device_index)
 {
     return JoystickByDevIndex(device_index)->path;
+}
+
+static int LINUX_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+    return JoystickByDevIndex(device_index)->steam_virtual_gamepad_slot;
 }
 
 static int LINUX_JoystickGetDevicePlayerIndex(int device_index)
@@ -2141,7 +2245,7 @@ static void LINUX_JoystickQuit(void)
 
     numjoysticks = 0;
 
-#if SDL_USE_LIBUDEV
+#ifdef SDL_USE_LIBUDEV
     if (enumeration_method == ENUMERATION_LIBUDEV) {
         SDL_UDEV_DelCallback(joystick_udev_callback);
         SDL_UDEV_Quit();
@@ -2639,6 +2743,7 @@ SDL_JoystickDriver SDL_LINUX_JoystickDriver = {
     LINUX_JoystickDetect,
     LINUX_JoystickGetDeviceName,
     LINUX_JoystickGetDevicePath,
+    LINUX_JoystickGetDeviceSteamVirtualGamepadSlot,
     LINUX_JoystickGetDevicePlayerIndex,
     LINUX_JoystickSetDevicePlayerIndex,
     LINUX_JoystickGetDeviceGUID,

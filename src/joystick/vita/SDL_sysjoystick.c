@@ -20,7 +20,7 @@
 */
 #include "../../SDL_internal.h"
 
-#if SDL_JOYSTICK_VITA
+#ifdef SDL_JOYSTICK_VITA
 
 /* This is the PSVita implementation of the SDL joystick API */
 #include <psp2/types.h>
@@ -185,6 +185,11 @@ const char *VITA_JoystickGetDeviceName(int index)
 const char *VITA_JoystickGetDevicePath(int index)
 {
     return NULL;
+}
+
+static int VITA_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+    return -1;
 }
 
 static int VITA_JoystickGetDevicePlayerIndex(int device_index)
@@ -377,6 +382,7 @@ SDL_JoystickDriver SDL_VITA_JoystickDriver = {
     VITA_JoystickDetect,
     VITA_JoystickGetDeviceName,
     VITA_JoystickGetDevicePath,
+    VITA_JoystickGetDeviceSteamVirtualGamepadSlot,
     VITA_JoystickGetDevicePlayerIndex,
     VITA_JoystickSetDevicePlayerIndex,
     VITA_JoystickGetDeviceGUID,

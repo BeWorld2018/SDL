@@ -20,7 +20,7 @@
 */
 #include "../../SDL_internal.h"
 
-#if SDL_JOYSTICK_PS2
+#ifdef SDL_JOYSTICK_PS2
 
 /* This is the PS2 implementation of the SDL joystick API */
 #include <libmtap.h>
@@ -158,6 +158,12 @@ static const char *PS2_JoystickGetDeviceName(int index)
 static const char *PS2_JoystickGetDevicePath(int index)
 {
     return NULL;
+}
+
+/* Function to get the Steam virtual gamepad slot of a joystick */
+static int PS2_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+    return -1;
 }
 
 /* Function to get the player index of a joystick */
@@ -343,6 +349,7 @@ SDL_JoystickDriver SDL_PS2_JoystickDriver = {
     PS2_JoystickDetect,
     PS2_JoystickGetDeviceName,
     PS2_JoystickGetDevicePath,
+    PS2_JoystickGetDeviceSteamVirtualGamepadSlot,
     PS2_JoystickGetDevicePlayerIndex,
     PS2_JoystickSetDevicePlayerIndex,
     PS2_JoystickGetDeviceGUID,

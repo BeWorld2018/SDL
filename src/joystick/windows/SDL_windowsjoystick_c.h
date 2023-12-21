@@ -43,6 +43,7 @@ typedef struct JoyStick_DeviceData
     Uint8 XInputUserId;
     DIDEVICEINSTANCE dxdevice;
     char path[MAX_PATH];
+    int steam_virtual_gamepad_slot;
     struct JoyStick_DeviceData *pNext;
 } JoyStick_DeviceData;
 
@@ -72,7 +73,7 @@ struct joystick_hwdata
 {
     SDL_JoystickGUID guid;
 
-#if SDL_JOYSTICK_DINPUT
+#ifdef SDL_JOYSTICK_DINPUT
     LPDIRECTINPUTDEVICE8 InputDevice;
     DIDEVCAPS Capabilities;
     SDL_bool buffered;
@@ -90,7 +91,7 @@ struct joystick_hwdata
     DWORD dwPacketNumber;
 };
 
-#if SDL_JOYSTICK_DINPUT
+#ifdef SDL_JOYSTICK_DINPUT
 extern const DIDATAFORMAT SDL_c_dfDIJoystick2;
 #endif
 
