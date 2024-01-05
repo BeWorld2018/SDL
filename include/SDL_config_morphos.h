@@ -172,6 +172,7 @@
 /* #undef HAVE_GETPAGESIZE */
 #define HAVE_MPROTECT 1
 #define HAVE_ICONV 1
+#define SDL_USE_LIBICONV 1
 /* #undef HAVE_PTHREAD_SETNAME_NP */
 /* #undef HAVE_PTHREAD_SET_NAME_NP */
 /* #undef HAVE_SEM_TIMEDWAIT */

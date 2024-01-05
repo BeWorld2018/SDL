@@ -103,6 +103,12 @@ SDL_MORPHOS_JoystickGetDevicePath(int device_index)
     return NULL;
 }
 
+static int 
+SDL_MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+    return -1;
+}
+
 static int
 SDL_MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -477,7 +483,7 @@ SDL_MORPHOS_JoystickQuit(void)
 }
 
 static SDL_bool
-SDL_MORPHOS_GetGamepadMapping(int device_index, SDL_GamepadMapping * out)
+SDL_MORPHOS_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping * out)
 {
     return SDL_FALSE;
 }
@@ -489,6 +495,7 @@ SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
     SDL_MORPHOS_JoystickDetect,
     SDL_MORPHOS_JoystickGetDeviceName,
 	SDL_MORPHOS_JoystickGetDevicePath,
+	SDL_MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot,
     SDL_MORPHOS_JoystickGetDevicePlayerIndex,
     SDL_MORPHOS_JoystickSetDevicePlayerIndex,
     SDL_MORPHOS_JoystickGetDeviceGUID,
@@ -503,7 +510,7 @@ SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
     SDL_MORPHOS_JoystickUpdate,
     SDL_MORPHOS_JoystickClose,
     SDL_MORPHOS_JoystickQuit,
-	SDL_MORPHOS_GetGamepadMapping
+	SDL_MORPHOS_JoystickGetGamepadMapping
 };
 
 #endif
