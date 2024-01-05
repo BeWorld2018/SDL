@@ -7024,4 +7024,12 @@
 		(((int (*)(SDL_Window *))*(void**)(__base - 4804))(__t__p0));\
 	})
 
+#define SDL_GameControllerGetSteamHandle(__p0) \
+	({ \
+		SDL_GameController * __t__p0 = __p0;\
+		long __base = (long)(SDL2_BASE_NAME);\
+		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
+		(((Uint64 (*)(SDL_GameController *))*(void**)(__base - 4810))(__t__p0));\
+	})
+
 #endif /* !_PPCINLINE_SDL2_H */

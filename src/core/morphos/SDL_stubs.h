@@ -885,5 +885,6 @@
 	// 2.28.0
 	STUB(SDL_HasWindowSurface)
 	STUB(SDL_DestroyWindowSurface)
-	
+	//
+	STUB(SDL_GameControllerGetSteamHandle)
 	

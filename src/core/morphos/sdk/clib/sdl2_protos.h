@@ -879,6 +879,8 @@ char *SDL_strcasestr(const char *haystack, const char *needle);
 /* 2.28.0 */
 SDL_bool SDL_HasWindowSurface(SDL_Window *window);
 int SDL_DestroyWindowSurface(SDL_Window *window);
+/* */
+Uint64 SDL_GameControllerGetSteamHandle(SDL_GameController *gamecontroller);
 #endif
 
 #endif /* CLIB_SDL2_PROTOS_H */
