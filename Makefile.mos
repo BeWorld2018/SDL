@@ -6,8 +6,8 @@
 # Enable debug with -D__SDL_DEBUG
 #
 
-CDEFS   = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL2_LIBRARY
-CC      = ppc-morphos-gcc-11 -noixemul
+CDEFS   = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL2_LIBRARY -D__SDL_DEBUG
+CC      = ppc-morphos-gcc-9 -noixemul
 AMIGADATE = $(shell date +"%-d.%-m.%Y")
 INCLUDE = -I./include -D__AMIGADATE__=\"$(AMIGADATE)\"
 CFLAGS  = -mcpu=750 -mtune=7450 -O2 $(INCLUDE) -mresident32 -Wall -Wno-pointer-sign -fno-strict-aliasing $(CDEFS)
