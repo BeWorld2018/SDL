@@ -26,10 +26,11 @@
 #include <exec/types.h>
 #include "SDL_joystick.h"
 
+#define MAX_JOYSTICKS 	32
 #define MAX_BUTTONS     16
 #define MAX_HATS        8
 #define MAX_STICKS      8
-#define MAX_RUMBLE	2
+#define MAX_RUMBLE		2
 
 struct joystick_hwdata
 {

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -50,14 +50,11 @@
 			(((val) <= (DEADZONE_MAX) && (val) >= (DEADZONE_MIN)) ? (0) : \
 			((val) > (JOYSTICK_MAX)) ? (JOYSTICK_MAX) : (((val) < (JOYSTICK_MIN)) ? (JOYSTICK_MIN) : (val)))
 
-#define MAX_JOYSTICKS 32
-
 APTR sensorlist;
 APTR JoySensor[MAX_JOYSTICKS];
 int joystick_count;
 
-static int
-SDL_MORPHOS_JoystickInit(void)
+static int MORPHOS_JoystickInit(void)
 {
 	int rc = 0;
 
@@ -77,19 +74,16 @@ SDL_MORPHOS_JoystickInit(void)
 	return rc;
 }
 
-static int
-SDL_MORPHOS_JoystickGetCount(void)
+static int MORPHOS_JoystickGetCount(void)
 {
 	return joystick_count;
 }
 
-static void
-SDL_MORPHOS_JoystickDetect(void)
+static void MORPHOS_JoystickDetect(void)
 {
 }
 
-static const char *
-SDL_MORPHOS_JoystickGetDeviceName(int device_index)
+static const char *MORPHOS_JoystickGetDeviceName(int device_index)
 {
 	APTR sensor = JoySensor[device_index];
 	const char *name = NULL;
@@ -97,32 +91,27 @@ SDL_MORPHOS_JoystickGetDeviceName(int device_index)
 	return name;
 }
 
-static const char *
-SDL_MORPHOS_JoystickGetDevicePath(int device_index)
+static const char *MORPHOS_JoystickGetDevicePath(int device_index)
 {
     return NULL;
 }
 
-static int 
-SDL_MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+static int MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
 {
     return -1;
 }
 
-static int
-SDL_MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
+static int MORPHOS_JoystickGetDevicePlayerIndex(int device_index)
 {
     return device_index;
 }
 
-static void
-SDL_MORPHOS_JoystickSetDevicePlayerIndex(int device_index, int player_index)
+static void MORPHOS_JoystickSetDevicePlayerIndex(int device_index, int player_index)
 {
 }
 
 
-static SDL_JoystickGUID
-SDL_MORPHOS_JoystickGetDeviceGUID( int device_index )
+static SDL_JoystickGUID MORPHOS_JoystickGetDeviceGUID(int device_index)
 {
 	SDL_JoystickGUID guid;
 	APTR sensor = JoySensor[device_index];
@@ -160,23 +149,24 @@ SDL_MORPHOS_JoystickGetDeviceGUID( int device_index )
 	return guid;
 }
 
-static SDL_JoystickID 
-SDL_MORPHOS_JoystickGetDeviceInstanceID(int device_index)
+static SDL_JoystickID MORPHOS_JoystickGetDeviceInstanceID(int device_index)
 {
 	return device_index;
 }
 
-static int
-SDL_MORPHOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
+static int MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 {
 	D("[%s]\n", __FUNCTION__);
+	
 	APTR sensor = JoySensor[device_index];
-	int rc = -1;
 
 	if (sensor) {
 		size_t buttons = 0, naxes = 0, nhats = 0, nsticks = 0, nrumbles=0;
 		CONST_STRPTR name = "<unknown>";
 		struct joystick_hwdata *hwdata = SDL_calloc(device_index + 1, sizeof(*hwdata));
+		if (!hwdata) {
+			return SDL_OutOfMemory();
+		}
 		hwdata->main_sensor = sensor;
 
 		hwdata->child_sensors = ObtainSensorsListTags(
@@ -239,7 +229,7 @@ SDL_MORPHOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
 					case SensorType_HIDInput_Battery:
 						GetSensorAttrTags(sensor, SENSORS_HID_Name, (IPTR)&name, TAG_DONE);
 					    // Force "Xbox360 Controller" (WIRED) to use SDL_JOYSTICK_POWER_WIRED
-						if (strcmp((const char *)SDL_MORPHOS_JoystickGetDeviceName(device_index),(const char *)"Xbox360 Controller") == 0)
+						if (strcmp((const char *)MORPHOS_JoystickGetDeviceName(device_index),(const char *)"Xbox360 Controller") == 0)
 						{
 							SDL_PrivateJoystickBatteryLevel(joystick, SDL_JOYSTICK_POWER_WIRED);  
 							hwdata->battery = NULL;
@@ -266,14 +256,14 @@ SDL_MORPHOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
 		hwdata->numSticks = nsticks;
 		hwdata->numRumbles = nrumbles;
 		joystick->hwdata = hwdata;
-		joystick->name = (char *)SDL_MORPHOS_JoystickGetDeviceName(device_index);
-		rc = 0;
+		joystick->name = (char *)MORPHOS_JoystickGetDeviceName(device_index);
+		return 0;
 	}
-	return rc;
+	
+	return SDL_SetError("Failed to open device");
 }
 
-static int
-SDL_MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+static int MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
 {
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	if (hwdata) 
@@ -305,14 +295,12 @@ SDL_MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble,
     return 0;
 }
 
-static int
-SDL_MORPHOS_JoystickRumbleTriggers(SDL_Joystick * joystick, Uint16 left_rumble, Uint16 right_rumble)
+static int MORPHOS_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
 {
     return SDL_Unsupported();
 }
 
-static Uint32
-SDL_MORPHOS_JoystickGetCapabilities(SDL_Joystick * joystick)
+static Uint32 MORPHOS_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
     Uint32 result = 0;
 	struct joystick_hwdata *hwdata = joystick->hwdata;
@@ -327,26 +315,22 @@ SDL_MORPHOS_JoystickGetCapabilities(SDL_Joystick * joystick)
     return result;
 }
 
-static int
-SDL_MORPHOS_JoystickSetLED(SDL_Joystick * joystick, Uint8 red, Uint8 green, Uint8 blue)
+static int MORPHOS_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
 {
     return SDL_Unsupported();
 }
 
-static int
-SDL_MORPHOS_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
+static int MORPHOS_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
 {
     return SDL_Unsupported();
 }
 
-static int
-SDL_MORPHOS_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
+static int MORPHOS_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
 {
     return SDL_Unsupported();
 }
 
-static void
-SDL_MORPHOS_JoystickUpdate(SDL_Joystick * joystick)
+static void MORPHOS_JoystickUpdate(SDL_Joystick *joystick)
 {
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	int i, j;
@@ -462,10 +446,9 @@ SDL_MORPHOS_JoystickUpdate(SDL_Joystick * joystick)
 	}
 }
 
-void
-SDL_MORPHOS_JoystickClose(SDL_Joystick * joystick)
+static void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 {
-	//D("[%s]\n", __FUNCTION__);
+	D("[%s]\n", __FUNCTION__);
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	if (hwdata) 
 	{
@@ -475,42 +458,40 @@ SDL_MORPHOS_JoystickClose(SDL_Joystick * joystick)
 	}
 }
 
-static void
-SDL_MORPHOS_JoystickQuit(void)
+static void MORPHOS_JoystickQuit(void)
 {
 	if (sensorlist)
 		ReleaseSensorsList(sensorlist, NULL);
 }
 
-static SDL_bool
-SDL_MORPHOS_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping * out)
+static SDL_bool MORPHOS_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
 {
     return SDL_FALSE;
 }
 
 SDL_JoystickDriver SDL_MORPHOS_JoystickDriver =
 {
-    SDL_MORPHOS_JoystickInit,
-    SDL_MORPHOS_JoystickGetCount,
-    SDL_MORPHOS_JoystickDetect,
-    SDL_MORPHOS_JoystickGetDeviceName,
-	SDL_MORPHOS_JoystickGetDevicePath,
-	SDL_MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot,
-    SDL_MORPHOS_JoystickGetDevicePlayerIndex,
-    SDL_MORPHOS_JoystickSetDevicePlayerIndex,
-    SDL_MORPHOS_JoystickGetDeviceGUID,
-    SDL_MORPHOS_JoystickGetDeviceInstanceID,
-    SDL_MORPHOS_JoystickOpen,
-    SDL_MORPHOS_JoystickRumble,
-    SDL_MORPHOS_JoystickRumbleTriggers,
-    SDL_MORPHOS_JoystickGetCapabilities,
-    SDL_MORPHOS_JoystickSetLED,
-	SDL_MORPHOS_JoystickSendEffect,
-	SDL_MORPHOS_JoystickSetSensorsEnabled,
-    SDL_MORPHOS_JoystickUpdate,
-    SDL_MORPHOS_JoystickClose,
-    SDL_MORPHOS_JoystickQuit,
-	SDL_MORPHOS_JoystickGetGamepadMapping
+    MORPHOS_JoystickInit,
+    MORPHOS_JoystickGetCount,
+    MORPHOS_JoystickDetect,
+    MORPHOS_JoystickGetDeviceName,
+	MORPHOS_JoystickGetDevicePath,
+	MORPHOS_JoystickGetDeviceSteamVirtualGamepadSlot,
+    MORPHOS_JoystickGetDevicePlayerIndex,
+    MORPHOS_JoystickSetDevicePlayerIndex,
+    MORPHOS_JoystickGetDeviceGUID,
+    MORPHOS_JoystickGetDeviceInstanceID,
+    MORPHOS_JoystickOpen,
+    MORPHOS_JoystickRumble,
+    MORPHOS_JoystickRumbleTriggers,
+    MORPHOS_JoystickGetCapabilities,
+    MORPHOS_JoystickSetLED,
+	MORPHOS_JoystickSendEffect,
+	MORPHOS_JoystickSetSensorsEnabled,
+    MORPHOS_JoystickUpdate,
+    MORPHOS_JoystickClose,
+    MORPHOS_JoystickQuit,
+	MORPHOS_JoystickGetGamepadMapping
 };
 
 #endif
