@@ -24,27 +24,19 @@
 #define _SDL_ahi_audio_h
 
 #include "SDL_types.h"
-#include "../SDL_sysaudio.h"
 
 #include <devices/ahi.h>
 
 /* Hidden "this" pointer for the audio functions */
 #define _THIS   SDL_AudioDevice *this
 
-/*typedef enum
-{
-	AMIAUD_CONVERT_NONE,
-	AMIAUD_CONVERT_SWAP16,
-	AMIAUD_CONVERT_SWAP32
-} CONVTYPE;*/
-
 struct SDL_PrivateAudioData
 {
 	struct MsgPort    ahiport;
 	struct AHIRequest req[2];
 
-	Uint8                *buffers[2];
-	//UBYTE convert;
+	Uint8  *buffers[2];
+	Uint32 audioBufferSize;
 	UBYTE current_buffer;
 	UBYTE sample_format;
 	UBYTE playing;

@@ -56,7 +56,7 @@
 #include <proto/screennotify.h>
 #include <libraries/gadtools.h>
 
-void AHIAUD_Mute(ULONG mute);
+void AHI_Mute(ULONG mute);
 
 static void
 MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
@@ -361,7 +361,7 @@ MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
 								MOS_HideApp(_this, TRUE);
 								break;
 							case MID_MUTE:
-								AHIAUD_Mute(item->Flags & CHECKED);
+								AHI_Mute(item->Flags & CHECKED);
 								break;
 							case MID_PRIORITY:
 								MOS_Priority(item->Flags & CHECKED);
