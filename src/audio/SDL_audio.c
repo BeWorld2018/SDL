@@ -1055,7 +1055,7 @@ int SDL_AudioInit(const char *driver_name)
 /*
  * Get the current audio driver name
  */
-const char *SDL_GetCurrentAudioDriver()
+const char *SDL_GetCurrentAudioDriver(void)
 {
     return current_audio.name;
 }

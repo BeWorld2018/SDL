@@ -579,7 +579,7 @@ typedef enum
     SDL_MOUSE_EVENT_SOURCE_PEN,
 } SDL_MOUSE_EVENT_SOURCE;
 
-static SDL_MOUSE_EVENT_SOURCE GetMouseMessageSource()
+static SDL_MOUSE_EVENT_SOURCE GetMouseMessageSource(void)
 {
     LPARAM extrainfo = GetMessageExtraInfo();
     /* Mouse data (ignoring synthetic mouse events generated for touchscreens) */
@@ -853,7 +853,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             SDL_MouseID mouseID;
             RAWMOUSE *rawmouse;
             if (SDL_GetNumTouchDevices() > 0 &&
-                (GetMouseMessageSource() == SDL_MOUSE_EVENT_SOURCE_TOUCH || (GetMessageExtraInfo() & 0x82) == 0x82)) {
+                (GetMouseMessageSource() == SDL_MOUSE_EVENT_SOURCE_TOUCH || (GetMessageExtraInfo() & 0x80) == 0x80)) {
                 break;
             }
             /* We do all of our mouse state checking against mouse ID 0

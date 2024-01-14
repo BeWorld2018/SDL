@@ -61,6 +61,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #endif
 
 /* Available video drivers */
@@ -411,7 +412,7 @@ static int SDLCALL cmpmodes(const void *A, const void *B)
     return 0;
 }
 
-static int SDL_UninitializedVideo()
+static int SDL_UninitializedVideo(void)
 {
     return SDL_SetError("Video subsystem has not been initialized");
 }
@@ -473,6 +474,28 @@ int SDL_VideoInit(const char *driver_name)
     if (!driver_name) {
         driver_name = SDL_GetHint(SDL_HINT_VIDEODRIVER);
     }
+#if defined(__LINUX__) && defined(SDL_VIDEO_DRIVER_X11)
+    if (!driver_name) {
+        /* See if it looks like we need X11 */
+        SDL_bool force_x11 = SDL_FALSE;
+        void *global_symbols = dlopen(NULL, RTLD_LOCAL|RTLD_NOW);
+
+        /* Use linked libraries to detect what quirks we are likely to need */
+        if (global_symbols != NULL) {
+            if (dlsym(global_symbols, "glxewInit") != NULL) {  /* GLEW (e.g. Frogatto, SLUDGE) */
+                force_x11 = SDL_TRUE;
+            } else if (dlsym(global_symbols, "cgGLEnableProgramProfiles") != NULL) {  /* NVIDIA Cg (e.g. Awesomenauts, Braid) */
+                force_x11 = SDL_TRUE;
+            } else if (dlsym(global_symbols, "_Z7ssgInitv") != NULL) {  /* ::ssgInit(void) in plib (e.g. crrcsim) */
+                force_x11 = SDL_TRUE;
+            }
+            dlclose(global_symbols);
+        }
+        if (force_x11) {
+            driver_name = "x11";
+        }
+    }
+#endif
     if (driver_name && *driver_name != 0) {
         const char *driver_attempt = driver_name;
         while (driver_attempt && *driver_attempt != 0 && !video) {
@@ -577,7 +600,7 @@ pre_driver_error:
     return -1;
 }
 
-const char *SDL_GetCurrentVideoDriver()
+const char *SDL_GetCurrentVideoDriver(void)
 {
     if (!_this) {
         SDL_UninitializedVideo();
@@ -591,7 +614,7 @@ SDL_VideoDevice *SDL_GetVideoDevice(void)
     return _this;
 }
 
-SDL_bool SDL_OnVideoThread()
+SDL_bool SDL_OnVideoThread(void)
 {
     return (_this && SDL_ThreadID() == _this->thread) ? SDL_TRUE : SDL_FALSE;
 }
@@ -3327,7 +3350,7 @@ void SDL_DestroyWindow(SDL_Window *window)
     SDL_free(window);
 }
 
-SDL_bool SDL_IsScreenSaverEnabled()
+SDL_bool SDL_IsScreenSaverEnabled(void)
 {
     if (!_this) {
         return SDL_TRUE;
@@ -3335,7 +3358,7 @@ SDL_bool SDL_IsScreenSaverEnabled()
     return _this->suspend_screensaver ? SDL_FALSE : SDL_TRUE;
 }
 
-void SDL_EnableScreenSaver()
+void SDL_EnableScreenSaver(void)
 {
     if (!_this) {
         return;
@@ -3349,7 +3372,7 @@ void SDL_EnableScreenSaver()
     }
 }
 
-void SDL_DisableScreenSaver()
+void SDL_DisableScreenSaver(void)
 {
     if (!_this) {
         return;
@@ -3591,7 +3614,7 @@ void SDL_GL_DeduceMaxSupportedESProfile(int *major, int *minor)
 #endif
 }
 
-void SDL_GL_ResetAttributes()
+void SDL_GL_ResetAttributes(void)
 {
     if (!_this) {
         return;

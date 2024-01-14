@@ -83,6 +83,7 @@ int audio_initQuitAudio()
     int result;
     int i, iMax;
     const char *audioDriver;
+    const char *hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
 
     /* Stop SDL audio subsystem */
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -97,6 +98,10 @@ int audio_initQuitAudio()
         SDLTest_AssertPass("Call to SDL_GetAudioDriver(%d)", i);
         SDLTest_Assert(audioDriver != NULL, "Audio driver name is not NULL");
         SDLTest_AssertCheck(audioDriver[0] != '\0', "Audio driver name is not empty; got: %s", audioDriver); /* NOLINT(clang-analyzer-core.NullDereference): Checked for NULL above */
+
+        if (hint && SDL_strcmp(audioDriver, hint) != 0) {
+            continue;
+        }
 
         /* Call Init */
         result = SDL_AudioInit(audioDriver);
@@ -140,6 +145,7 @@ int audio_initOpenCloseQuitAudio()
     int i, iMax, j, k;
     const char *audioDriver;
     SDL_AudioSpec desired;
+    const char *hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
 
     /* Stop SDL audio subsystem */
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -154,6 +160,10 @@ int audio_initOpenCloseQuitAudio()
         SDLTest_AssertPass("Call to SDL_GetAudioDriver(%d)", i);
         SDLTest_Assert(audioDriver != NULL, "Audio driver name is not NULL");
         SDLTest_AssertCheck(audioDriver[0] != '\0', "Audio driver name is not empty; got: %s", audioDriver); /* NOLINT(clang-analyzer-core.NullDereference): Checked for NULL above */
+
+        if (hint && SDL_strcmp(audioDriver, hint) != 0) {
+            continue;
+        }
 
         /* Change specs */
         for (j = 0; j < 2; j++) {
@@ -229,6 +239,7 @@ int audio_pauseUnpauseAudio()
     int originalCounter;
     const char *audioDriver;
     SDL_AudioSpec desired;
+    const char *hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
 
     /* Stop SDL audio subsystem */
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -243,6 +254,10 @@ int audio_pauseUnpauseAudio()
         SDLTest_AssertPass("Call to SDL_GetAudioDriver(%d)", i);
         SDLTest_Assert(audioDriver != NULL, "Audio driver name is not NULL");
         SDLTest_AssertCheck(audioDriver[0] != '\0', "Audio driver name is not empty; got: %s", audioDriver); /* NOLINT(clang-analyzer-core.NullDereference): Checked for NULL above */
+
+        if (hint && SDL_strcmp(audioDriver, hint) != 0) {
+            continue;
+        }
 
         /* Change specs */
         for (j = 0; j < 2; j++) {
@@ -1025,8 +1040,8 @@ int audio_resampleLoss()
     SDLTest_AssertPass("Test resampling of %i s %i Hz %f phase sine wave from sampling rate of %i Hz to %i Hz",
                        spec->time, spec->freq, spec->phase, spec->rate_in, spec->rate_out);
 
-    ret = SDL_BuildAudioCVT(&cvt, AUDIO_F32, 1, spec->rate_in, AUDIO_F32, 1, spec->rate_out);
-    SDLTest_AssertPass("Call to SDL_BuildAudioCVT(&cvt, AUDIO_F32, 1, %i, AUDIO_F32, 1, %i)", spec->rate_in, spec->rate_out);
+    ret = SDL_BuildAudioCVT(&cvt, AUDIO_F32SYS, 1, spec->rate_in, AUDIO_F32SYS, 1, spec->rate_out);
+    SDLTest_AssertPass("Call to SDL_BuildAudioCVT(&cvt, AUDIO_F32SYS, 1, %i, AUDIO_F32SYS, 1, %i)", spec->rate_in, spec->rate_out);
     SDLTest_AssertCheck(ret == 1, "Expected SDL_BuildAudioCVT to succeed and conversion to be needed.");
     if (ret != 1) {
       return TEST_ABORTED;
