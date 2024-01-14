@@ -156,8 +156,6 @@ static SDL_JoystickID MORPHOS_JoystickGetDeviceInstanceID(int device_index)
 
 static int MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 {
-	D("[%s]\n", __FUNCTION__);
-	
 	APTR sensor = JoySensor[device_index];
 
 	if (sensor) {
@@ -333,116 +331,119 @@ static int MORPHOS_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool en
 static void MORPHOS_JoystickUpdate(SDL_Joystick *joystick)
 {
 	struct joystick_hwdata *hwdata = joystick->hwdata;
-	int i, j;
-	Sint16 sval;
-	double btn_value, bt_value, x_value, y_value, z_value, ns_value, ew_value, z_rotation;
-
-	for (i = 0; i < joystick->nbuttons; i++) 
+	if (hwdata) 
 	{
-		GetSensorAttrTags(hwdata->button[i], SENSORS_HIDInput_Value, (IPTR)&btn_value, TAG_DONE);
-		if ((joystick->buttons[i] && btn_value == 0.0) || (joystick->buttons[i] == 0 && btn_value > 0.0)) 
+		int i, j;
+		Sint16 sval;
+		double btn_value, bt_value, x_value, y_value, z_value, ns_value, ew_value, z_rotation;
+
+		for (i = 0; i < joystick->nbuttons; i++) 
 		{
-			SDL_PrivateJoystickButton(joystick, i, btn_value == 0.0 ? 0 : 1);
+			GetSensorAttrTags(hwdata->button[i], SENSORS_HIDInput_Value, (IPTR)&btn_value, TAG_DONE);
+			if ((joystick->buttons[i] && btn_value == 0.0) || (joystick->buttons[i] == 0 && btn_value > 0.0)) 
+			{
+				SDL_PrivateJoystickButton(joystick, i, btn_value == 0.0 ? 0 : 1);
+			}
 		}
-	}
 
-	for (i = 0; i < joystick->nhats; i++) 
-	{
-		GetSensorAttrTags(hwdata->hat[i],
-			SENSORS_HIDInput_EW_Value, (IPTR)&ew_value,
-			SENSORS_HIDInput_NS_Value, (IPTR)&ns_value,
-			TAG_DONE);
-		Uint8 value_hat = SDL_HAT_CENTERED;
-		if (ns_value >= 1.0) {
-			value_hat |= SDL_HAT_DOWN;
-		} else if (ns_value <= -1.0) {
-			value_hat |= SDL_HAT_UP;
-		}
-		if (ew_value >= 1.0) {
-			value_hat |= SDL_HAT_RIGHT;
-		} else if (ew_value <= -1.0) {
-			value_hat |= SDL_HAT_LEFT;
-		}
-		SDL_PrivateJoystickHat(joystick, i, value_hat);
-	}
-
-	j = 0;
-	for (i = 0; i < hwdata->numSticks; i++) 
-	{
-		switch (hwdata->stickType[i]) 
+		for (i = 0; i < joystick->nhats; i++) 
 		{
-			case SensorType_HIDInput_3DStick:
-				GetSensorAttrTags(hwdata->stick[i],
-					SENSORS_HIDInput_X_Index, (IPTR)&x_value,
-					SENSORS_HIDInput_Y_Index, (IPTR)&y_value,
-					SENSORS_HIDInput_Z_Index, (IPTR)&z_value,
-					SENSORS_HIDInput_Z_Rotation, (IPTR)&z_rotation,
-					TAG_DONE);
-
-				sval = (Sint16)(CLAMP(x_value) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j, sval);
-
-				sval = (Sint16)(CLAMP(y_value) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j+1, sval);
-
-				sval = (Sint16)(CLAMP(z_value) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j+2, sval);
-
-				sval = (Sint16)(CLAMP(z_rotation) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j+3, sval);
-				
-				j += 4;
-				break;
-
-			case SensorType_HIDInput_Analog:
-				GetSensorAttrTags(hwdata->stick[i], SENSORS_HIDInput_Value, (IPTR)&btn_value, TAG_DONE);
-
-				sval = (Sint16)(btn_value * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j, sval);
-
-				j++;
-				break;
-
-			case SensorType_HIDInput_AnalogStick:
-				GetSensorAttrTags(hwdata->stick[i],
-					SENSORS_HIDInput_EW_Value, (IPTR)&ew_value,
-					SENSORS_HIDInput_NS_Value, (IPTR)&ns_value,
-					TAG_DONE);
-
-				sval = (Sint16)(CLAMP(ew_value) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j, sval);
-
-				sval = (Sint16)(CLAMP(ns_value) * SDL_JOYSTICK_AXIS_MAX);
-				SDL_PrivateJoystickAxis(joystick, j+1, sval);
-
-				j += 2;
-				break;
+			GetSensorAttrTags(hwdata->hat[i],
+				SENSORS_HIDInput_EW_Value, (IPTR)&ew_value,
+				SENSORS_HIDInput_NS_Value, (IPTR)&ns_value,
+				TAG_DONE);
+			Uint8 value_hat = SDL_HAT_CENTERED;
+			if (ns_value >= 1.0) {
+				value_hat |= SDL_HAT_DOWN;
+			} else if (ns_value <= -1.0) {
+				value_hat |= SDL_HAT_UP;
+			}
+			if (ew_value >= 1.0) {
+				value_hat |= SDL_HAT_RIGHT;
+			} else if (ew_value <= -1.0) {
+				value_hat |= SDL_HAT_LEFT;
+			}
+			SDL_PrivateJoystickHat(joystick, i, value_hat);
 		}
-	}
-	
-	if (hwdata->battery) 
-	{
-		SDL_JoystickPowerLevel ePowerLevel = SDL_JOYSTICK_POWER_UNKNOWN;
-		GetSensorAttrTags(hwdata->battery,
-					SENSORS_HIDInput_Value, (IPTR)&bt_value,
-					TAG_DONE);
-		ULONG level = bt_value*100;
-		switch (level)
+		
+		j = 0;
+		for (i = 0; i < hwdata->numSticks; i++) 
 		{
-		   case 0 ... 5:
-				ePowerLevel = SDL_JOYSTICK_POWER_EMPTY;
-				break;
-		   case 6 ... 20:
-			   ePowerLevel = SDL_JOYSTICK_POWER_LOW;
-				break;
-		   case 21 ... 70:
-				ePowerLevel = SDL_JOYSTICK_POWER_MEDIUM;
-				break;
-		   case 71 ... 100:
-				ePowerLevel = SDL_JOYSTICK_POWER_FULL;
-				break;
+			switch (hwdata->stickType[i]) 
+			{
+				case SensorType_HIDInput_3DStick:
+					GetSensorAttrTags(hwdata->stick[i],
+						SENSORS_HIDInput_X_Index, (IPTR)&x_value,
+						SENSORS_HIDInput_Y_Index, (IPTR)&y_value,
+						SENSORS_HIDInput_Z_Index, (IPTR)&z_value,
+						SENSORS_HIDInput_Z_Rotation, (IPTR)&z_rotation,
+						TAG_DONE);
+
+					sval = (Sint16)(CLAMP(x_value) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j, sval);
+
+					sval = (Sint16)(CLAMP(y_value) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j+1, sval);
+
+					sval = (Sint16)(CLAMP(z_value) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j+2, sval);
+
+					sval = (Sint16)(CLAMP(z_rotation) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j+3, sval);
+					
+					j += 4;
+					break;
+
+				case SensorType_HIDInput_Analog:
+					GetSensorAttrTags(hwdata->stick[i], SENSORS_HIDInput_Value, (IPTR)&btn_value, TAG_DONE);
+
+					sval = (Sint16)(btn_value * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j, sval);
+
+					j++;
+					break;
+
+				case SensorType_HIDInput_AnalogStick:
+					GetSensorAttrTags(hwdata->stick[i],
+						SENSORS_HIDInput_EW_Value, (IPTR)&ew_value,
+						SENSORS_HIDInput_NS_Value, (IPTR)&ns_value,
+						TAG_DONE);
+
+					sval = (Sint16)(CLAMP(ew_value) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j, sval);
+
+					sval = (Sint16)(CLAMP(ns_value) * SDL_JOYSTICK_AXIS_MAX);
+					SDL_PrivateJoystickAxis(joystick, j+1, sval);
+
+					j += 2;
+					break;
+			}
 		}
-    	SDL_PrivateJoystickBatteryLevel(joystick, ePowerLevel);  
+		
+		if (hwdata->battery) 
+		{
+			SDL_JoystickPowerLevel ePowerLevel = SDL_JOYSTICK_POWER_UNKNOWN;
+			GetSensorAttrTags(hwdata->battery,
+						SENSORS_HIDInput_Value, (IPTR)&bt_value,
+						TAG_DONE);
+			ULONG level = bt_value*100;
+			switch (level)
+			{
+			   case 0 ... 5:
+					ePowerLevel = SDL_JOYSTICK_POWER_EMPTY;
+					break;
+			   case 6 ... 20:
+				   ePowerLevel = SDL_JOYSTICK_POWER_LOW;
+					break;
+			   case 21 ... 70:
+					ePowerLevel = SDL_JOYSTICK_POWER_MEDIUM;
+					break;
+			   case 71 ... 100:
+					ePowerLevel = SDL_JOYSTICK_POWER_FULL;
+					break;
+			}
+			SDL_PrivateJoystickBatteryLevel(joystick, ePowerLevel);  
+		}
 	}
 }
 
@@ -452,7 +453,10 @@ static void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	if (hwdata) 
 	{
-		ReleaseSensorsList(hwdata->child_sensors, NULL);
+		if (hwdata->child_sensors) 
+		{
+			ReleaseSensorsList(hwdata->child_sensors, NULL);
+		}
 		SDL_free(hwdata);
 		joystick->hwdata = NULL;
 	}
@@ -460,6 +464,7 @@ static void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 
 static void MORPHOS_JoystickQuit(void)
 {
+	D("[%s]\n", __FUNCTION__);
 	if (sensorlist)
 		ReleaseSensorsList(sensorlist, NULL);
 }
