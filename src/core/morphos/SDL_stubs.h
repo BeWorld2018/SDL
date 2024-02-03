@@ -807,7 +807,15 @@
 	STUB(SDL_SetTextureUserData)
 	STUB(SDL_GetTextureUserData)
 	STUB(SDL_RenderGeometry)
+#if defined(GENERATE_STUBS)
+	extern void *SDL_RenderGeometryRaw_REAL(void *a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l);
+	void * __saveds LIB_SDL_RenderGeometryRaw(void *a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l)
+	{
+		return SDL_RenderGeometryRaw_REAL(a, b, c, d, e, f, g, h, i, j, k, l);
+	}
+#else
 	STUB(SDL_RenderGeometryRaw)
+#endif
 	STUB(SDL_RenderSetVSync)
 	STUB(SDL_vasprintf)
 	STUB(SDL_GetWindowICCProfile)
