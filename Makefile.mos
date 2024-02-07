@@ -31,8 +31,6 @@ SOURCES = \
 	src/atomic/*.c \
 	src/audio/*.c \
 	src/audio/ahi/*.c \
-	src/audio/disk/*.c \
-	src/audio/dummy/*.c \
 	src/cpuinfo/*.c \
 	src/events/*.c \
 	src/file/*.c \
