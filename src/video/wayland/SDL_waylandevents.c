@@ -64,6 +64,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include "../../events/imKStoUCS.h"
 #include "../../events/SDL_keysym_to_scancode_c.h"
+#include "cursor-shape-v1-client-protocol.h"
 
 /* Clamp the wl_seat version on older versions of libwayland. */
 #if SDL_WAYLAND_CHECK_VERSION(1, 21, 0)
@@ -176,6 +177,17 @@ static SDL_bool Wayland_SurfaceHasActiveTouches(struct wl_surface *surface)
     }
 
     return SDL_FALSE;
+}
+
+void Wayland_CreateCursorShapeDevice(struct SDL_WaylandInput *input)
+{
+    SDL_VideoData *viddata = input->display;
+
+    if (viddata->cursor_shape_manager) {
+        if (input->pointer && !input->cursor_shape) {
+            input->cursor_shape = wp_cursor_shape_manager_v1_get_pointer(viddata->cursor_shape_manager, input->pointer);
+        }
+    }
 }
 
 /* Returns SDL_TRUE if a key repeat event was due */
@@ -994,6 +1006,13 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
         return;
     }
 
+    if (input->xkb.keymap != NULL) {
+        /* if there's already a keymap loaded, throw it away rather than leaking it before
+         * parsing the new one
+         */
+        WAYLAND_xkb_keymap_unref(input->xkb.keymap);
+        input->xkb.keymap = NULL;
+    }
     input->xkb.keymap = WAYLAND_xkb_keymap_new_from_string(input->display->xkb_context,
                                                            map_str,
                                                            XKB_KEYMAP_FORMAT_TEXT_V1,
@@ -1016,6 +1035,13 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
     input->xkb.idx_caps = 1 << GET_MOD_INDEX(CAPS);
 #undef GET_MOD_INDEX
 
+    if (input->xkb.state != NULL) {
+        /* if there's already a state, throw it away rather than leaking it before
+         * trying to create a new one with the new keymap.
+         */
+        WAYLAND_xkb_state_unref(input->xkb.state);
+        input->xkb.state = NULL;
+    }
     input->xkb.state = WAYLAND_xkb_state_new(input->xkb.keymap);
     if (!input->xkb.state) {
         SDL_SetError("failed to create XKB state\n");
@@ -1061,10 +1087,18 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
     }
 
     /* Set up XKB compose table */
+    if (input->xkb.compose_table != NULL) {
+        WAYLAND_xkb_compose_table_unref(input->xkb.compose_table);
+        input->xkb.compose_table = NULL;
+    }
     input->xkb.compose_table = WAYLAND_xkb_compose_table_new_from_locale(input->display->xkb_context,
                                                                          locale, XKB_COMPOSE_COMPILE_NO_FLAGS);
     if (input->xkb.compose_table) {
         /* Set up XKB compose state */
+        if (input->xkb.compose_state != NULL) {
+            WAYLAND_xkb_compose_state_unref(input->xkb.compose_state);
+            input->xkb.compose_state = NULL;
+        }
         input->xkb.compose_state = WAYLAND_xkb_compose_state_new(input->xkb.compose_table,
                                                                  XKB_COMPOSE_STATE_NO_FLAGS);
         if (!input->xkb.compose_state) {
@@ -1299,6 +1333,12 @@ static void keyboard_handle_modifiers(void *data, struct wl_keyboard *keyboard,
     Wayland_Keymap keymap;
     const uint32_t modstate = (mods_depressed | mods_latched | mods_locked);
 
+    if (input->xkb.state == NULL) {
+        /* if we get a modifier notification before the keymap, there's nothing we can do with the information
+        */
+        return;
+    }
+
     WAYLAND_xkb_state_update_mask(input->xkb.state, mods_depressed, mods_latched,
                                   mods_locked, 0, 0, group);
 
@@ -1366,10 +1406,15 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
         input->pointer = wl_seat_get_pointer(seat);
         SDL_memset(&input->pointer_curr_axis_info, 0, sizeof(input->pointer_curr_axis_info));
         input->display->pointer = input->pointer;
+        Wayland_CreateCursorShapeDevice(input);
         wl_pointer_set_user_data(input->pointer, input);
         wl_pointer_add_listener(input->pointer, &pointer_listener,
                                 input);
     } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && input->pointer) {
+        if (input->cursor_shape) {
+            wp_cursor_shape_device_v1_destroy(input->cursor_shape);
+            input->cursor_shape = NULL;
+        }
         wl_pointer_destroy(input->pointer);
         input->pointer = NULL;
         input->display->pointer = NULL;
@@ -2497,6 +2542,10 @@ void Wayland_display_destroy_input(SDL_VideoData *d)
 
     if (input->keyboard) {
         wl_keyboard_destroy(input->keyboard);
+    }
+
+    if (input->cursor_shape) {
+        wp_cursor_shape_device_v1_destroy(input->cursor_shape);
     }
 
     if (input->pointer) {
