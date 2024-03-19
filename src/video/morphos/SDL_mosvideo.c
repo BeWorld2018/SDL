@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -322,7 +322,6 @@ MOS_CreateDevice()
 			device->SetDisplayMode = MOS_SetDisplayMode;
 			device->SuspendScreenSaver = MOS_SuspendScreenSaver;
 			device->PumpEvents = MOS_PumpEvents;
-
 			device->CreateSDLWindow = MOS_CreateWindow;
 			device->CreateSDLWindowFrom = MOS_CreateWindowFrom;
 			device->SetWindowTitle = MOS_SetWindowTitle;
@@ -342,17 +341,14 @@ MOS_CreateDevice()
 			device->SetWindowFullscreen = MOS_SetWindowFullscreen;
  			device->SetWindowGammaRamp = MOS_SetWindowGammaRamp;
 			device->SetWindowMouseGrab = MOS_SetWindowGrab;
-			//device->SetWindowKeyboardGrab = MOS_SetWindowGrab;
 			device->DestroyWindow = MOS_DestroyWindow;
 			device->CreateWindowFramebuffer = MOS_CreateWindowFramebuffer;
 			device->UpdateWindowFramebuffer = MOS_UpdateWindowFramebuffer;
 			device->DestroyWindowFramebuffer = MOS_DestroyWindowFramebuffer;
 			device->GetWindowWMInfo = MOS_GetWindowWMInfo;
-
 			device->shape_driver.CreateShaper = MOS_CreateShaper;
 			device->shape_driver.SetWindowShape = MOS_SetWindowShape;
 			device->shape_driver.ResizeWindowShape = MOS_ResizeWindowShape;
-
 			device->GL_LoadLibrary = MOS_GL_LoadLibrary;
 			device->GL_GetProcAddress = MOS_GL_GetProcAddress;
 			device->GL_UnloadLibrary = MOS_GL_UnloadLibrary;
@@ -363,20 +359,14 @@ MOS_CreateDevice()
 			device->GL_GetSwapInterval = MOS_GL_GetSwapInterval;
 			device->GL_SwapWindow = MOS_GL_SwapWindow;
 			device->GL_DeleteContext = MOS_GL_DeleteContext;
-
 			device->SetClipboardText = MOS_SetClipboardText;
 			device->GetClipboardText = MOS_GetClipboardText;
 			device->HasClipboardText = MOS_HasClipboardText;
-
-			//device->ShowMessageBox = MOS_ShowMessageBox;
-
 			device->SetWindowResizable = MOS_SetWindowResizable;
 			device->GetWindowBordersSize = MOS_GetWindowBordersSize;
 			device->SetWindowOpacity = MOS_SetWindowOpacity;
 			device->FlashWindow = MOS_FlashWindow;
-			
 			device->SetWindowHitTest = MOS_SetWindowHitTest;
-
 			device->free = MOS_DeleteDevice;
 
 			return device;
@@ -391,7 +381,6 @@ MOS_CreateDevice()
 
 VideoBootStrap MORPHOS_bootstrap = {
 	"mos", "SDL MorphOS video driver",
-	MOS_CreateDevice
+	MOS_CreateDevice,
+    MOS_ShowMessageBox
 };
-
-/* vim: set ts=4 sw=4 expandtab: */

@@ -115,7 +115,8 @@ testautomation: testautomation.o \
 			  testautomation_guid.o \
 			  testautomation_joystick.o \
 		      testautomation_keyboard.o \
-		      testautomation_main.o \
+		      testautomation_log.o \
+			  testautomation_main.o \
 			  testautomation_math.o \
 		      testautomation_mouse.o \
 		      testautomation_pixels.o \

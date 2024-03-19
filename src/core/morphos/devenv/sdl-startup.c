@@ -105,8 +105,6 @@ static DESTRUCTOR_P(cleanup_SDL2Base, 100)
 	{
 		if (NewLock)
 		{
-			//CurrentDir(OldLock);			
-			//UnLock(NewLock);
 			UnLock(CurrentDir(OldLock));
 		}
 		CloseLibrary(base);

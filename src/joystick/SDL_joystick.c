@@ -626,9 +626,8 @@ int SDL_JoystickInit(void)
     /* See if we should allow joystick events while in the background */
     SDL_AddHintCallback(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,
                         SDL_JoystickAllowBackgroundEventsChanged, NULL);
-#ifndef __MORPHOS__
     SDL_InitSteamVirtualGamepadInfo();
-#endif
+
     status = -1;
     for (i = 0; i < SDL_arraysize(SDL_joystick_drivers); ++i) {
         if (SDL_joystick_drivers[i]->Init() >= 0) {

@@ -156,7 +156,9 @@ static SDL_JoystickID MORPHOS_JoystickGetDeviceInstanceID(int device_index)
 
 static int MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 {
+	D("[%s]\n", __FUNCTION__);
 	APTR sensor = JoySensor[device_index];
+	int rc = -1;
 
 	if (sensor) {
 		size_t buttons = 0, naxes = 0, nhats = 0, nsticks = 0, nrumbles=0;
@@ -255,10 +257,11 @@ static int MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 		hwdata->numRumbles = nrumbles;
 		joystick->hwdata = hwdata;
 		joystick->name = (char *)MORPHOS_JoystickGetDeviceName(device_index);
-		return 0;
+		rc = 0;
+	} else {
+		SDL_SetError("Failed to open device");
 	}
-	
-	return SDL_SetError("Failed to open device");
+	return rc;
 }
 
 static int MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
@@ -447,7 +450,7 @@ static void MORPHOS_JoystickUpdate(SDL_Joystick *joystick)
 	}
 }
 
-static void MORPHOS_JoystickClose(SDL_Joystick *joystick)
+void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 {
 	D("[%s]\n", __FUNCTION__);
 	struct joystick_hwdata *hwdata = joystick->hwdata;
@@ -456,17 +459,20 @@ static void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 		if (hwdata->child_sensors) 
 		{
 			ReleaseSensorsList(hwdata->child_sensors, NULL);
+			hwdata->child_sensors = NULL;
 		}
 		SDL_free(hwdata);
 		joystick->hwdata = NULL;
 	}
 }
 
-static void MORPHOS_JoystickQuit(void)
+void MORPHOS_JoystickQuit(void)
 {
 	D("[%s]\n", __FUNCTION__);
-	if (sensorlist)
+	if (sensorlist) {
 		ReleaseSensorsList(sensorlist, NULL);
+		sensorlist = NULL;
+	}
 }
 
 static SDL_bool MORPHOS_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
