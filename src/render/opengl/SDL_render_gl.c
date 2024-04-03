@@ -1907,7 +1907,7 @@ static SDL_Renderer *GL_CreateRenderer(SDL_Window *window, Uint32 flags)
         data->shaders = GL_CreateShaderContext();
     }
 
-	//D("OpenGL shaders: %s\n", data->shaders ? "ENABLED" : "DISABLED");
+	D("OpenGL shaders: %s\n", data->shaders ? "ENABLED" : "DISABLED");
 
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL shaders: %s",
                 data->shaders ? "ENABLED" : "DISABLED");
@@ -1949,9 +1949,9 @@ static SDL_Renderer *GL_CreateRenderer(SDL_Window *window, Uint32 flags)
             SDL_GL_GetProcAddress("glCheckFramebufferStatusEXT");
         renderer->info.flags |= SDL_RENDERER_TARGETTEXTURE;
     }
-    data->framebuffers = NULL;
+	D("GL_EXT_framebuffer_object: %s\n", data->GL_EXT_framebuffer_object_supported ? "ENABLED" : "DISABLED");
 
-	//D("GL_EXT_framebuffer_object: %s\n", data->GL_EXT_framebuffer_object_supported ? "ENABLED" : "DISABLED");
+    data->framebuffers = NULL;
 
     /* Set up parameters for rendering */
     data->glMatrixMode(GL_MODELVIEW);

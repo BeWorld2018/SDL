@@ -54,10 +54,10 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 			UWORD TinyGl_Version = TinyGLBase->lib_Version;
 			UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
 			D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
-			if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 7))
+			if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 8))
 			{
-				// tingl < 53.7
-				SDL_SetError("Failed to open tinygl.library 53.7+");
+				// tingl < 53.8
+				SDL_SetError("Failed to open tinygl.library 53.8+");
 				return -1;
 			}
 			if (SDL2Base->MyTinyGLBase)				
@@ -65,7 +65,7 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 			
 			return 0;
 	} else 
-		SDL_SetError("Failed to open tinygl.library 53.7+");
+		SDL_SetError("Failed to open tinygl.library 53+");
 
 	return -1;
 }
@@ -173,17 +173,8 @@ SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window)
 	int success = GLAInitializeContext(__tglContext, tgltags);
 	if (success) {
 		data->__tglContext = __tglContext;
-		
-		SDL_bool withnewextension = SDL_TRUE;
-		
-		char *val = val = MOS_getenv("SDL_RENDER_OPENGL_SHADERS");
-		if (val && strlen(val)>0 && strcmp(val, "0")==0) 
-			withnewextension = SDL_FALSE;
-		
-		if (withnewextension)
-			tglEnableNewExtensions(0); // Active TinyGL New extensions
+		tglEnableNewExtensions(0); // Active TinyGL New extensions
 	}
-	//D("[%s] success=%d\n", __FUNCTION__, success);
 
 	return success ? SDL_TRUE : SDL_FALSE;		
 }
