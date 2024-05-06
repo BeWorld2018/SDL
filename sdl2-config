@@ -38,7 +38,7 @@ while test $# -gt 0; do
       echo $exec_prefix
       ;;
     --version)
-      echo 2.30.2
+      echo 2.30.3
       ;;
     --cflags)
      	echo -noixemul -I${prefix}/include/SDL2
