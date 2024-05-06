@@ -87,7 +87,7 @@ endif()
 # See docs/release_checklist.md
 set(SDL_MAJOR_VERSION 2)
 set(SDL_MINOR_VERSION 30)
-set(SDL_MICRO_VERSION 2)
+set(SDL_MICRO_VERSION 3)
 set(SDL_VERSION "${SDL_MAJOR_VERSION}.${SDL_MINOR_VERSION}.${SDL_MICRO_VERSION}")
 
 # Set defaults preventing destination file conflicts
@@ -241,7 +241,7 @@ endif()
 if(UNIX OR MINGW OR MSYS OR (USE_CLANG AND NOT WINDOWS) OR VITA OR PSP OR PS2 OR N3DS)
   set(OPT_DEF_LIBC ON)
 endif()
-if(WINDOWS OR IOS OR TVOS)
+if(WINDOWS OR DARWIN OR MACOSX OR IOS OR TVOS)
   set(SDL_SYSTEM_ICONV_DEFAULT OFF)
 else()
   set(SDL_SYSTEM_ICONV_DEFAULT ON)
@@ -923,22 +923,6 @@ if(SDL_ASSEMBLY)
       if(CPU_SUPPORTS_LSX AND HAVE_LSXINTRIN_H)
         list(APPEND EXTRA_CFLAGS "-mlsx")
         set(HAVE_LSX TRUE)
-      endif()
-    endif()
-
-    if(SDL_LASX)
-      cmake_push_check_state()
-      set(CMAKE_REQUIRED_FLAGS "-mlasx")
-      check_c_source_compiles("
-          #ifndef __loongarch_asx
-          #error Assembler CPP flag not enabled
-          #endif
-          int main(int argc, char **argv) { return 0; }" CPU_SUPPORTS_LASX)
-      check_include_file("lasxintrin.h" HAVE_LASXINTRIN_H)
-      cmake_pop_check_state()
-      if(CPU_SUPPORTS_LASX AND HAVE_LASXINTRIN_H)
-        list(APPEND EXTRA_CFLAGS "-mlasx")
-        set(HAVE_LASX TRUE)
       endif()
     endif()
 
