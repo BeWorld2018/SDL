@@ -97,7 +97,7 @@ static int get_driindex(void)
 
     SDL_strlcpy(device + kmsdrm_dri_pathsize, kmsdrm_dri_devname,
                 sizeof(device) - kmsdrm_dri_devnamesize);
-    while((res = readdir(folder)) != NULL) {
+    while((res = readdir(folder)) != NULL && available < 0) {
         if (SDL_memcmp(res->d_name, kmsdrm_dri_devname,
                        kmsdrm_dri_devnamesize) == 0) {
             SDL_strlcpy(device + kmsdrm_dri_pathsize + kmsdrm_dri_devnamesize,
@@ -123,7 +123,7 @@ static int get_driindex(void)
                             resources->count_encoders > 0 &&
                             resources->count_crtcs > 0) {
                             available = -ENOENT;
-                            for (i = 0; i < resources->count_connectors; i++) {
+                            for (i = 0; i < resources->count_connectors && available < 0; i++) {
                                 drmModeConnector *conn =
                                     KMSDRM_drmModeGetConnector(
                                         drm_fd, resources->connectors[i]);
@@ -134,20 +134,21 @@ static int get_driindex(void)
 
                                 if (conn->connection == DRM_MODE_CONNECTED &&
                                     conn->count_modes) {
+                                    SDL_bool access_denied = SDL_FALSE;
                                     if (SDL_GetHintBoolean(
                                             SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER,
                                             SDL_TRUE)) {
                                         /* Skip this device if we can't obtain
                                          * DRM master */
                                         KMSDRM_drmSetMaster(drm_fd);
-                                        if (KMSDRM_drmAuthMagic(drm_fd, 0) ==
-                                            -EACCES) {
-                                            continue;
+                                        if (KMSDRM_drmAuthMagic(drm_fd, 0) == -EACCES) {
+                                            access_denied = SDL_TRUE;
                                         }
                                     }
 
-                                    available = devindex;
-                                    break;
+                                    if (!access_denied) {
+                                        available = devindex;
+                                    }
                                 }
 
                                 KMSDRM_drmModeFreeConnector(conn);
@@ -158,11 +159,10 @@ static int get_driindex(void)
                     SDL_KMSDRM_UnloadSymbols();
                 }
                 close(drm_fd);
+            } else {
+                SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO,
+                             "Failed to open KMSDRM device %s, errno: %d\n", device, errno);
             }
-
-            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO,
-                         "Failed to open KMSDRM device %s, errno: %d\n", device,
-                         errno);
         }
     }
 
@@ -336,8 +336,9 @@ KMSDRM_FBInfo *KMSDRM_FBFromBO(_THIS, struct gbm_bo *bo)
 {
     SDL_VideoData *viddata = ((SDL_VideoData *)_this->driverdata);
     unsigned w, h;
-    int ret, num_planes = 0;
-    Uint32 format, strides[4] = { 0 }, handles[4] = { 0 }, offsets[4] = { 0 }, flags = 0;
+    int rc = -1;
+    int num_planes = 0;
+    uint32_t format, strides[4] = { 0 }, handles[4] = { 0 }, offsets[4] = { 0 }, flags = 0;
     uint64_t modifiers[4] = { 0 };
 
     /* Check for an existing framebuffer */
@@ -364,21 +365,36 @@ KMSDRM_FBInfo *KMSDRM_FBFromBO(_THIS, struct gbm_bo *bo)
     h = KMSDRM_gbm_bo_get_height(bo);
     format = KMSDRM_gbm_bo_get_format(bo);
 
-    modifiers[0] = KMSDRM_gbm_bo_get_modifier(bo);
-    num_planes = KMSDRM_gbm_bo_get_plane_count(bo);
-    for (int i = 0; i < num_planes; i++) {
-        strides[i] = KMSDRM_gbm_bo_get_stride_for_plane(bo, i);
-        handles[i] = KMSDRM_gbm_bo_get_handle(bo).u32;
-        offsets[i] = KMSDRM_gbm_bo_get_offset(bo, i);
-        modifiers[i] = modifiers[0];
+    if (KMSDRM_drmModeAddFB2WithModifiers &&
+        KMSDRM_gbm_bo_get_modifier &&
+        KMSDRM_gbm_bo_get_plane_count &&
+        KMSDRM_gbm_bo_get_offset &&
+        KMSDRM_gbm_bo_get_stride_for_plane &&
+        KMSDRM_gbm_bo_get_handle_for_plane) {
+
+        modifiers[0] = KMSDRM_gbm_bo_get_modifier(bo);
+        num_planes = KMSDRM_gbm_bo_get_plane_count(bo);
+        for (int i = 0; i < num_planes; i++) {
+            strides[i] = KMSDRM_gbm_bo_get_stride_for_plane(bo, i);
+            handles[i] = KMSDRM_gbm_bo_get_handle_for_plane(bo, i).u32;
+            offsets[i] = KMSDRM_gbm_bo_get_offset(bo, i);
+            modifiers[i] = modifiers[0];
+        }
+
+        if (modifiers[0] && modifiers[0] != DRM_FORMAT_MOD_INVALID) {
+            flags = DRM_MODE_FB_MODIFIERS;
+        }
+
+        rc = KMSDRM_drmModeAddFB2WithModifiers(viddata->drm_fd, w, h, format, handles, strides, offsets, modifiers, &fb_info->fb_id, flags);
     }
 
-    if (modifiers[0]) {
-        flags = DRM_MODE_FB_MODIFIERS;
+    if (rc < 0) {
+        strides[0] = KMSDRM_gbm_bo_get_stride(bo);
+        handles[0] = KMSDRM_gbm_bo_get_handle(bo).u32;
+        rc = KMSDRM_drmModeAddFB(viddata->drm_fd, w, h, 24, 32, strides[0], handles[0], &fb_info->fb_id);
     }
 
-    ret = KMSDRM_drmModeAddFB2WithModifiers(viddata->drm_fd, w, h, format, handles, strides, offsets, modifiers, &fb_info->fb_id, flags);
-    if (ret) {
+    if (rc < 0) {
         SDL_free(fb_info);
         return NULL;
     }
@@ -1465,6 +1481,12 @@ int KMSDRM_CreateWindow(_THIS, SDL_Window *window)
     windata->viddata = viddata;
     window->driverdata = windata;
 
+    /* Do we want a double buffering scheme to get low video lag? */
+    windata->double_buffer = SDL_FALSE;
+    if (SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_FALSE)) {
+        windata->double_buffer = SDL_TRUE;
+    }
+
     if (!is_vulkan && !vulkan_mode) { /* NON-Vulkan block. */
 
         /* Maybe you didn't ask for an OPENGL window, but that's what you will get.
@@ -1570,7 +1592,12 @@ int KMSDRM_CreateWindow(_THIS, SDL_Window *window)
     SDL_SetKeyboardFocus(window);
 
     /* Tell the app that the window has moved to top-left. */
-    SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MOVED, 0, 0);
+    {
+        SDL_Rect display_bounds;
+        SDL_zero(display_bounds);
+        SDL_GetDisplayBounds(SDL_GetWindowDisplayIndex(window), &display_bounds);
+        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MOVED, display_bounds.x, display_bounds.y);
+    }
 
     /* Allocated windata will be freed in KMSDRM_DestroyWindow,
        and KMSDRM_DestroyWindow() will be called by SDL_CreateWindow()
