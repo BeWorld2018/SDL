@@ -33,6 +33,7 @@
 struct Library;
 
 void SDL_InitTGL(void **glc, struct Library **tgl);
+void SDL_InitTGL2(void **glc, struct Library **tgl, unsigned int (*getmaximumcontextversion)(struct Library *TinyGLBase));
 void SDL_SetExitPointer(void (*exitfunc)(int));
 SDL_RWops *SDL_RWFromFP_clib(void *fp, int autoclose, Sint64 (*size)(struct SDL_RWops *), Sint64 (*seek)(struct SDL_RWops *, Sint64, int), size_t (*read)(struct SDL_RWops *, void *, size_t, size_t), size_t (*write)(struct SDL_RWops *, const void *, size_t, size_t), int (*close)(struct SDL_RWops *));
 int SDL_VSetError(const char *fmt, va_list ap);

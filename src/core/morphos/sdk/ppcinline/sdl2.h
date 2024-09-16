@@ -14,6 +14,13 @@
 #define SDL_InitTGL(__p0, __p1) \
 	(((void (*)(void *, void **, struct Library **))*(void**)((long)(SDL2_BASE_NAME) - 28))((void*)(SDL2_BASE_NAME), __p0, __p1))
 
+#define SDL_InitTGL2(__p0, __p1, __p2) \
+	LP3NRFP(4818, SDL_InitTGL2, \
+		void **, __p0, base, \
+		struct Library **, __p1, sysr, \
+		__ft, __p2, , \
+		, SDL2_BASE_NAME, unsigned int (* __ft)(struct Library *TinyGLBase), 0, 0, 0, 0, 0, 0)
+
 #define SDL_SetExitPointer(__p0) \
 	(((void (*)(void *, void (*)(int)))*(void**)((long)(SDL2_BASE_NAME) - 34))((void*)(SDL2_BASE_NAME), __p0))
 

@@ -461,6 +461,7 @@ error:
 #include "SDL_stubs.h"
 
 extern void LIB_InitTGL();
+extern void LIB_InitTGL2();
 extern void LIB_SetExitPointer();
 extern void LIB_SDL_VSetError();
 

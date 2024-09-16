@@ -129,4 +129,15 @@ VOID LIB_InitTGL(struct SDL_Library *base, void **glc, struct Library **tgl)
 	}
 }
 
+VOID LIB_InitTGL2(struct SDL_Library *base, void **glc, struct Library **tgl, unsigned int (*getmaximumcontextversion)(struct Library *TinyGLBase))
+{
+	if (base->MyTinyGLBase == NULL)
+	{
+		base->MyTinyGLBase = tgl;
+		base->MyGLContext = glc;
+		base->MyGetMaximumContextVersion = getmaximumcontextversion;
+	}
+}
+
+
 void __chkabort(void) { }
