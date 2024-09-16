@@ -80,7 +80,7 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 				SDL2Base = base;
 
 #ifdef TGL_CONTEXT_VERSION_53_9
-				if (LIB_MINVER(base, 53, 15))
+				if (LIB_MINVER(base, 53, 17))
 				{
 					SDL_InitTGL2((void **) &__tglContext, (struct Library **) &TinyGLBase, TGLGetMaximumContextVersion);
 				}
