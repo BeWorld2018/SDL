@@ -78,9 +78,17 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 				OldLock = CurrentDir(NewLock);
 				
 				SDL2Base = base;
-				
-				SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
-				
+
+#ifdef TGL_CONTEXT_VERSION_53_9
+				if (LIB_MINVER(base, 53, 15))
+				{
+					SDL_InitTGL2((void **) &__tglContext, (struct Library **) &TinyGLBase, TGLGetMaximumContextVersion);
+				}
+				else
+#endif
+				{
+					SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
+				}
 			}
 			else
 			{

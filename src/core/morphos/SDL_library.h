@@ -83,6 +83,7 @@ struct SDL_Library
 	APTR                   tglcontext;
 	struct Library       **MyTinyGLBase;
 	void                 **MyGLContext;
+	unsigned int         (*MyGetMaximumContextVersion)(struct Library *TinyGLBase);
 
 	union
 	{

@@ -895,4 +895,7 @@
 	STUB(SDL_DestroyWindowSurface)
 	//
 	STUB(SDL_GameControllerGetSteamHandle)
-	
+	// sdl2.library 53.15+
+#if defined(GENERATE_POINTERS)
+	(APTR)&LIB_InitTGL2,
+#endif

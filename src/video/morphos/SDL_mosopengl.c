@@ -196,6 +196,25 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 	GLContext *glcont = GLInit();
 	if (glcont) {
 		__tglContext = glcont;
+
+#ifdef TGL_CONTEXT_VERSION_53_9
+		if (SDL2Base->MyGetMaximumContextVersion)
+		{
+			unsigned int contextversion;
+
+			contextversion = SDL2Base->MyGetMaximumContextVersion(TinyGLBase);
+
+			if (contextversion == TGL_CONTEXT_VERSION_53_1)
+			{
+				TGLEnableNewExtensions(__tglContext, 0);
+			}
+			else if (contextversion >= TGL_CONTEXT_VERSION_53_9)
+			{
+				TGLSetContextVersion(__tglContext, contextversion);
+			}
+		}
+#endif
+
 		int success = MOS_GL_InitContext(_this, window);
 		if (success) {
 			D("[%s] MOS_GL_InitContext SUCCES 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
