@@ -35,9 +35,10 @@ void
 MOS_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-
-	if (data) {
+	if (data->fb) {
+		D("[%s]\n", __FUNCTION__);
 		SDL_free(data->fb);
+		data->fb = NULL;
 	}
 }
 
@@ -45,6 +46,7 @@ int
 MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
                             void ** pixels, int *pitch)
 {
+	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 	SDL_Framebuffer *fb;
