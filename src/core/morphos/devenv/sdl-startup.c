@@ -61,9 +61,7 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 
 	if (base)
 	{
-		UWORD version = base->lib_Version;
-		UWORD revision = base->lib_Revision;
-		if (version < VERSION || (version == VERSION && revision < REVISION))
+		if (!LIB_MINVER(base, VERSION, REVISION))
 		{
 			CloseLibrary(base);
 			base = NULL;

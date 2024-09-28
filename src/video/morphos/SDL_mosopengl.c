@@ -51,12 +51,8 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 		TinyGLBase = OpenLibrary("tinygl.library", 53); 
 
 	if (TinyGLBase) {
-			UWORD TinyGl_Version = TinyGLBase->lib_Version;
-			UWORD TinyGl_Revision = TinyGLBase->lib_Revision;
-			D("[%s] tinygl.library version %d.%d\n", __FUNCTION__, TinyGl_Version, TinyGl_Revision);
-			if (TinyGl_Version < 53 || (TinyGl_Version == 53 && TinyGl_Revision < 8))
+			if (!LIB_MINVER(TinyGLBase, 53, 8))		
 			{
-				// tingl < 53.8
 				SDL_SetError("Failed to open tinygl.library 53.8+");
 				return -1;
 			}
@@ -173,7 +169,6 @@ SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window)
 	int success = GLAInitializeContext(__tglContext, tgltags);
 	if (success) {
 		data->__tglContext = __tglContext;
-		//tglEnableNewExtensions(0); // Active TinyGL New extensions
 	}
 
 	return success ? SDL_TRUE : SDL_FALSE;		
@@ -188,11 +183,9 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 	if (glcont) {
 		__tglContext = glcont;
 #ifdef TGL_CONTEXT_VERSION_53_9
-		#warning TGL_CONTEXT_VERSION_53_9
 		if (SDL2Base->MyGetMaximumContextVersion)
 		{
 			unsigned int contextversion;
-
 			contextversion = SDL2Base->MyGetMaximumContextVersion(TinyGLBase);
 
 			if (contextversion == TGL_CONTEXT_VERSION_53_1)
