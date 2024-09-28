@@ -45,7 +45,7 @@ while test $# -gt 0; do
       ;;
     --libs|--static-libs)
       libdirs="-L${exec_prefix}/lib "
-      echo  $libdirs -noixemul -lSDL2 -lc -lm
+      echo  $libdirs -noixemul -lSDL2 -lGL -lc -lm
       ;;
     *)
       echo "${usage}" 1>&2
