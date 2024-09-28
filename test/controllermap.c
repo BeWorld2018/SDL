@@ -741,6 +741,10 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+#ifdef __MORPHOS__	
+	SDL_RenderClear(screen);
+#endif
+
     while (!done && SDL_NumJoysticks() == 0) {
         SDL_Event event;
 
