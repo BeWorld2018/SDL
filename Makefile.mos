@@ -1,16 +1,16 @@
 # Makefile to build the SDL2 library MORPHOS
 #
-# You need tinygl.library 53.7 and last SDK with last tinyGL SDK
+# You need tinygl.library 53.8+ and last SDK with last tinyGL SDK
 
 #
 # Enable debug with -D__SDL_DEBUG
 #
 
 CDEFS   = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL2_LIBRARY -D__SDL_DEBUG
-CC      = ppc-morphos-gcc-9 -noixemul
+CC      = ppc-morphos-gcc-11 -noixemul
 AMIGADATE = $(shell date +"%-d.%-m.%Y")
 INCLUDE = -I./include -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS  = -mcpu=750 -mtune=7450 -O2 $(INCLUDE) -mresident32 -Wall -Wno-pointer-sign -fno-strict-aliasing $(CDEFS)
+CFLAGS  = -mcpu=750 -mtune=7450 -O3 -ffast-math $(INCLUDE) -mresident32 -Wall -Wno-pointer-sign -fno-strict-aliasing $(CDEFS)
 AR      = ppc-morphos-ar
 
 ECHE = echo -e
@@ -72,14 +72,14 @@ OBJECTS = $(shell echo $(SOURCES) | sed -e 's,\.c,\.o,g')
 all: $(LIBRARY) lib
 
 sdk: $(LIBRARY)
-	mkdir -p /usr/local/bin
-	mkdir -p /usr/local/include/SDL2
-	mkdir -p /usr/local/lib
-	mkdir -p /usr/local/lib/libb32
-	cp include/*.h /usr/local/include/SDL2
-	cp src/core/morphos/devenv/lib/libSDL2.a /usr/local/lib/libSDL2.a
-	cp src/core/morphos/devenv/lib/libb32/libSDL2.a /usr/local/lib/libb32/libSDL2.a
-	cp sdl2-config /usr/local/bin/sdl2-config
+	mkdir -p /gg/usr/local/bin
+	mkdir -p /gg/usr/local/include/SDL2
+	mkdir -p /gg/usr/local/lib
+	mkdir -p /gg/usr/local/lib/libb32
+	cp include/*.h /gg/usr/local/include/SDL2
+	cp src/core/morphos/devenv/lib/libSDL2.a /gg/usr/local/lib/libSDL2.a
+	cp src/core/morphos/devenv/lib/libb32/libSDL2.a /gg/usr/local/lib/libb32/libSDL2.a
+	cp sdl2-config /gg/usr/local/bin/sdl2-config
 
 headers:
 	$(HEADERING)
