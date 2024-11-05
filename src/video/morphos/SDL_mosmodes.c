@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -121,18 +121,18 @@ static const struct
 	Uint32 PixFmt, NewPixFmt;
 } pixelformats[MAX_SDL_PIXEL_FORMATS] =
 {
-	{ PIXFMT_LUT8  , SDL_PIXELFORMAT_INDEX8 },
-	{ PIXFMT_RGB15 , SDL_PIXELFORMAT_RGB555 },
+	{ PIXFMT_LUT8, SDL_PIXELFORMAT_INDEX8 },
+	{ PIXFMT_RGB15, SDL_PIXELFORMAT_RGB555 },
 	{ PIXFMT_RGB15X, SDL_PIXELFORMAT_RGB555 },
-	{ PIXFMT_BGR15,  SDL_PIXELFORMAT_BGR555 },
-	{ PIXFMT_RGB15PC , SDL_PIXELFORMAT_RGB555 },
-	{ PIXFMT_BGR15PC,  SDL_PIXELFORMAT_BGR555 },
-	{ PIXFMT_RGB16 , SDL_PIXELFORMAT_RGB565 },
-	{ PIXFMT_BGR16 , SDL_PIXELFORMAT_BGR565 },
-	{ PIXFMT_RGB16PC , SDL_PIXELFORMAT_RGB565 },
-	{ PIXFMT_BGR16PC,  SDL_PIXELFORMAT_BGR565 },
-	{ PIXFMT_RGB24 , SDL_PIXELFORMAT_RGB888 },
-	{ PIXFMT_BGR24 , SDL_PIXELFORMAT_BGR888 },
+	{ PIXFMT_BGR15, SDL_PIXELFORMAT_BGR555 },
+	{ PIXFMT_RGB15PC, SDL_PIXELFORMAT_RGB555 },
+	{ PIXFMT_BGR15PC, SDL_PIXELFORMAT_BGR555 },
+	{ PIXFMT_RGB16, SDL_PIXELFORMAT_RGB565 },
+	{ PIXFMT_BGR16, SDL_PIXELFORMAT_BGR565 },
+	{ PIXFMT_RGB16PC, SDL_PIXELFORMAT_RGB565 },
+	{ PIXFMT_BGR16PC, SDL_PIXELFORMAT_BGR565 },
+	{ PIXFMT_RGB24, SDL_PIXELFORMAT_RGB888 },
+	{ PIXFMT_BGR24, SDL_PIXELFORMAT_BGR888 },
 	{ PIXFMT_ARGB32, SDL_PIXELFORMAT_ARGB8888 },
 	{ PIXFMT_BGRA32, SDL_PIXELFORMAT_BGRA8888 },
 	{ PIXFMT_RGBA32, SDL_PIXELFORMAT_RGBA8888 },
@@ -395,10 +395,7 @@ MOS_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
 		D("[%s] Use monitor %s\n", __FUNCTION__, data->ScrMonName);
 	}
 
-	//MOS_GetScreen(_this);
-	//MOS_OpenWindows(_this);
-
-	return 0;
+    return 0;
 }
 
 int
@@ -412,4 +409,3 @@ MOS_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect)
 
     return 0;
 }
-/* vi: set ts=4 sw=4 expandtab: */

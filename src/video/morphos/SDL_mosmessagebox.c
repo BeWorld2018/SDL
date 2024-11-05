@@ -28,7 +28,6 @@
 #include <proto/exec.h>
 #include <proto/muimaster.h>
 
-
 int
 MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 {
@@ -38,47 +37,51 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 	D("[%s]\n", __FUNCTION__);
 
 	if (MUIMasterBase) {
+
 		char *title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
-		char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+        if (title) {
 
-		if (message) {
-			size_t i, tlen = 1024;
-			char *btxt;
+            char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
-			btxt = SDL_malloc(tlen);
+            if (message) {
+                size_t i, tlen = 1024;
+                char *btxt;
 
-			if (btxt) {
-				char *buf = btxt;
+                btxt = SDL_malloc(tlen);
 
-				for (i = 0; i < mbd->numbuttons; i++) {
-					if (i > 0)
-						*buf++ = '|';
+                if (btxt) {
+                    char *buf = btxt;
 
-					if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
-						*buf++ = '*';
+                    for (i = 0; i < mbd->numbuttons; i++) {
+                        if (i > 0)
+                            *buf++ = '|';
 
-					buf += ConvertTagList((APTR)mbd->buttons[i].text, -1, buf, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL);
-				}
+                        if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
+                            *buf++ = '*';
 
-				*buf = '\0';
+                        buf += ConvertTagList((APTR)mbd->buttons[i].text, -1, buf, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL);
+                    }
 
-				rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL2" : title, btxt, message, NULL);
+                    *buf = '\0';
 
-				if (rc == 0)
-					rc = mbd->numbuttons - 1;
-				else
-					rc -= 1;
+                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL2" : title, btxt, message, NULL);
 
-				*buttonid = mbd->buttons[rc].buttonid;
+                    if (rc == 0)
+                        rc = mbd->numbuttons - 1;
+                    else
+                        rc -= 1;
 
-				SDL_free(btxt);
-				rc = 0;
-			}
+                    *buttonid = mbd->buttons[rc].buttonid;
 
-			SDL_free(message);
-		}
+                    SDL_free(btxt);
+                    rc = 0;
+                }
 
-		SDL_free(title);
+                SDL_free(message);
+            }
+
+            SDL_free(title);
+        }
 
 		CloseLibrary(MUIMasterBase);
 	}

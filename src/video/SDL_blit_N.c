@@ -93,7 +93,7 @@ static size_t GetL3CacheSize(void)
 }
 #endif /* __MACOSX__ */
 
-#if ((defined(__MACOSX__) || defined(__MORPHOS__)) && (__GNUC__ < 4))
+#if (defined(__MACOSX__) && (__GNUC__ < 4))
 #define VECUINT8_LITERAL(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) \
         (vector unsigned char) ( a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p )
 #define VECUINT16_LITERAL(a,b,c,d,e,f,g,h) \

@@ -37,7 +37,6 @@
 
 #include <tgl/gl.h>
 #include <tgl/gla.h>
-#include <tgl/glu.h>
 
 GLContext *__tglContext;
 
@@ -89,17 +88,25 @@ MOS_GL_UnloadLibrary(_THIS)
 	}
 }
 
-SDL_bool MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
+static void
+MOS_GL_FreeBitMap(_THIS, SDL_Window *window)
+{
+    SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
+    if (data->bitmap != NULL) {
+        FreeBitMap(data->bitmap);
+        data->bitmap = NULL;
+    }
+}
+
+static SDL_bool
+MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
+
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 
-	if (data->bitmap != NULL) {
-		//D("[%s] FreeBitMap\n", __FUNCTION__);
-		FreeBitMap(data->bitmap);
-		data->bitmap = NULL;
-	}
+	MOS_GL_FreeBitMap(_this, window);
 	
 	int h = 0, w = 0;
 	struct BitMap * friend_bitmap;
@@ -121,26 +128,21 @@ SDL_bool MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 		friend_bitmap =	data->win->RPort->BitMap;	
 	}   
 	depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
-	//D("[%s] AllocBitMap w=%d h=%d depth=%d\n", __FUNCTION__, w, h, depth);
-	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 
+	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
-SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window)
+static SDL_bool
+MOS_GL_InitContext(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 	
 	if (data->__tglContext != NULL) {
-		//D("[%s] GLADestroyContext\n", __FUNCTION__);
 		GLADestroyContext(data->__tglContext);
 		data->__tglContext = NULL;
-		if (data->bitmap != NULL) {
-			//D("[%s] FreeBitMap\n", __FUNCTION__);
-			FreeBitMap(data->bitmap);
-			data->bitmap = NULL;
-		}
+        MOS_GL_FreeBitMap(_this, window);
 	}
 
 	struct TagItem tgltags[] =
@@ -149,10 +151,8 @@ SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window)
 		{TGL_CONTEXT_STENCIL, TRUE},
 		{TAG_DONE}
 	};	
-	
 
 	if (MOS_GL_AllocBitmap(_this, window)) {	
-		//D("[%s] TGL_CONTEXT_BITMAP \n", __FUNCTION__);			
 		tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
 		tgltags[0].ti_Data = (IPTR)data->bitmap;
 	} else {
@@ -166,12 +166,12 @@ SDL_bool MOS_GL_InitContext(_THIS, SDL_Window * window)
 	}
 		
 	// Initialize new context
-	int success = GLAInitializeContext(__tglContext, tgltags);
-	if (success) {
+    if (GLAInitializeContext(__tglContext, tgltags)) {
 		data->__tglContext = __tglContext;
+        return SDL_TRUE;
 	}
 
-	return success ? SDL_TRUE : SDL_FALSE;		
+	return SDL_FALSE;		
 }
 
 SDL_GLContext
@@ -198,18 +198,16 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 			}
 		}
 #endif
-		int success = MOS_GL_InitContext(_this, window);
-		if (success) {
+		if (MOS_GL_InitContext(_this, window)) {
 			D("[%s] MOS_GL_InitContext SUCCES 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
+
 			*SDL2Base->MyGLContext = glcont;
+
 			return glcont;
 		} else {
 			D("[%s] MOS_GL_InitContext FAILED 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
-			if (data->bitmap != NULL) {
-				D("[%s] FreeBitMap\n", __FUNCTION__);
-				FreeBitMap(data->bitmap);
-				data->bitmap = NULL;
-			}
+
+            MOS_GL_FreeBitMap(_this, window);
 			GLClose(glcont);
 			*SDL2Base->MyGLContext = data->__tglContext = __tglContext = NULL;
 			
@@ -314,12 +312,7 @@ MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
                 D("[%s] Found TinyGL context 0x%08lx, clearing window binding\n", __FUNCTION__, context);
                 GLADestroyContext(context);
 				data->__tglContext = NULL;
-				if (data->bitmap != NULL) {
-					D("[%s] FreeBitMap\n", __FUNCTION__);
-					FreeBitMap(data->bitmap);
-					data->bitmap = NULL;
-				}
-			
+                MOS_GL_FreeBitMap(_this, sdlwin);
 			}
 		}
 		GLClose(context);

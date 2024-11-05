@@ -101,29 +101,6 @@ int SDL_setenv(const char *name, const char *value, int overwrite)
     SDL_snprintf(new_variable, len, "%s=%s", name, value);
     return putenv(new_variable);
 }
-/*#elif __MORPHOS__
-int SDL_setenv(const char *name, const char *value, int overwrite)
-{
-	char dummy[2];
-	if (!name || SDL_strlen(name) == 0 || SDL_strchr(name, '=') != NULL || !value) {
-		return (-1);
-	}
-
-	if (!overwrite && GetVar(name, dummy, sizeof(dummy), GVF_GLOBAL_ONLY) != -1) {
-		return 0;
-	}
-	
-	if (SDL_strlen(value) > 0)
-	{		
-		if (!SetVar(name, value, -1, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR)) 
-			return -1;
-	
-	} else {
-		DeleteVar(name, LV_VAR | GVF_GLOBAL_ONLY | GVF_SAVE_VAR);
-	}
-
-	return 0;
-}*/
 #else /* roll our own */
 static char **SDL_env = (char **)0;
 int SDL_setenv(const char *name, const char *value, int overwrite)
@@ -231,61 +208,6 @@ char *SDL_getenv(const char *name)
     }
     return SDL_envmem;
 }
-/*#elif __MORPHOS__
-char *SDL_getenv(const char *name)
-{
-	char *value = NULL;
-	char dummy[32];
-	size_t len;*/
-	/* "portability" hack++ */
-/*	if (strcmp(name, "HOME") == 0)
-	{	
-		BPTR MyLock = Lock(home, ACCESS_READ);
-
-		if (MyLock)
-		{
-			struct FileInfoBlock MyFIB;
-
-			if (Examine(MyLock, &MyFIB))
-			{
-				if (MyFIB.fib_DirEntryType > 0)
-				{
-					value = (char *)home;
-				}
-			}
-
-			UnLock(MyLock);
-		}
-		else
-		{
-			MyLock = CreateDir(home);
-			if (MyLock)
-			{
-				UnLock(MyLock);
-				value = (char *)home;
-			}
-		}
-
-		return value;
-	}
-
-	if (GetVar((char *)name, dummy, sizeof(dummy), GVF_BINARY_VAR) == -1)
-	{
-		return NULL;
-	}
-	
-	len = IoErr() + 1;
-	
-	if ((value = SDL_malloc(len)))
-	{
-		if (GetVar((char *)name, value, len, GVF_GLOBAL_ONLY) == -1)
-		{
-			SDL_free(value);
-			value = NULL;
-		}
-	}
-	return value;
-}*/
 #else
 char *SDL_getenv(const char *name)
 {
