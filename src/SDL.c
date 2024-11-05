@@ -220,6 +220,11 @@ int SDL_InitSubSystem(Uint32 flags)
     if (!SDL_MainIsReady) {
         return SDL_SetError("Application didn't initialize properly, did you include SDL_main.h in the file containing your main() function?");
     }
+    
+#ifdef __MORPHOS__
+	// Force InitMainThread unless we are a big crash !
+	SDL_InitMainThread();
+#endif
 
     /* Clear the error message */
     SDL_ClearError();
