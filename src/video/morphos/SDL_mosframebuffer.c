@@ -89,35 +89,47 @@ int
 MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (data && data->win && data->fb) {
-		SDL_Framebuffer *fb = data->fb;
-		struct RastPort *rp = data->win->RPort;
-	   	const struct IBox windowBox = {
-                data->win->BorderLeft,
-                data->win->BorderTop,
-                data->win->Width - data->win->BorderLeft - data->win->BorderRight,
-                data->win->Height - data->win->BorderTop - data->win->BorderBottom };
-		int i, w, h, dx, dy;
-		const SDL_Rect * r;		
-       	for (i = 0; i < numrects; ++i) {
-            r = &rects[i];
-			dx = r->x + windowBox.Left;
-			dy = r->y + windowBox.Top;
-		    w =  MIN(r->w, windowBox.Width);
-			h = MIN(r->h, windowBox.Height);
-			switch (fb->pixfmt) {
-				case SDL_PIXELFORMAT_INDEX8:
-					if (data->videodata->CustomScreen) 
-						WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_RAW);
-					else 
-						WriteLUTPixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, data->videodata->coltab, dx, dy, w, h, CTABFMT_XRGB8);
-					break;
-				default:
-				case SDL_PIXELFORMAT_ARGB8888:
-					WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_ARGB);
-					break; 
-			}
-		}
+    if (!data || !data->win || !data->fb) {
+        return 0;
     }
+
+    SDL_Framebuffer *fb = data->fb;
+	struct RastPort *rp = data->win->RPort;
+    struct Window *win = data->win;
+
+	const struct IBox windowBox = {
+            win->BorderLeft,
+            win->BorderTop,
+            win->Width - win->BorderLeft - win->BorderRight,
+            win->Height - win->BorderTop - win->BorderBottom
+    };
+    int dx, dy, w, h;
+	const SDL_Rect * r;
+
+    for (int i = 0; i < numrects; ++i) {
+        r = &rects[i];
+
+		dx = r->x + windowBox.Left;
+		dy = r->y + windowBox.Top;
+		w = MIN(r->w, windowBox.Width);
+		h = MIN(r->h, windowBox.Height);
+
+		switch (fb->pixfmt) {
+            case SDL_PIXELFORMAT_INDEX8:
+                if (data->videodata->CustomScreen) {
+
+                    WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_RAW);
+                } else {
+                    WriteLUTPixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, data->videodata->coltab, dx, dy, w, h, CTABFMT_XRGB8);
+                }
+			break;
+
+			default:
+			case SDL_PIXELFORMAT_ARGB8888:
+				WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_ARGB);
+				break; 
+		}
+	}
+    
 	return 0;
 }
