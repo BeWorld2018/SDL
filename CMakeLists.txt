@@ -87,7 +87,7 @@ endif()
 # See docs/release_checklist.md
 set(SDL_MAJOR_VERSION 2)
 set(SDL_MINOR_VERSION 30)
-set(SDL_MICRO_VERSION 8)
+set(SDL_MICRO_VERSION 9)
 set(SDL_VERSION "${SDL_MAJOR_VERSION}.${SDL_MINOR_VERSION}.${SDL_MICRO_VERSION}")
 
 # Set defaults preventing destination file conflicts
@@ -3053,8 +3053,8 @@ endif()
 
 # Compat helpers for the configuration files
 
-if(EXISTS "${PROJECT_SOURCE_DIR}/VERSION.txt")
-  file(READ "${PROJECT_SOURCE_DIR}/VERSION.txt" SDL_SOURCE_VERSION)
+if(EXISTS "${PROJECT_SOURCE_DIR}/REVISION.txt")
+  file(READ "${PROJECT_SOURCE_DIR}/REVISION.txt" SDL_SOURCE_VERSION)
   string(STRIP "${SDL_SOURCE_VERSION}" SDL_SOURCE_VERSION)
 endif()
 
