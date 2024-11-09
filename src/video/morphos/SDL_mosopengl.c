@@ -177,6 +177,7 @@ MOS_GL_InitContext(_THIS, SDL_Window * window)
 SDL_GLContext
 MOS_GL_CreateContext(_THIS, SDL_Window * window)
 {
+    D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = window->driverdata;
 	
 	GLContext *glcont = GLInit();
@@ -231,18 +232,23 @@ MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 }
 
 void
-MOS_GL_GetDrawableSize(_THIS, SDL_Window * window, int *w, int *h)
+MOS_GL_GetDrawableSize(_THIS, SDL_Window *window, int *width, int *height)
 {
-	SDL_WindowData * data = window->driverdata;
-	if (window) {
-
-		if (w)
-			*w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;
-		if (h)
-			*h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
-		
+    
+	SDL_WindowData *data = window->driverdata;
+    int w = 0;
+    int h = 0;
+    if (data->win) {
+			w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;
+			h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
 	}
-		
+   // D("[%s] System window size (%d * %d), SDL window size (%d * %d)\n", __FUNCTION__, w, h, window->w, window->h);
+    if (width)
+        *width = w;
+    if (height)
+        *height = h;
+
+
 }
 
 int
@@ -274,7 +280,7 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
 	if (!data->win || !data->__tglContext || !__tglContext)
-		return -1;
+		return 0;
 
 	SDL_VideoData *video = _this->driverdata;
 	if (video->vsyncEnabled /*&& data->CustomScreen == NULL*/) {
