@@ -104,8 +104,9 @@ MOS_HideApp(_THIS, size_t with_app_icon)
 void
 MOS_ShowApp(_THIS)
 {
+    D("[%s]\n", __FUNCTION__);
+
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
-	D("[%s]\n", __FUNCTION__);
 
 	if (data->AppIconRef) {
 		struct Message *msg;

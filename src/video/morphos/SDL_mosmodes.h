@@ -41,5 +41,3 @@ extern int MOS_GetScreen(_THIS, BYTE FullScreen, SDL_bool support3d);
 extern int MOS_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect);
 
 #endif /* _SDL_mosmodes_h */
-
-/* vi: set ts=4 sw=4 expandtab: */

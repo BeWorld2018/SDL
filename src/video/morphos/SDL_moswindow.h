@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -97,10 +97,7 @@ typedef struct
 #define SDL_MOS_WINDOW_FULLSCREEN (1 << 1)
 #define SDL_MOS_WINDOW_FULLSCREEN_DESKTOP (1 << 2)
 
-extern void MOS_CloseWindows(_THIS);
-extern void MOS_OpenWindows(_THIS);
-extern void MOS_RecreateWindow(_THIS, SDL_Window * window);
-
+/* SDL functions */
 extern int MOS_CreateWindow(_THIS, SDL_Window * window);
 extern int MOS_CreateWindowFrom(_THIS, SDL_Window * window, const void *data);
 extern void MOS_SetWindowTitle(_THIS, SDL_Window * window);
@@ -121,19 +118,17 @@ extern int MOS_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ram
 extern void MOS_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed);
 extern void MOS_DestroyWindow(_THIS, SDL_Window * window);
 extern SDL_bool MOS_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo *info);
-
 extern void MOS_ShowWindow_Internal(_THIS, SDL_Window * window);
 extern void MOS_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top);
 extern void MOS_SetWindowResizable (_THIS, SDL_Window * window, SDL_bool resizable);
-
 extern int MOS_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);
 extern int MOS_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
-
 extern int MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation);
 extern int MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
-extern char *MOS_getenv(const char *name);
 
+/* Non-SDL functions */
+extern void MOS_CloseWindows(_THIS);
+extern void MOS_OpenWindows(_THIS);
+extern void MOS_RecreateWindow(_THIS, SDL_Window * window);
 
 #endif /* _SDL_moswindow_h */
-
-/* vi: set ts=4 sw=4 expandtab: */

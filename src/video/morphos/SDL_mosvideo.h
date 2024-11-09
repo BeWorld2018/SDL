@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -86,11 +86,12 @@ typedef struct SDL_VideoData
 	
 } SDL_VideoData;
 
-extern size_t getv(APTR obj, size_t attr);
+/* SDL functions */
 extern void MOS_CloseDisplay(_THIS);
 extern void MOS_HideApp(_THIS, size_t with_app_icon);
 extern void MOS_ShowApp(_THIS);
 
-#endif /* _SDL_mosvideo_h */
+/* Non-SDL functions */
+extern size_t getv(APTR obj, size_t attr);
 
-/* vi: set ts=4 sw=4 expandtab: */
+#endif /* _SDL_mosvideo_h */
