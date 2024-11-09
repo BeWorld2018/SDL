@@ -931,26 +931,26 @@ static void
 MOS_FlashOperationPrivate(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	
-	ULONG value_old = 0;
-	
-	GetAttr(WA_Opacity, data->win, &value_old);
+    if (data->win) {
 
-	WindowToFront(data->win);
-	const Uint32 start = SDL_GetTicks();
-	ULONG elapsed = 0;
-	ULONG value = 0;
+		ULONG value_old = getv(data->win, WA_Opacity);
 	
-	while (TRUE) {
-		elapsed = SDL_GetTicks() - start;
-		if (elapsed > 200) break;
-		value = 128 + 127 * sinf(elapsed * 3.14159f / 50.0f) * (ULONG_MAX);
-		MOS_SetWindowOpacityPrivate(_this, window, value);	
-		SDL_Delay(1);
+		WindowToFront(data->win);
+		const Uint32 start = SDL_GetTicks();
+		ULONG elapsed = 0;
+		ULONG value = 0;
+		
+		while (TRUE) {
+			elapsed = SDL_GetTicks() - start;
+			if (elapsed > 200) break;
+			value = 128 + 127 * sinf(elapsed * 3.14159f / 50.0f) * (ULONG_MAX);
+			MOS_SetWindowOpacityPrivate(_this, window, value);	
+			SDL_Delay(1);
+		}
+		
+		ActivateWindow(data->win);
+		MOS_SetWindowOpacityPrivate(_this, window, value_old);
 	}
-	
-	ActivateWindow(data->win);
-	MOS_SetWindowOpacityPrivate(_this, window, value_old);
 }
 
 int
