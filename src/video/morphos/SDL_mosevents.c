@@ -57,33 +57,44 @@
 #include <libraries/gadtools.h>
 
 void AHI_Mute(ULONG mute);
+extern MOS_GlobalMouseState globalMouseState;
+
+static int
+MOS_GetButton(int code)
+{
+    switch (code & ~IECODE_UP_PREFIX) {
+        case IECODE_LBUTTON:
+            return SDL_BUTTON_LEFT;
+        case IECODE_RBUTTON:
+            return SDL_BUTTON_RIGHT;
+        case IECODE_MBUTTON:
+            return SDL_BUTTON_MIDDLE;
+        default:
+            return 0;
+    }
+}
 
 static void
 MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
 {
-	int state = (m->Code & IECODE_UP_PREFIX) ? SDL_RELEASED : SDL_PRESSED;
+    SDL_WindowData *sdlwin = (SDL_WindowData *)m->IDCMPWindow->UserData;
 
-	switch (m->Code & ~(IECODE_UP_PREFIX)) {
-		case IECODE_LBUTTON:
-			SDL_SendMouseButton(data->window, 0, state, SDL_BUTTON_LEFT);
-			break;
-		case IECODE_RBUTTON:
-			SDL_SendMouseButton(data->window, 0, state, SDL_BUTTON_RIGHT);
-			break;
-		case IECODE_MBUTTON:
-			SDL_SendMouseButton(data->window, 0, state, SDL_BUTTON_MIDDLE);
-			break;
-	}
+    if (sdlwin) {
+        int state = (m->Code & IECODE_UP_PREFIX) ? SDL_RELEASED : SDL_PRESSED;
+        int button = MOS_GetButton(m->Code & ~(IECODE_UP_PREFIX));
+
+        globalMouseState.buttonPressed[button] = state;
+
+        SDL_SendMouseButton(data->window, 0, state, button);
+    }
+
 }
 
 static int
 MOS_TranslateUnicode(struct IntuiMessage *m, char *buffer)
 {
 	int length;
-
-	WCHAR keycode;
-
-	GetAttr(IMSGA_UCS4, m, (ULONG *)&keycode);
+    WCHAR keycode = getv(m, IMSGA_UCS4);
 	length = UTF8_Encode(keycode, buffer);
 
 	return length;
@@ -92,7 +103,7 @@ MOS_TranslateUnicode(struct IntuiMessage *m, char *buffer)
 static void
 MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 {
-	SDL_Scancode s;
+	
 	UWORD code = m->Code;
 	UWORD rawkey = m->Code & 0x7F;
 
@@ -114,18 +125,20 @@ MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 			break;
 
 		case RAWKEY_NM_BUTTON_FOURTH:
+		    globalMouseState.buttonPressed[SDL_BUTTON_X1] = SDL_PRESSED;;
 			SDL_SendMouseButton(data->window, 0, SDL_PRESSED, SDL_BUTTON_X1);
 			break;
 
 		case RAWKEY_NM_BUTTON_FOURTH | IECODE_UP_PREFIX:
+			globalMouseState.buttonPressed[SDL_BUTTON_X1] = SDL_RELEASED;
 			SDL_SendMouseButton(data->window, 0, SDL_RELEASED, SDL_BUTTON_X1);
 			break;
 
 		default:
 			if (rawkey < sizeof(morphos_scancode_table) / sizeof(morphos_scancode_table[0])) {
-				s = morphos_scancode_table[rawkey];
-				if (m->Code <= 127) {
-					char text[10];
+                SDL_Scancode s = morphos_scancode_table[rawkey];
+                if (m->Code <= 0x80) {
+                    char text[5] = { 0 };
 					int length = MOS_TranslateUnicode(m, text);
 					SDL_SendKeyboardKey(SDL_PRESSED, s);
 					if (length > 0) {
@@ -143,18 +156,26 @@ MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 static void
 MOS_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 {
-	if (!SDL_GetRelativeMouseMode()) {
-		struct Screen *s = data->win->WScreen;
-		int x = (s->MouseX - data->win->LeftEdge - data->win->BorderLeft);
-		int y = (s->MouseY - data->win->TopEdge - data->win->BorderTop);
-		SDL_SendMouseMotion(data->window, 0, 0, x, y);
-	} else {
-		if (data->first_deltamove) {
-			data->first_deltamove = 0;
-			return;
-		}
-		SDL_SendMouseMotion(data->window, 0, 1, m->MouseX, m->MouseY);
-	}
+    SDL_WindowData *sdlwin = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    if (sdlwin) {
+        struct Screen *s = data->win->WScreen;
+
+        // D("[%s] X:%d Y:%d, ScreenX: %d ScreenY: %d\n", __FUNCTION__, m->MouseX, m->MouseY, s->MouseX, s->MouseY);
+        globalMouseState.x = s->MouseX;
+        globalMouseState.y = s->MouseY;
+
+        if (SDL_GetRelativeMouseMode()) {
+            if (data->first_deltamove) {
+                data->first_deltamove = 0;
+                return;
+            }
+            SDL_SendMouseMotion(data->window, 0, 1, m->MouseX, m->MouseY);
+        } else {
+            int x = (s->MouseX - data->win->LeftEdge - data->win->BorderLeft);
+            int y = (s->MouseY - data->win->TopEdge - data->win->BorderTop);
+            SDL_SendMouseMotion(data->window, 0, 0, x, y);
+        }
+    }
 }
 
 static void

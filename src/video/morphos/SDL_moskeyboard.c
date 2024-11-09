@@ -38,11 +38,7 @@ static SDL_Keycode MOS_MapRawKey(UWORD code)
     ie.ie_EventAddress = NULL;
 
     const WORD res = MapRawKey(&ie, buffer, sizeof(buffer), NULL);
-    /*if (res > 0)
-        return (buffer[0] + buffer[1] * 256);
-    else
-        return 0;*/
-     if (res == 1)
+    if (res == 1)
     {
         return buffer[0];
     }

@@ -40,6 +40,13 @@ typedef struct
 	struct SDL_MOSPointerData Pointer;
 } SDL_MOSCursor;
 
+typedef struct MOS_GlobalMouseState
+{
+    int x;
+    int y;
+    int buttonPressed[SDL_BUTTON_X1 + 1];
+} MOS_GlobalMouseState;
+
 extern void MOS_InitMouse(_THIS);
 extern void MOS_QuitMouse(_THIS);
 

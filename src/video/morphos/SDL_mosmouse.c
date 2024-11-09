@@ -35,6 +35,8 @@
 #include <proto/dos.h>
 #include <dos/rdargs.h>
 
+MOS_GlobalMouseState globalMouseState;
+
 static SDL_Cursor *
 MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
@@ -257,6 +259,38 @@ MOS_GetDoubleClickTimeInMillis(_THIS)
     return interval;
 }
 
+static Uint32
+MOS_GetGlobalMouseState(int *x, int *y)
+{
+    Uint32 buttons = 0;
+
+    if (x) {
+        *x = globalMouseState.x;
+    }
+
+    if (y) {
+        *y = globalMouseState.y;
+    }
+
+    if (globalMouseState.buttonPressed[SDL_BUTTON_LEFT]) {
+        buttons |= SDL_BUTTON_LMASK;
+    }
+
+    if (globalMouseState.buttonPressed[SDL_BUTTON_MIDDLE]) {
+        buttons |= SDL_BUTTON_MMASK;
+    }
+
+    if (globalMouseState.buttonPressed[SDL_BUTTON_RIGHT]) {
+        buttons |= SDL_BUTTON_RMASK;
+    }
+    
+    if (globalMouseState.buttonPressed[SDL_BUTTON_X1]) {
+        buttons |= SDL_BUTTON_X1MASK;
+    }
+
+    return buttons;
+}
+
 void
 MOS_InitMouse(_THIS)
 {
@@ -269,6 +303,7 @@ MOS_InitMouse(_THIS)
 	mouse->FreeCursor = MOS_FreeCursor;
 	mouse->WarpMouse = MOS_WarpMouse;
 	mouse->SetRelativeMouseMode = MOS_SetRelativeMouseMode;
+    mouse->GetGlobalMouseState = MOS_GetGlobalMouseState;
 
 	SDL_SetDefaultCursor(MOS_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW));
 	SDL_SetHint(SDL_HINT_MOUSE_DOUBLE_CLICK_TIME,  SDL_uitoa(MOS_GetDoubleClickTimeInMillis(_this), buffer, 10));
