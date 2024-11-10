@@ -225,9 +225,9 @@ int
 MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
 	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-	if (context)
-		*SDL2Base->MyGLContext = __tglContext = context;
-	
+    if (window && context) {
+        *SDL2Base->MyGLContext = __tglContext = context;
+    }
 	return 0;
 }
 
@@ -283,7 +283,7 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 		return 0;
 
 	SDL_VideoData *video = _this->driverdata;
-	if (video->vsyncEnabled /*&& data->CustomScreen == NULL*/) {
+	if (video->vsyncEnabled && data->win->WScreen) {
 		BOOL displayed = getv(data->win->WScreen, SA_Displayed);
 		if (displayed) {
 			WaitBOVP(&data->win->WScreen->ViewPort);
