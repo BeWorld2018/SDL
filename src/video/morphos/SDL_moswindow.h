@@ -130,5 +130,6 @@ extern int MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
 extern void MOS_CloseWindows(_THIS);
 extern void MOS_OpenWindows(_THIS);
 extern void MOS_RecreateWindow(_THIS, SDL_Window * window);
+extern void MOS_WindowToFront(struct Window *win);
 
 #endif /* _SDL_moswindow_h */

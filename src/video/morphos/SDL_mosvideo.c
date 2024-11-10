@@ -94,8 +94,13 @@ MOS_HideApp(_THIS, size_t with_app_icon)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	D("[%s] %siconify\n", __FUNCTION__, with_app_icon ? "" : "no ");
 
-	MOS_CloseWindows(_this);
-	MOS_CloseDisplay(_this);
+    SDL_WindowData *wd;
+    ForeachNode(&data->windowlist, wd)
+    {
+        struct Window *win = wd->win;
+        if (win)
+            MOS_SetWindowOpacity(_this, wd->window, 0.0);
+    }
 
 	if (with_app_icon && data->AppIcon)
 		data->AppIconRef = AddAppIconA(0, 0, FilePart(data->FullAppName), &data->WBPort, 0, data->AppIcon, NULL);
@@ -118,20 +123,16 @@ MOS_ShowApp(_THIS)
 			ReplyMsg(msg);
 	}
 
-	MOS_OpenWindows(_this);
-	
-	// force to redraw all window's surface 
-	if (__tglContext) 
-		MOS_GL_ResizeContext(_this, _this->current_glwin);
-	else { 
-		SDL_WindowData *wd;
-		ForeachNode(&data->windowlist, wd) {
-			struct Window *win = wd->win;
-			if (win)
-				SDL_UpdateWindowSurface(wd->window);
-		}
-	}
-	
+    SDL_WindowData *wd;
+    ForeachNode(&data->windowlist, wd)
+    {
+        struct Window *win = wd->win;
+        if (win) {
+            MOS_SetWindowOpacity(_this, wd->window, 1.0);
+            MOS_WindowToFront(win);
+        }
+    }
+
 }
 
 static int

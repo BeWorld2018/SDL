@@ -185,7 +185,7 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 	D("[%s]\n", __FUNCTION__);
 	
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
-	SDL_WindowData *wd = SDL_malloc(sizeof(*wd));
+	SDL_WindowData *wd = SDL_calloc(1, sizeof(*wd));
 	
 	if (wd) {
 		window->driverdata = wd;
@@ -358,7 +358,7 @@ MOS_SetWindowSize(_THIS, SDL_Window * window)
 	}
 }
 
-static void
+void
 MOS_WindowToFront(struct Window *win)
 {
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, win);
