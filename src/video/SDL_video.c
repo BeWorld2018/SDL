@@ -3333,7 +3333,12 @@ void SDL_DestroyWindow(SDL_Window *window)
     /* Make no context current if this is the current context window */
     if (window->flags & SDL_WINDOW_OPENGL) {
         if (_this->current_glwin == window) {
+#ifdef __MORPHOS__
+            // Hack to kill context before destroy window (in case when user doesnt call SDL_GL_DeleteContext !)
+            SDL_GL_DeleteContext(_this->current_glctx);
+#else
             SDL_GL_MakeCurrent(window, NULL);
+#endif
         }
     }
 
