@@ -75,7 +75,7 @@ MOS_GetButton(int code)
 }
 
 static void
-MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchMouseButtons(_THIS, struct IntuiMessage *m, const SDL_WindowData *data)
 {
     SDL_WindowData *sdlwin = (SDL_WindowData *)m->IDCMPWindow->UserData;
 
@@ -101,7 +101,7 @@ MOS_TranslateUnicode(struct IntuiMessage *m, char *buffer)
 }
 
 static void
-MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchRawKey(_THIS, struct IntuiMessage *m, const SDL_WindowData *data)
 {
 	
 	UWORD code = m->Code;
@@ -181,41 +181,56 @@ MOS_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 static void
 MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 {
-	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-	if(data->window) {
-		if (activated) {
-			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
+    if (m && m->IDCMPWindow && m->IDCMPWindow->UserData) {
 
-			if (SDL_GetKeyboardFocus() != data->window)
-				SDL_SetKeyboardFocus(data->window);
-			SDL_SetMouseFocus(data->window);
-			MOS_MouseMove(_this, m, data);
-		} else {
-			if (SDL_GetKeyboardFocus() == data->window)
-				SDL_SetKeyboardFocus(NULL);
-			if (SDL_GetMouseFocus() == data->window)
-				SDL_SetMouseFocus(NULL);
-		}
-	}
+        SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+        if (data) {
+            if (data->window) {
+                // D("[%s] %d data->window=%p\n", __FUNCTION__, __LINE__, data->window);
+                if (activated) {
+
+                    SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
+
+                    if (SDL_GetKeyboardFocus() != data->window)
+                        SDL_SetKeyboardFocus(data->window);
+
+                    //SDL_SetMouseFocus(data->window);
+                    //MOS_MouseMove(_this, m, data);
+
+                } else {
+
+                    if (SDL_GetKeyboardFocus() == data->window)
+                        SDL_SetKeyboardFocus(NULL);
+                   // if (SDL_GetMouseFocus() == data->window)
+                    //    SDL_SetMouseFocus(NULL);
+                }
+            }
+        }
+    }
 }
 
 static void
-MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
+MOS_ChangeWindow(_THIS, const struct IntuiMessage *m)
 {
-	struct Window *w = data->win;
+    SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    if (data->win) {
 
-	if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
-		data->curr_x = w->LeftEdge;
-		data->curr_y = w->TopEdge;
-		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
-	}
+        struct Window *w = data->win;
 
-	if (data->curr_w != w->Width || data->curr_h != w->Height) {
-		data->curr_w = w->Width;
-		data->curr_h = w->Height;
-		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
-		if (__tglContext) MOS_GL_ResizeContext(_this, data->window);
-	}
+        if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
+            data->curr_x = w->LeftEdge;
+            data->curr_y = w->TopEdge;
+            SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
+        }
+
+        if (data->curr_w != w->Width || data->curr_h != w->Height) {
+            data->curr_w = w->Width;
+            data->curr_h = w->Height;
+            SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
+            if (__tglContext)
+                MOS_GL_ResizeContext(_this, data->window);
+        }
+    }
 }
 
 static void MOS_GadgetEvent(_THIS, const struct IntuiMessage *m)
@@ -538,51 +553,55 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
 static void
 MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
 {
-	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    //D("[%s] \n", __FUNCTION__);
+    SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 
-	switch (m->Class) {
-		case IDCMP_MENUPICK:
-            MOS_HandleMenu(_this, m);
-			break;
+    switch (m->Class) {
+    case IDCMP_MENUPICK:
+        MOS_HandleMenu(_this, m);
+        break;
 
-		case IDCMP_REFRESHWINDOW:
-			BeginRefresh(m->IDCMPWindow);
-			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_EXPOSED, 0, 0);
-			EndRefresh(m->IDCMPWindow, TRUE);
-			break;
+    case IDCMP_REFRESHWINDOW:
+        BeginRefresh(m->IDCMPWindow);
+        SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_EXPOSED, 0, 0);
+        EndRefresh(m->IDCMPWindow, TRUE);
+        break;
 
-		case IDCMP_CLOSEWINDOW:
-			SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
-         break;
+    case IDCMP_CLOSEWINDOW:
+        SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
+        break;
 
-		case IDCMP_MOUSEMOVE:
-			MOS_MouseMove(_this, m, data);
-			break;
+    case IDCMP_MOUSEMOVE:
+        MOS_MouseMove(_this, m, data);
+        break;
 
-		case IDCMP_MOUSEBUTTONS:
-			MOS_DispatchMouseButtons(m, data);
-			break;
+    case IDCMP_MOUSEBUTTONS:
+        MOS_DispatchMouseButtons(_this, m, data);
+        break;
 
-		case IDCMP_RAWKEY:
-			MOS_DispatchRawKey(m, data);
-			break;
+    case IDCMP_RAWKEY:
+        MOS_DispatchRawKey(_this, m, data);
+        break;
 
-		case IDCMP_ACTIVEWINDOW:
-			MOS_HandleActivation(_this, m, SDL_TRUE);
-			break;
+    case IDCMP_ACTIVEWINDOW:
+        MOS_HandleActivation(_this, m, SDL_TRUE);
+        break;
 
-		case IDCMP_INACTIVEWINDOW:
-			MOS_HandleActivation(_this, m, SDL_FALSE);
-			break;
+    case IDCMP_INACTIVEWINDOW:
+        MOS_HandleActivation(_this, m, SDL_FALSE);
+        break;
 
-		case IDCMP_CHANGEWINDOW:
-			MOS_ChangeWindow(_this, m, data);
-			break;
+    case IDCMP_CHANGEWINDOW:
+        MOS_ChangeWindow(_this, m);
+        break;
 
-		case IDCMP_GADGETUP:
-			MOS_GadgetEvent(_this, m);
-			break;
-	}
+    case IDCMP_GADGETUP:
+        MOS_GadgetEvent(_this, m);
+        break;
+
+    default:
+        break;
+    }
 }
 
 static void
@@ -689,65 +708,63 @@ MOS_CheckWBEvents(_THIS)
 void
 MOS_PumpEvents(_THIS)
 {
-	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
-	struct IntuiMessage *m;
+    SDL_VideoData *data = (SDL_VideoData *)_this->driverdata;
+    struct IntuiMessage *m;
 
-	BOOL check_mousecoord = FALSE;
-	size_t sigs = SetSignal(0, data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig | SIGBREAKF_CTRL_C);
+    BOOL check_mousecoord = FALSE;
+    size_t sigs = SetSignal(0, data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig | SIGBREAKF_CTRL_C);
 
-	if (sigs & data->WinSig) {
-		SDL_WindowData *wdata;
-		while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort))) {
-			wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
-			if  (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
-				check_mousecoord = TRUE;
+    if (sigs & data->WinSig) {
+        SDL_WindowData *wdata = NULL;
+        while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort))) {
+            wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
+            if (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
+                check_mousecoord = TRUE;
 
-			MOS_DispatchEvent(_this, m);
-			ReplyMsg((struct Message *)m);
-		}
+            MOS_DispatchEvent(_this, m);
+            ReplyMsg((struct Message *)m);
+        }
 
-		if (wdata && check_mousecoord && wdata->win)
-		{
-			struct Screen *s = wdata->win->WScreen;
-			if (s) 
-			{
-				LONG mx = s->MouseX;
-				LONG my = s->MouseY;
-				LONG ws = wdata->win->LeftEdge + wdata->win->BorderLeft;
-				LONG wy = wdata->win->TopEdge + wdata->win->BorderTop;
-				LONG wx2 = wdata->win->LeftEdge + wdata->win->Width - wdata->win->BorderRight;
-				LONG wy2 = wdata->win->TopEdge + wdata->win->Height - wdata->win->BorderBottom;
-				if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
-					wdata->win->Flags |= WFLG_RMBTRAP;
-					
-					if (data->CurrentPointer) {
-						if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
-							SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
-							if (ac->Pointer.mouseptr)
-								SetWindowPointer(wdata->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
-						}
-					} else {
-						size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
-						SetAttrsA(wdata->win, (struct TagItem *)&pointertags);
-					}
-					
-				} else {
-					wdata->win->Flags &= ~WFLG_RMBTRAP;
-					ClearPointer(wdata->win);
-				}
-			}
-		}
-	}
+        if (wdata && check_mousecoord && wdata->win) {
+            struct Window *w = wdata->win;
+            struct Screen *s = w->WScreen;
+            if (s) {
+                LONG mx = s->MouseX;
+                LONG my = s->MouseY;
+                LONG ws = w->LeftEdge + w->BorderLeft;
+                LONG wy = w->TopEdge + w->BorderTop;
+                LONG wx2 = w->LeftEdge + w->Width - w->BorderRight;
+                LONG wy2 = w->TopEdge + w->Height - w->BorderBottom;
+                if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
+                    w->Flags |= WFLG_RMBTRAP;
 
-	if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)
-		MOS_CheckScreenEvent(_this);
+                    if (data->CurrentPointer) {
+                        if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
+                            SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
+                            if (ac->Pointer.mouseptr)
+                                SetWindowPointer(w, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
+                        }
+                        size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
+                        SetAttrsA(w, (struct TagItem *)&pointertags);
+                    }
 
-	if (sigs & data->BrokerSig)
-		MOS_CheckBrokerMsg(_this);
+                } else {
+                    w->Flags &= ~WFLG_RMBTRAP;
+                    ClearPointer(w);
+                }
+            }
+        }
+    }
 
-	if (sigs & data->WBSig)
-		MOS_CheckWBEvents(_this);
+    if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)
+        MOS_CheckScreenEvent(_this);
 
-	if (sigs & SIGBREAKF_CTRL_C)
-		SDL_SendAppEvent(SDL_QUIT);
+    if (sigs & data->BrokerSig)
+        MOS_CheckBrokerMsg(_this);
+
+    if (sigs & data->WBSig)
+        MOS_CheckWBEvents(_this);
+
+    if (sigs & SIGBREAKF_CTRL_C)
+        SDL_SendAppEvent(SDL_QUIT);
 }

@@ -85,15 +85,15 @@ typedef struct
 	BYTE first_deltamove;
 	BYTE winflags;
 	
-	APTR visualinfo;
+	APTR menuvisualinfo;
 	struct Menu *menu;
+	BOOL menuactive;
 	
 	struct BitMap *bitmap;
 	
 } SDL_WindowData;
 
 /* Is this window shown (not iconified) */
-#define SDL_MOS_WINDOW_SHOWN      (1 << 0)
 #define SDL_MOS_WINDOW_FULLSCREEN (1 << 1)
 #define SDL_MOS_WINDOW_FULLSCREEN_DESKTOP (1 << 2)
 
@@ -124,7 +124,7 @@ extern void MOS_SetWindowResizable (_THIS, SDL_Window * window, SDL_bool resizab
 extern int MOS_SetWindowOpacity(_THIS, SDL_Window * window, float opacity);
 extern int MOS_GetWindowBordersSize(_THIS, SDL_Window * window, int * top, int * left, int * bottom, int * right);
 extern int MOS_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation);
-extern int MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
+//extern int MOS_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
 
 /* Non-SDL functions */
 extern void MOS_CloseWindows(_THIS);
