@@ -64,6 +64,11 @@ int main(int argc, char *argv[])
     SDL_RWops *rwops = NULL;
     char test_buf[30];
 
+    if (SDL_Init(0) == -1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init() failed: %s\n", SDL_GetError());
+        return 1;
+    }
+
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
 
@@ -353,5 +358,8 @@ int main(int argc, char *argv[])
     rwops->close(rwops);
     SDL_Log("test5 OK\n");
     cleanup();
+
+    SDL_Quit();
+
     return 0; /* all ok */
 }

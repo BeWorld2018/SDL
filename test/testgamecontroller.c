@@ -902,11 +902,8 @@ int main(int argc, char *argv[])
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window: %s\n", SDL_GetError());
         return 2;
     }
-	#ifdef __MORPHOS__
-	  screen = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	#else
+
     screen = SDL_CreateRenderer(window, -1, 0);
-	#endif
     if (!screen) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create renderer: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -970,7 +967,7 @@ int main(int argc, char *argv[])
     CloseVirtualController();
     SDL_DestroyRenderer(screen);
     SDL_DestroyWindow(window);
-    SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    SDL_Quit();
 
     return 0;
 }

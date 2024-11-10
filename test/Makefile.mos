@@ -67,7 +67,6 @@ TARGETS = \
 	testurl \
 	testver \
 	testviewport \
-	testvulkan \
 	testwm2 \
 	testyuv \
 	torturethread \
@@ -306,9 +305,6 @@ testbounds: testbounds.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testcustomcursor: testcustomcursor.o
-	$(CC) -o $@ $^ $(LIBS)
-
-testvulkan: testvulkan.o
 	$(CC) -o $@ $^ $(LIBS)
 
 testurl: testurl.o
