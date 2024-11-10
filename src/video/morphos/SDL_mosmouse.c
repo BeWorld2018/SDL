@@ -142,18 +142,24 @@ MOS_ShowCursor(SDL_Cursor * cursor)
 			size_t pointertags[] = { WA_PointerType, type, TAG_DONE };
 
 			ForeachNode(&data->windowlist, wd)
-				if (wd->win)
-					SetAttrsA(wd->win, (struct TagItem *)&pointertags);
-			
+			{
+				if (wd->win) {
+                    SetAttrsA(wd->win, (struct TagItem *)&pointertags);
+                }
+            }
 		}
 	} else {
 		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
 		SDL_WindowData *wd;
 
 		ForeachNode(&data->windowlist, wd)
-			if (wd->win)
-				if (ac->Pointer.mouseptr)
-					SetWindowPointer(wd->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
+		{
+            if (wd->win) {
+                if (ac->Pointer.mouseptr) {
+                    SetWindowPointer(wd->win, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
+                }
+            }
+        }
 	}
 
 	data->CurrentPointer = cursor;

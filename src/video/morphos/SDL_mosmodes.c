@@ -38,20 +38,21 @@
 static int
 MOS_GetRefreshRate(struct Screen *s)
 {
-	ULONG modeid = getv(s, SA_DisplayID);
-	APTR handle = FindDisplayInfo(modeid);
-	ULONG freq = 60;
+    D("[%s]\n", __FUNCTION__);
+    ULONG freq = 60;
 
-	D("[%s]\n", __FUNCTION__);
+    if (s) {
 
-	if (handle) {
-		struct MonitorInfo mi;
+        ULONG modeid = getv(s, SA_DisplayID);
+        APTR handle = FindDisplayInfo(modeid);
+        if (handle) {
+            struct MonitorInfo mi;
 
-		if (GetDisplayInfoData(handle, (UBYTE *)&mi, sizeof(mi), DTAG_MNTR, 0) >= sizeof(mi))
-			if (mi.TotalRows)
-				freq = (ULONG)(1000000000L / ((FLOAT)mi.TotalColorClocks * 280.0 * (FLOAT)mi.TotalRows / 1000.0) + 5.0);
-	}
-
+            if (GetDisplayInfoData(handle, (UBYTE *)&mi, sizeof(mi), DTAG_MNTR, 0) >= sizeof(mi))
+                if (mi.TotalRows)
+                    freq = (ULONG)(1000000000L / ((FLOAT)mi.TotalColorClocks * 280.0 * (FLOAT)mi.TotalRows / 1000.0) + 5.0);
+        }
+    }
 	return freq;
 }
 
