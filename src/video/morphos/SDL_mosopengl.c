@@ -203,7 +203,10 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 			D("[%s] MOS_GL_InitContext SUCCES 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
 
 			*SDL2Base->MyGLContext = glcont;
-
+			
+			GLClearColor(glcont, 0.0f, 0.0f, 0.0f, 1.0f);
+			GLClear(glcont, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+			
 			return glcont;
 		} else {
 			D("[%s] MOS_GL_InitContext FAILED 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
