@@ -137,8 +137,8 @@ MOS_DispatchRawKey(_THIS, struct IntuiMessage *m, const SDL_WindowData *data)
 		default:
 			if (rawkey < sizeof(morphos_scancode_table) / sizeof(morphos_scancode_table[0])) {
                 SDL_Scancode s = morphos_scancode_table[rawkey];
-                if (m->Code <= 0x80) {
-                    char text[5] = { 0 };
+                if (m->Code <= 127) {
+                    char text[10];
 					int length = MOS_TranslateUnicode(m, text);
 					SDL_SendKeyboardKey(SDL_PRESSED, s);
 					if (length > 0) {
