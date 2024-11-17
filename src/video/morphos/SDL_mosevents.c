@@ -194,15 +194,15 @@ MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
                     if (SDL_GetKeyboardFocus() != data->window)
                         SDL_SetKeyboardFocus(data->window);
 
-                    //SDL_SetMouseFocus(data->window);
+                    SDL_SetMouseFocus(data->window);
                     //MOS_MouseMove(_this, m, data);
 
                 } else {
 
                     if (SDL_GetKeyboardFocus() == data->window)
                         SDL_SetKeyboardFocus(NULL);
-                   // if (SDL_GetMouseFocus() == data->window)
-                    //    SDL_SetMouseFocus(NULL);
+                    if (SDL_GetMouseFocus() == data->window)
+                        SDL_SetMouseFocus(NULL);
                 }
             }
         }
