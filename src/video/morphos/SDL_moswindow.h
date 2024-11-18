@@ -94,6 +94,7 @@ typedef struct
 } SDL_WindowData;
 
 /* Is this window shown (not iconified) */
+#define SDL_MOS_WINDOW_SHOWN      (1 << 0)
 #define SDL_MOS_WINDOW_FULLSCREEN (1 << 1)
 #define SDL_MOS_WINDOW_FULLSCREEN_DESKTOP (1 << 2)
 

@@ -268,7 +268,6 @@ static int SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, U
             }
             /* if it was specifically requested, even if SDL_RENDERER_ACCELERATED isn't set, we'll accept this renderer. */
         } else {
-#ifndef __MORPHOS__
             for (i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
                 SDL_GetRenderDriverInfo(i, &info);
                 if (SDL_strcmp(info.name, "software") != 0) {
@@ -282,7 +281,6 @@ static int SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, U
                     }
                 }
             }
-#endif
             if (!renderer) {
                 return SDL_SetError("No hardware accelerated renderers available");
             }
@@ -2699,6 +2697,9 @@ static SDL_bool ShouldAttemptTextureFramebuffer(void)
 #endif
 #if defined(__EMSCRIPTEN__)
         attempt_texture_framebuffer = SDL_FALSE;
+#endif
+#if defined(__MORPHOS__)
+		attempt_texture_framebuffer = SDL_FALSE;
 #endif
     }
     return attempt_texture_framebuffer;

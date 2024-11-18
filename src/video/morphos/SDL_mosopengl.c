@@ -126,7 +126,14 @@ MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 		w = window->w;
 		h= window->h;	
 		friend_bitmap =	data->win->RPort->BitMap;	
-	}   
+	}  else {
+		if (vd->WScreen == NULL)
+			MOS_GetScreen(vd->VideoDevice, vd->FullScreen, (window->flags & SDL_WINDOW_OPENGL) != 0);
+		// SDL_WINDOW_HIDDEN
+		w = window->w;
+		h= window->h;
+		friend_bitmap =	vd->WScreen->RastPort.BitMap;	
+	} 
 	depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
 
 	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;

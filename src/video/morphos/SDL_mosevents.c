@@ -137,8 +137,8 @@ MOS_DispatchRawKey(_THIS, struct IntuiMessage *m, const SDL_WindowData *data)
 		default:
 			if (rawkey < sizeof(morphos_scancode_table) / sizeof(morphos_scancode_table[0])) {
                 SDL_Scancode s = morphos_scancode_table[rawkey];
-                if (m->Code <= 127) {
-                    char text[10];
+                if (m->Code < 128) {
+                    char text[5] = { 0 };
 					int length = MOS_TranslateUnicode(m, text);
 					SDL_SendKeyboardKey(SDL_PRESSED, s);
 					if (length > 0) {
@@ -156,81 +156,68 @@ MOS_DispatchRawKey(_THIS, struct IntuiMessage *m, const SDL_WindowData *data)
 static void
 MOS_MouseMove(_THIS, struct IntuiMessage *m, SDL_WindowData *data)
 {
-    SDL_WindowData *sdlwin = (SDL_WindowData *)m->IDCMPWindow->UserData;
-    if (sdlwin) {
-        struct Screen *s = data->win->WScreen;
+    struct Screen *s = data->win->WScreen;
 
-        // D("[%s] X:%d Y:%d, ScreenX: %d ScreenY: %d\n", __FUNCTION__, m->MouseX, m->MouseY, s->MouseX, s->MouseY);
-        globalMouseState.x = s->MouseX;
-        globalMouseState.y = s->MouseY;
+    //D("[%s] X:%d Y:%d, ScreenX: %d ScreenY: %d\n", __FUNCTION__, m->MouseX, m->MouseY, s->MouseX, s->MouseY);
+    globalMouseState.x = s->MouseX;
+    globalMouseState.y = s->MouseY;
 
-        if (SDL_GetRelativeMouseMode()) {
-            if (data->first_deltamove) {
-                data->first_deltamove = 0;
-                return;
-            }
-            SDL_SendMouseMotion(data->window, 0, 1, m->MouseX, m->MouseY);
-        } else {
-            int x = (s->MouseX - data->win->LeftEdge - data->win->BorderLeft);
-            int y = (s->MouseY - data->win->TopEdge - data->win->BorderTop);
-            SDL_SendMouseMotion(data->window, 0, 0, x, y);
+    if (SDL_GetRelativeMouseMode()) {
+        if (data->first_deltamove) {
+            data->first_deltamove = 0;
+            return;
         }
+        SDL_SendMouseMotion(data->window, 0, 1, m->MouseX, m->MouseY);
+    } else {
+    	//struct Screen *s = data->win->WScreen;
+        int x = (s->MouseX - data->win->LeftEdge - data->win->BorderLeft);
+        int y = (s->MouseY - data->win->TopEdge - data->win->BorderTop);
+        SDL_SendMouseMotion(data->window, 0, 0, x, y);
     }
 }
 
 static void
 MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 {
-    if (m && m->IDCMPWindow && m->IDCMPWindow->UserData) {
+	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    if (data) {
+        if (data->window) {
+            if (activated) {
 
-        SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-        if (data) {
-            if (data->window) {
-                // D("[%s] %d data->window=%p\n", __FUNCTION__, __LINE__, data->window);
-                if (activated) {
+                SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
+                if (SDL_GetKeyboardFocus() != data->window)
+                    SDL_SetKeyboardFocus(data->window);
 
-                    SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
+                SDL_SetMouseFocus(data->window);
+                MOS_MouseMove(_this, m, data);
 
-                    if (SDL_GetKeyboardFocus() != data->window)
-                        SDL_SetKeyboardFocus(data->window);
-
-                    SDL_SetMouseFocus(data->window);
-                    //MOS_MouseMove(_this, m, data);
-
-                } else {
-
-                    if (SDL_GetKeyboardFocus() == data->window)
-                        SDL_SetKeyboardFocus(NULL);
-                    if (SDL_GetMouseFocus() == data->window)
-                        SDL_SetMouseFocus(NULL);
-                }
+            } else {
+                if (SDL_GetKeyboardFocus() == data->window)
+                    SDL_SetKeyboardFocus(NULL);
+                if (SDL_GetMouseFocus() == data->window)
+                    SDL_SetMouseFocus(NULL);
             }
         }
     }
 }
 
 static void
-MOS_ChangeWindow(_THIS, const struct IntuiMessage *m)
+MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 {
-    SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-    if (data->win) {
+	struct Window *w = data->win;
 
-        struct Window *w = data->win;
+	if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
+		data->curr_x = w->LeftEdge;
+		data->curr_y = w->TopEdge;
+		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
+	}
 
-        if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
-            data->curr_x = w->LeftEdge;
-            data->curr_y = w->TopEdge;
-            SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
-        }
-
-        if (data->curr_w != w->Width || data->curr_h != w->Height) {
-            data->curr_w = w->Width;
-            data->curr_h = w->Height;
-            SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
-            if (__tglContext)
-                MOS_GL_ResizeContext(_this, data->window);
-        }
-    }
+	if (data->curr_w != w->Width || data->curr_h != w->Height) {
+		data->curr_w = w->Width;
+		data->curr_h = w->Height;
+		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
+		if (__tglContext) MOS_GL_ResizeContext(_this, data->window);
+	}
 }
 
 static void MOS_GadgetEvent(_THIS, const struct IntuiMessage *m)
@@ -592,7 +579,7 @@ MOS_DispatchEvent(_THIS, struct IntuiMessage *m)
         break;
 
     case IDCMP_CHANGEWINDOW:
-        MOS_ChangeWindow(_this, m);
+        MOS_ChangeWindow(_this, m, data);
         break;
 
     case IDCMP_GADGETUP:
@@ -744,6 +731,7 @@ MOS_PumpEvents(_THIS)
                             if (ac->Pointer.mouseptr)
                                 SetWindowPointer(w, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
                         }
+                    } else {
                         size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
                         SetAttrsA(w, (struct TagItem *)&pointertags);
                     }

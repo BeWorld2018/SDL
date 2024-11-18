@@ -98,10 +98,16 @@ struct NewMenu SDL_NewMenu[] =
 };
 
 static void 
-MOS_CloseWindowSafely(_THIS, SDL_Window *sdlwin, struct Window *win)
+MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 {
-    D("[%s]\n", __FUNCTION__);
+	D("[%s]\n", __FUNCTION__);
 
+	if (SDL_GetKeyboardFocus() == sdlwin)
+		SDL_SetKeyboardFocus(NULL);
+
+	if (SDL_GetMouseFocus() == sdlwin)
+		SDL_SetMouseFocus(NULL);
+		
     if ((sdlwin->flags & SDL_WINDOW_FOREIGN) == 0) {
         struct IntuiMessage *msg, *tmp;
 
@@ -114,6 +120,15 @@ MOS_CloseWindowSafely(_THIS, SDL_Window *sdlwin, struct Window *win)
                 ReplyMsg(&msg->ExecMessage);
             }
         }
+		SDL_WindowData *data = (SDL_WindowData *) sdlwin->driverdata;
+		if (data->menuactive == TRUE) {
+            ClearMenuStrip(win);
+            FreeMenus(data->menu);
+            data->menu = NULL;
+            FreeVisualInfo(data->menuvisualinfo);
+            data->menuvisualinfo = NULL;
+            data->menuactive = FALSE;
+        }
 
         CloseWindow(win);
 
@@ -121,7 +136,8 @@ MOS_CloseWindowSafely(_THIS, SDL_Window *sdlwin, struct Window *win)
     }
 }
 
-void MOS_CloseWindows(_THIS)
+void 
+MOS_CloseWindows(_THIS)
 {
     D("[%s]\n", __FUNCTION__);
     SDL_VideoData *data = (SDL_VideoData *)_this->driverdata;
@@ -131,16 +147,9 @@ void MOS_CloseWindows(_THIS)
     {
         struct Window *win = wd->win;
 
-        if (win) {      
-            if (wd->menuactive == TRUE) {
-                ClearMenuStrip(win);
-                FreeMenus(wd->menu);
-                wd->menu = NULL;
-                FreeVisualInfo(wd->menuvisualinfo);
-                wd->menuvisualinfo = NULL;
-            }
+        if (win) {
             wd->win = NULL;
-            MOS_CloseWindowSafely(_this, wd->window, win);
+            MOS_CloseWindowSafely(wd->window, win);
         }
     }
 }
@@ -154,7 +163,7 @@ MOS_OpenWindows(_THIS)
 
     ForeachNode(&data->windowlist, wd)
     {
-        if (!(wd->window->flags & SDL_WINDOW_FOREIGN) /* && (wd->window->flags & SDL_WINDOW_SHOWN)*/) {
+        if (!(wd->window->flags & SDL_WINDOW_FOREIGN) && (wd->winflags & SDL_MOS_WINDOW_SHOWN)) {
             if (wd->win == NULL) {
                 MOS_ShowWindow_Internal(_this, wd->window);
             } else {
@@ -215,13 +224,7 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 int
 MOS_CreateWindow(_THIS, SDL_Window * window)
 {
-    if (MOS_SetupWindowData(_this, window, NULL) == 0) {
-
-        MOS_ShowWindow_Internal(_this, window);
-
-        return 0;
-    }
-    return -1;
+	return MOS_SetupWindowData(_this, window, NULL);
 }
 
 int
@@ -407,6 +410,8 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		BYTE fs_desktop = data->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
 		
 		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
+
+		data->winflags |= SDL_MOS_WINDOW_SHOWN;
 		
 		if (vd->WScreen == NULL)
 			MOS_GetScreen(vd->VideoDevice, vd->FullScreen, (window->flags & SDL_WINDOW_OPENGL) != 0);
@@ -477,11 +482,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		D("[%s] min %ld/%ld, normal %ld/%ld, max %ld/%ld\n", __FUNCTION__, min_w, min_h, w, h, max_w, max_h);
 
 		ULONG opacity_value = ((window->opacity) * (ULONG_MAX));
-        SDL_bool win_hidden = (window->flags & SDL_WINDOW_HIDDEN && !fullscreen);
-        if (win_hidden) {
-            opacity_value = (0.0 * (ULONG_MAX));
-        }           
-
+		
 		data->win = OpenWindowTags(NULL,
 			WA_Left, left, WA_Top, top,
 			WA_InnerWidth, w,
@@ -623,27 +624,22 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 void
 MOS_ShowWindow(_THIS, SDL_Window *window)
 {
-    D("[%s]\n", __FUNCTION__);
-    SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
-    SDL_VideoData *vd = (SDL_VideoData *)data->videodata;
-    if (vd->AppIconRef)
-        return;
-
-    if (data->win && (window->flags & SDL_WINDOW_HIDDEN)) {
-        MOS_SetWindowOpacity(_this, window, window->opacity);
-        MOS_WindowToFront(data->win);
-    }
+	D("[%s]\n", __FUNCTION__);
+	MOS_ShowWindow_Internal(_this, window);
 }
 
 void
 MOS_HideWindow(_THIS, SDL_Window *window)
 {
-    D("[%s]\n", __FUNCTION__);
-    SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
-
-    if (data->win) {
-        MOS_SetWindowOpacity(_this, window, 0.0);
-    }
+	D("[%s]\n", __FUNCTION__);
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	
+	if (data->win) {
+		data->winflags &= ~SDL_MOS_WINDOW_SHOWN;
+		MOS_CloseWindowSafely(window, data->win);
+		data->win = NULL;
+	}
+	
 }
 
 void
@@ -793,28 +789,14 @@ MOS_DestroyWindow(_THIS, SDL_Window * window)
 
 	if (data) {
 		SDL_VideoData *videodata = (SDL_VideoData *) data->videodata;
-        
-        if (SDL_GetKeyboardFocus() == window)
-            SDL_SetKeyboardFocus(NULL);
-
-        if (SDL_GetMouseFocus() == window)
-            SDL_SetMouseFocus(NULL);
-
+		
+		if (data->__tglContext)
+			MOS_GL_DeleteContext(_this, data->__tglContext);
+		
 		REMOVE(&data->node);
 
 		if (data->win) {
-            
-            if (data->menuactive == TRUE) {
-                ClearMenuStrip(data->win);
-                FreeMenus(data->menu);
-                FreeVisualInfo(data->menuvisualinfo);
-            }
-            
-            D("[%s] data->__tglContext=0x%08lx\n", __FUNCTION__, data->__tglContext);
-            if (data->__tglContext)
-            	MOS_GL_DeleteContext(_this, data->__tglContext);
-
-			MOS_CloseWindowSafely(_this, window, data->win);
+			MOS_CloseWindowSafely(window, data->win);
 			data->win = NULL;
 		}
 		if (data->region)
@@ -858,14 +840,16 @@ MOS_CloseWindow(SDL_Window *window)
             }
         }
 
+		struct Window *win = data->win;
         if (data->menuactive == TRUE) {
-            ClearMenuStrip(data->win);
+            ClearMenuStrip(win);
             FreeMenus(data->menu);
             data->menu = NULL;
             FreeVisualInfo(data->menuvisualinfo);
             data->menuvisualinfo = NULL;
+            data->menuactive = FALSE;
         }
-        CloseWindow(data->win);
+        CloseWindow(win);
         data->win = NULL;
     }
 }
