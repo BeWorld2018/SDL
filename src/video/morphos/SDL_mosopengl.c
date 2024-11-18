@@ -121,7 +121,7 @@ MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 		w = vd->CustomScreen->Width;
 		h = vd->CustomScreen->Height;
 		friend_bitmap=vd->CustomScreen->RastPort.BitMap;
-	} else {
+	} else if (data->win) {
 		//D("[%s] WINDOWED\n", __FUNCTION__);
 		w = window->w;
 		h= window->h;	
