@@ -78,6 +78,6 @@ void MOS_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_APPLICATION, "Menu");
     SDL_SetScancodeName(SDL_SCANCODE_LGUI, "Left Command");
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
-	SDL_SetScancodeName(SDL_SCANCODE_LCTRL, "Control");
+	//SDL_SetScancodeName(SDL_SCANCODE_LCTRL, "Control");
 
 }
