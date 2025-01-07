@@ -1086,8 +1086,8 @@ static int SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const
     }
 
     if (blend != data->drawstate.blend) {
-		if (blend == SDL_BLENDMODE_NONE) {
-			 data->glDisable(GL_BLEND);
+        if (blend == SDL_BLENDMODE_NONE) {
+            data->glDisable(GL_BLEND);
         } else {
             data->glEnable(GL_BLEND);
             data->glBlendFuncSeparate(GetBlendFunc(SDL_GetBlendModeSrcColorFactor(blend)),
@@ -1199,7 +1199,6 @@ static int GL_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, vo
     }
 
     data->drawstate.target = renderer->target;
-
     if (!data->drawstate.target) {
         int w, h;
         SDL_GL_GetDrawableSize(renderer->window, &w, &h);

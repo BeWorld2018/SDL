@@ -642,6 +642,7 @@ int SDL_JoystickInit(void)
     /* See if we should allow joystick events while in the background */
     SDL_AddHintCallback(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,
                         SDL_JoystickAllowBackgroundEventsChanged, NULL);
+
     SDL_InitSteamVirtualGamepadInfo();
 
     status = -1;
@@ -2211,7 +2212,7 @@ void SDL_JoystickUpdate(void)
 #ifdef __MORPHOS__
 			joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble, 100/*duration_ms*/);
 #else
-        	joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble);
+            joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble);
 #endif
             joystick->rumble_resend = now + SDL_RUMBLE_RESEND_MS;
             if (joystick->rumble_resend == 0) {

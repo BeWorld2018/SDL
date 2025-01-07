@@ -210,7 +210,6 @@ static void SDL_QuitMainThread(void)
 #endif
     SDL_QuitTLSData();
 
-
     SDL_main_thread_initialized = SDL_FALSE;
 }
 

@@ -265,7 +265,7 @@ static SDL_bool InitShaders(void)
             pglUseProgramObjectARB) {
             shaders_supported = SDL_TRUE;
         }
-	}
+    }
 
     if (!shaders_supported) {
         return SDL_FALSE;
