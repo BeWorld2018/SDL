@@ -391,7 +391,7 @@ void SDL_WaitThread(SDL_Thread * thread, int *status);
 void SDL_DetachThread(SDL_Thread * thread);
 SDL_TLSID SDL_TLSCreate(void);
 void * SDL_TLSGet(SDL_TLSID id);
-int SDL_TLSSet(SDL_TLSID id, const void *value, void (*destructor)(void*));
+int SDL_TLSSet(SDL_TLSID id, const void *value, SDL_TLSDestructorCallback destructor);
 Uint32 SDL_GetTicks(void);
 Uint64 SDL_GetPerformanceCounter(void);
 Uint64 SDL_GetPerformanceFrequency(void);

@@ -3026,10 +3026,10 @@
 	({ \
 		SDL_TLSID  __t__p0 = __p0;\
 		const void * __t__p1 = __p1;\
-		void (* __t__p2)(void*) = __p2;\
+		SDL_TLSDestructorCallback  __t__p2 = __p2;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((int (*)(SDL_TLSID , const void *, void (*)(void*)))*(void**)(__base - 1930))(__t__p0, __t__p1, __t__p2));\
+		(((int (*)(SDL_TLSID , const void *, SDL_TLSDestructorCallback ))*(void**)(__base - 1930))(__t__p0, __t__p1, __t__p2));\
 	})
 
 #define SDL_GetTicks() \
