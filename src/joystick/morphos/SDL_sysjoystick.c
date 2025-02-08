@@ -264,31 +264,35 @@ static int MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 	return rc;
 }
 
-static int MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+static int MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 msDuration)
 {
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	if (hwdata) 
 	{
 		if (hwdata->numRumbles)
 		{
+			//ULONG msDuration = SDL_MAX_RUMBLE_DURATION_MS;
+			
 			DOUBLE lpower=(DOUBLE)(low_frequency_rumble/65535), hpower=(DOUBLE)(high_frequency_rumble/65535);
-			ULONG duration = duration_ms;
-			D("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration);
-			if (duration > 0 && (lpower > 0.0 || hpower > 0.0)) 
-			{ 
-				if (lpower > 0) {
-					SetSensorAttrTags(hwdata->rumble[0], 
-						SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower, 
-						SENSORS_HIDInput_Rumble_Duration, duration, 
-						TAG_DONE);
-				}
-				if (hpower > 0) {
-					SetSensorAttrTags(hwdata->rumble[1], 
-						SENSORS_HIDInput_Rumble_Power , (IPTR)&hpower, 
-						SENSORS_HIDInput_Rumble_Duration, duration, 
-						TAG_DONE);
-				}
-			}
+
+			D("[%s] SetSensorAttr lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, msDuration);
+
+			struct TagItem lfreq[] = {
+				{SENSORS_HIDInput_Rumble_Power, (IPTR)&lpower}, 
+				{SENSORS_HIDInput_Rumble_Duration, msDuration}, 
+				{TAG_DONE}
+			};
+			struct TagItem hfreq[] = {
+				{SENSORS_HIDInput_Rumble_Power, (IPTR)&hpower}, 
+				{SENSORS_HIDInput_Rumble_Duration, msDuration}, 
+				{TAG_DONE}	
+			};
+			
+			if (hwdata->rumble[0])
+				SetSensorAttr(hwdata->rumble[0], lfreq);
+			
+			if (hwdata->rumble[1])
+				SetSensorAttr(hwdata->rumble[1], hfreq);
 		} else {
 			return SDL_Unsupported();
 		}
