@@ -34,6 +34,8 @@
 
 #include "SDL_syswm.h"
 
+#include "../render/SDL_sysrender.h"
+
 #ifdef SDL_VIDEO_OPENGL
 #include "SDL_opengl.h"
 #endif /* SDL_VIDEO_OPENGL */
@@ -193,6 +195,11 @@ static SDL_bool DisableDisplayModeSwitching(_THIS)
 static SDL_bool DisableUnsetFullscreenOnMinimize(_THIS)
 {
     return !!(_this->quirk_flags & VIDEO_DEVICE_QUIRK_DISABLE_UNSET_FULLSCREEN_ON_MINIMIZE);
+}
+
+static SDL_bool IsFullscreenOnly(_THIS)
+{
+    return !!(_this->quirk_flags & VIDEO_DEVICE_QUIRK_FULLSCREEN_ONLY);
 }
 
 /* Support for framebuffer emulation using an accelerated renderer */
@@ -580,7 +587,7 @@ int SDL_VideoInit(const char *driver_name)
         SDL_DisableScreenSaver();
     }
 
-#if !defined(SDL_VIDEO_DRIVER_N3DS)
+#if !defined(SDL_VIDEO_DRIVER_N3DS) && !defined(SDL_VIDEO_DRIVER_PSP)
     /* In the initial state we don't want to pop up an on-screen keyboard,
      * but we do want to allow text input from other mechanisms.
      */
@@ -594,7 +601,7 @@ int SDL_VideoInit(const char *driver_name)
             SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, NULL);
         }
     }
-#endif /* !SDL_VIDEO_DRIVER_N3DS */
+#endif /* !SDL_VIDEO_DRIVER_N3DS && !SDL_VIDEO_DRIVER_PSP */
 
     SDL_MousePostInit();
 
@@ -1009,7 +1016,7 @@ static SDL_DisplayMode *SDL_GetClosestDisplayModeForDisplay(SDL_VideoDisplay *di
             match = current;
             continue;
         }
-        if (current->format != match->format) {
+        if (current->format != match->format && match->format != target_format) {
             /* Sorted highest depth to lowest */
             if (current->format == target_format ||
                 (SDL_BITSPERPIXEL(current->format) >=
@@ -1020,7 +1027,7 @@ static SDL_DisplayMode *SDL_GetClosestDisplayModeForDisplay(SDL_VideoDisplay *di
             }
             continue;
         }
-        if (current->refresh_rate != match->refresh_rate) {
+        if (current->refresh_rate != match->refresh_rate && match->refresh_rate != target_refresh_rate) {
             /* Sorted highest refresh to lowest */
             if (current->refresh_rate >= target_refresh_rate) {
                 match = current;
@@ -1776,7 +1783,7 @@ SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint
     window->windowed.w = window->w;
     window->windowed.h = window->h;
 
-    if (flags & SDL_WINDOW_FULLSCREEN) {
+    if (flags & SDL_WINDOW_FULLSCREEN || IsFullscreenOnly(_this)) {
         SDL_VideoDisplay *display = SDL_GetDisplayForWindow(window);
         int displayIndex;
         SDL_Rect bounds;
@@ -1803,6 +1810,7 @@ SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint
         window->y = bounds.y;
         window->w = bounds.w;
         window->h = bounds.h;
+        flags |= SDL_WINDOW_FULLSCREEN;
     }
 
     window->flags = ((flags & CREATE_FLAGS) | SDL_WINDOW_HIDDEN);
@@ -3316,6 +3324,7 @@ SDL_Window *SDL_GetFocusWindow(void)
 void SDL_DestroyWindow(SDL_Window *window)
 {
     SDL_VideoDisplay *display;
+    SDL_Renderer *renderer;
 
     CHECK_WINDOW_MAGIC(window, );
 
@@ -3335,6 +3344,11 @@ void SDL_DestroyWindow(SDL_Window *window)
     }
     if (SDL_GetMouseFocus() == window) {
         SDL_SetMouseFocus(NULL);
+    }
+
+    renderer = SDL_GetRenderer(window);
+    if (renderer) {
+        SDL_DestroyRendererWithoutFreeing(renderer);
     }
 
     SDL_DestroyWindowSurface(window);

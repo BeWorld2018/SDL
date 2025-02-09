@@ -224,7 +224,7 @@ int SDL_InitSubSystem(Uint32 flags)
     if (SDL_main_thread_initialized == SDL_FALSE)
 		SDL_InitMainThread();
 #endif
-	
+
     /* Clear the error message */
     SDL_ClearError();
 
