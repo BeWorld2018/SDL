@@ -53,7 +53,7 @@ void *SDL_calloc(size_t nmemb, size_t size);
 void *SDL_realloc(void *mem, size_t size);
 void SDL_free(void *mem);
 
-void SDL_qsort(void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
+void SDL_qsort(void *base, size_t nmemb, size_t size, SDL_CompareCallback compare);
 
 int SDL_abs(int x);
 int SDL_isdigit(int x);
@@ -698,7 +698,7 @@ int SDL_RenderFillRectsF(SDL_Renderer * renderer, const SDL_FRect * rects, int c
 int SDL_RenderCopyF(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_FRect * dstrect);
 int SDL_RenderCopyExF(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_FRect * dstrect, const double angle, const SDL_FPoint *center, const SDL_RendererFlip flip);
 int SDL_RenderFlush(SDL_Renderer * renderer);
-Sint64 SDL_RWsize(SDL_RWops *context);	
+Sint64 SDL_RWsize(SDL_RWops *context);
 Sint64 SDL_RWseek(SDL_RWops *context, Sint64 offset, int whence);
 Sint64 SDL_RWtell(SDL_RWops *context);
 size_t SDL_RWread(SDL_RWops *context, void *ptr, size_t size, size_t maxnum);
@@ -829,8 +829,8 @@ int SDL_SetWindowMouseRect(SDL_Window * window, const SDL_Rect * rect);
 const SDL_Rect * SDL_GetWindowMouseRect(SDL_Window * window);
 void SDL_RenderWindowToLogical(SDL_Renderer * renderer, int windowX, int windowY, float *logicalX, float *logicalY);
 void SDL_RenderLogicalToWindow(SDL_Renderer * renderer, float logicalX, float logicalY, int *windowX, int *windowY);
-SDL_bool SDL_JoystickHasRumble(SDL_Joystick *joystick);	
-SDL_bool SDL_JoystickHasRumbleTriggers(SDL_Joystick *joystick);		
+SDL_bool SDL_JoystickHasRumble(SDL_Joystick *joystick);
+SDL_bool SDL_JoystickHasRumbleTriggers(SDL_Joystick *joystick);
 SDL_bool SDL_GameControllerHasRumble(SDL_GameController *gamecontroller);
 SDL_bool SDL_GameControllerHasRumbleTriggers(SDL_GameController *gamecontroller);
 void SDL_hid_ble_scan(SDL_bool active);
@@ -844,13 +844,13 @@ const char* SDL_GetTouchName(int index);
 void SDL_ClearComposition(void);
 SDL_bool SDL_IsTextInputShown(void);
 SDL_bool SDL_HasIntersectionF(const SDL_FRect * A, const SDL_FRect * B);
-SDL_bool SDL_IntersectFRect(const SDL_FRect * A, const SDL_FRect * B, SDL_FRect * result);													  
+SDL_bool SDL_IntersectFRect(const SDL_FRect * A, const SDL_FRect * B, SDL_FRect * result);
 void SDL_UnionFRect(const SDL_FRect * A, const SDL_FRect * B, SDL_FRect * result);
 SDL_bool SDL_EncloseFPoints(const SDL_FPoint * points, int count, const SDL_FRect * clip, SDL_FRect * result);
 SDL_bool SDL_IntersectFRectAndLine(const SDL_FRect * rect, float *X1, float *Y1, float *X2, float *Y2);
 SDL_Window * SDL_RenderGetWindow(SDL_Renderer *renderer);
 /* 2.24.0 */
-void * SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, int (*compare) (const void *, const void *));
+void * SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, SDL_CompareCallback compare);
 const char * SDL_GameControllerPathForIndex(int joystick_index);
 const char * SDL_GameControllerPath(SDL_GameController *gamecontroller);
 const char * SDL_JoystickPathForIndex(int device_index);
