@@ -214,7 +214,7 @@ MOS_InitModes(_THIS)
 					ULONG *fmt = (ULONG *)getv(m, MA_PixelFormats);
 
 					for (j = MAX_SDL_PIXEL_FORMATS - 1; j >= 0; j--) {
-						Uint32 pixfmt = pixelformats[j].PixFmt;
+						pixfmt = pixelformats[j].PixFmt;
 
 						if (fmt[pixfmt]) {
 							mode.format = pixelformats[j].NewPixFmt;
