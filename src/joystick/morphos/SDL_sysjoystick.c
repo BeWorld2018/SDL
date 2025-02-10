@@ -28,16 +28,12 @@
 #include "SDL_endian.h"
 #include "SDL_joystick.h"
 
-#include <dos/dos.h>
 #include <exec/execbase.h>
 #include <libraries/sensors.h>
 #include <libraries/sensors_hid.h>
-#include <proto/exec.h>
 #define USE_INLINE_STDARG
 #include <proto/sensors.h>
 #undef USE_INLINE_STDARG
-#include <proto/threadpool.h>
-#include <proto/utility.h>
 
 // SDL2 deadzone is around 409, we need 1638
 #define DEADZONE_MIN (-0.05)
