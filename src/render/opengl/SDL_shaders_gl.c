@@ -514,11 +514,6 @@ GL_ShaderContext *GL_CreateShaderContext(void)
 
     /* Check for shader support */
     shaders_supported = SDL_FALSE;
-	/*D("GL_ARB_shader_objects = %d \n", SDL_GL_ExtensionSupported("GL_ARB_shader_objects"));
-	D("GL_ARB_shading_language_100 = %d \n", SDL_GL_ExtensionSupported("GL_ARB_shading_language_100"));
-	D("GL_ARB_vertex_shader = %d \n", SDL_GL_ExtensionSupported("GL_ARB_vertex_shader"));
-	D("GL_ARB_fragment_shader = %d \n", SDL_GL_ExtensionSupported("GL_ARB_fragment_shader"));*/
-
     if (SDL_GL_ExtensionSupported("GL_ARB_shader_objects") &&
         SDL_GL_ExtensionSupported("GL_ARB_shading_language_100") &&
         SDL_GL_ExtensionSupported("GL_ARB_vertex_shader") &&
