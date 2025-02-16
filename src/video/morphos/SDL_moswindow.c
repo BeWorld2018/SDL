@@ -476,6 +476,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		if (win_resizable)
 			flags |= WFLG_SIZEGADGET | WFLG_SIZEBBOTTOM;
 
+		if (fullscreen)
+			win_top = SDL_TRUE;
+		
 		if (data->window_title == NULL)
 			data->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
 
@@ -502,7 +505,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			WA_Opacity, opacity_value,
 			WA_FrontWindow, win_top ? TRUE : FALSE,
 			WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY | IDCMP_MOUSEMOVE | IDCMP_DELTAMOVE | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW | IDCMP_CHANGEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK,
-			WA_ExtraTitlebarGadgets, ETG_ICONIFY,
+			vd->CustomScreen ? TAG_IGNORE : WA_ExtraTitlebarGadgets, ETG_ICONIFY,
 			TAG_DONE);
 
 		if (data->win) {
@@ -543,7 +546,10 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
                         data->menuactive = FALSE;
                     }
                 }
-            }
+            } else {
+			//	D("[%s] Screen to Front\n", __FUNCTION__);
+				ScreenToFront(vd->CustomScreen);
+			}
 
             if (data->menuactive == TRUE) {
 				if (SetMenuStrip(data->win, data->menu)) {
