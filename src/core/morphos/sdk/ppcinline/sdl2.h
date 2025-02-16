@@ -6795,10 +6795,10 @@
 		const void * __t__p1 = __p1;\
 		size_t  __t__p2 = __p2;\
 		size_t  __t__p3 = __p3;\
-		int (* __t__p4) (const void *, const void *) = __p4;\
+		SDL_CompareCallback  __t__p4 = __p4;\
 		long __base = (long)(SDL2_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void *(*)(const void *, const void *, size_t , size_t , int (*) (const void *, const void *)))*(void**)(__base - 4642))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
+		(((void *(*)(const void *, const void *, size_t , size_t , SDL_CompareCallback ))*(void**)(__base - 4642))(__t__p0, __t__p1, __t__p2, __t__p3, __t__p4));\
 	})
 
 #define SDL_GameControllerPathForIndex(__p0) \
