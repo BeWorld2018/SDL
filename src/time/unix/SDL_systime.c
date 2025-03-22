@@ -24,7 +24,9 @@
 
 #include "../SDL_time_c.h"
 #include <errno.h>
+#ifndef __MORPHOS__
 #include <langinfo.h>
+#endif
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>

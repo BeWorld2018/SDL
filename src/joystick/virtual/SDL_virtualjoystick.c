@@ -601,7 +601,11 @@ static bool VIRTUAL_JoystickOpen(SDL_Joystick *joystick, int device_index)
     return true;
 }
 
+#ifdef __MORPHOS__
+static bool VIRTUAL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+#else
 static bool VIRTUAL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+#endif
 {
     bool result;
 

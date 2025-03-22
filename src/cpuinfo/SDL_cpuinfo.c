@@ -50,6 +50,13 @@
 #include <setjmp.h>
 #endif
 
+#if defined(SDL_PLATFORM_MORPHOS)
+#include <stdlib.h>
+#include <exec/execbase.h>
+#include <exec/system.h>
+#include <proto/exec.h>
+#endif
+
 #if (defined(SDL_PLATFORM_LINUX) || defined(SDL_PLATFORM_ANDROID)) && defined(__arm__)
 #include <unistd.h>
 #include <sys/types.h>
@@ -115,7 +122,7 @@
 #define CPU_CFG2_LSX  (1 << 6)
 #define CPU_CFG2_LASX (1 << 7)
 
-#if defined(SDL_ALTIVEC_BLITTERS) && defined(HAVE_SETJMP) && !defined(SDL_PLATFORM_MACOS) && !defined(SDL_PLATFORM_OPENBSD) && !defined(SDL_PLATFORM_FREEBSD)
+#if defined(SDL_ALTIVEC_BLITTERS) && defined(HAVE_SETJMP) && !defined(SDL_PLATFORM_MACOS) && !defined(SDL_PLATFORM_OPENBSD) && !defined(SDL_PLATFORM_FREEBSD)&& !defined(SDL_PLATFORM_MORPHOS)
 /* This is the brute force way of detecting instruction sets...
    the idea is borrowed from the libmpeg2 library - thanks!
  */
@@ -338,6 +345,12 @@ static int CPU_haveAltiVec(void)
     int error = sysctl(selectors, 2, &hasVectorUnit, &length, NULL, 0);
     if (0 == error) {
         altivec = (hasVectorUnit != 0);
+#elif defined(SDL_PLATFORM_MORPHOS)
+    ULONG has_altivec;
+    if (NewGetSystemAttrs(&has_altivec, sizeof(has_altivec), SYSTEMINFOTYPE_PPC_ALTIVEC, TAG_DONE))
+    {
+      if(has_altivec)
+        altivec = 1;
     }
 #elif defined(SDL_PLATFORM_FREEBSD) && defined(__powerpc__)
     unsigned long cpufeatures = 0;
@@ -654,6 +667,11 @@ int SDL_GetNumLogicalCPUCores(void)
             SDL_NumLogicalCPUCores = isNew3DS ? 4 : 2;
         }
 #endif
+#if defined(SDL_PLATFORM_MORPHOS)
+        if (SDL_NumLogicalCPUCores <= 0) {
+	         NewGetSystemAttrs(&SDL_NumLogicalCPUCores, sizeof(SDL_NumLogicalCPUCores), SYSTEMINFOTYPE_CPUCOUNT, TAG_DONE);
+        }
+#endif
         // There has to be at least 1, right? :)
         if (SDL_NumLogicalCPUCores <= 0) {
             SDL_NumLogicalCPUCores = 1;
@@ -889,6 +907,15 @@ int SDL_GetCPUCacheLineSize(void)
         }
 #elif defined(__FREEBSD__) && defined(CACHE_LINE_SIZE)
         cacheline_size = CACHE_LINE_SIZE;
+#elif defined(SDL_PLATFORM_MORPHOS)
+		u_int32_t DataL1LineSize;
+
+		NewGetSystemAttrsA(&DataL1LineSize, sizeof(DataL1LineSize), SYSTEMINFOTYPE_PPC_DCACHEL1LINESIZE, NULL);
+
+		if (DataL1LineSize < 32)
+			DataL1LineSize = 32;
+
+        return DataL1LineSize;
 #endif
     }
     return cacheline_size;
@@ -1171,6 +1198,11 @@ int SDL_GetSystemRAM(void)
         if (SDL_SystemRAM <= 0) {
             // The New3DS has 255MiB, the Old3DS 127MiB
             SDL_SystemRAM = (int)(osGetMemRegionSize(MEMREGION_ALL) / (1024 * 1024));
+        }
+#endif
+#ifdef SDL_PLATFORM_MORPHOS
+        if (SDL_SystemRAM <= 0) {
+            SDL_SystemRAM = AvailMem(MEMF_TOTAL) / (1024 * 1024);
         }
 #endif
 #ifdef SDL_PLATFORM_VITA

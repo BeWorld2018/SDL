@@ -22,6 +22,10 @@
 
 // This file contains portable iconv functions for SDL
 
+#if defined(SDL_PLATFORM_MORPHOS)
+#undef HAVE_ICONV
+#endif
+
 #if defined(HAVE_ICONV) && defined(HAVE_ICONV_H)
 #ifndef SDL_USE_LIBICONV
 // Define LIBICONV_PLUG to use iconv from the base instead of ports and avoid linker errors.

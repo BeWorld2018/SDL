@@ -278,6 +278,7 @@ extern SDL_DECLSPEC SDL_IOStream * SDLCALL SDL_IOFromFile(const char *file, cons
 #define SDL_PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER    "SDL.iostream.file_descriptor"
 #define SDL_PROP_IOSTREAM_ANDROID_AASSET_POINTER    "SDL.iostream.android.aasset"
 
+#define SDL_PROP_IOSTREAM_MORPHOS_POINTER           "SDL.iostream.morphos.pointer"
 /**
  * Use this function to prepare a read-write memory buffer for use with
  * SDL_IOStream.

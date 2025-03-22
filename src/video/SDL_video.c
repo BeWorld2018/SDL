@@ -131,6 +131,9 @@ static VideoBootStrap *bootstrap[] = {
 #ifdef SDL_VIDEO_DRIVER_EMSCRIPTEN
     &Emscripten_bootstrap,
 #endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+    &MORPHOS_bootstrap,
+#endif
 #ifdef SDL_VIDEO_DRIVER_QNX
     &QNX_bootstrap,
 #endif
@@ -275,7 +278,7 @@ typedef struct
 
 static Uint32 SDL_DefaultGraphicsBackends(SDL_VideoDevice *_this)
 {
-#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MACOS)) || (defined(SDL_PLATFORM_IOS) && !TARGET_OS_MACCATALYST)
+#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MORPHOS)) || (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MACOS)) || (defined(SDL_PLATFORM_IOS) && !TARGET_OS_MACCATALYST)
     if (_this->GL_CreateContext) {
         return SDL_WINDOW_OPENGL;
     }
@@ -1509,9 +1512,11 @@ bool SDL_SetDisplayModeForDisplay(SDL_VideoDisplay *display, SDL_DisplayMode *mo
         mode = &display->desktop_mode;
     }
 
+#if !defined(SDL_PLATFORM_MORPHOS)
     if (mode == display->current_mode) {
         return true;
     }
+#endif
 
     // Actually change the display mode
     if (_this->SetDisplayMode) {
@@ -2017,12 +2022,19 @@ bool SDL_UpdateFullscreenMode(SDL_Window *window, SDL_FullscreenOp fullscreen, b
     } else {
         bool resized = false;
 
+#if defined(SDL_PLATFORM_MORPHOS)
+        if (window->is_destroying) {
+            D(kprintf("[%s] Window is destroying, ignore mode change\n", __FUNCTION__));
+            goto done;
+        }
+#else
         // Restore the desktop mode
         if (display) {
             display->fullscreen_active = false;
 
             SDL_SetDisplayModeForDisplay(display, NULL);
         }
+#endif
         if (commit) {
             SDL_FullscreenResult ret = SDL_FULLSCREEN_SUCCEEDED;
             if (_this->SetWindowFullscreen) {
@@ -2432,7 +2444,12 @@ SDL_Window *SDL_CreateWindowWithProperties(SDL_PropertiesID props)
             return NULL;
         }
         if (!SDL_GL_LoadLibrary(NULL)) {
+#if defined(SDL_PLATFORM_MORPHOS)
+			// mode software if tinygl failed !
+			flags &= ~SDL_WINDOW_OPENGL;
+#else
             return NULL;
+#endif
         }
     }
 
@@ -5569,6 +5586,9 @@ int SDL_GetMessageBoxCount(void)
 #endif
 #ifdef SDL_VIDEO_DRIVER_UIKIT
 #include "uikit/SDL_uikitmessagebox.h"
+#endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+#include "morphos/SDL_mosmessagebox.h"
 #endif
 #ifdef SDL_VIDEO_DRIVER_WAYLAND
 #include "wayland/SDL_waylandmessagebox.h"

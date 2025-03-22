@@ -202,7 +202,11 @@ typedef struct SDL_JoystickDriver
     bool (*Open)(SDL_Joystick *joystick, int device_index);
 
     // Rumble functionality
+#ifdef __MORPHOS__
+	bool (*Rumble)(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms);
+#else
     bool (*Rumble)(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
+#endif
     bool (*RumbleTriggers)(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble);
 
     // LED functionality
@@ -242,6 +246,7 @@ typedef struct SDL_JoystickDriver
 #define SDL_LED_MIN_REPEAT_MS 5000
 
 // The available joystick drivers
+extern SDL_JoystickDriver SDL_AMIGAINPUT_JoystickDriver;
 extern SDL_JoystickDriver SDL_PRIVATE_JoystickDriver;
 extern SDL_JoystickDriver SDL_ANDROID_JoystickDriver;
 extern SDL_JoystickDriver SDL_BSD_JoystickDriver;
@@ -262,6 +267,9 @@ extern SDL_JoystickDriver SDL_PSP_JoystickDriver;
 extern SDL_JoystickDriver SDL_VITA_JoystickDriver;
 extern SDL_JoystickDriver SDL_N3DS_JoystickDriver;
 extern SDL_JoystickDriver SDL_GAMEINPUT_JoystickDriver;
+#ifdef SDL_JOYSTICK_MORPHOS
+extern SDL_JoystickDriver SDL_MORPHOS_JoystickDriver;
+#endif
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

@@ -156,6 +156,8 @@ extern "C" {
 #elif defined(HAVE_SIGNAL_H) && !defined(__WATCOMC__)
     #include <signal.h>
     #define SDL_TriggerBreakpoint() raise(SIGTRAP)
+#elif defined(SDL_PLATFORM_MORPHOS)
+    #define SDL_TriggerBreakpoint() __asm__ __volatile__ ( "trap\n\t" )
 #else
     /* SDL_TriggerBreakpoint is intentionally left undefined on unknown platforms. */
 #endif

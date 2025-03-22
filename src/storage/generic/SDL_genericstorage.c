@@ -329,6 +329,8 @@ SDL_Storage *GENERIC_OpenFileStorage(const char *path)
     if (len > 0) {
         #ifdef SDL_PLATFORM_WINDOWS
         const bool appended_separator = (path[len-1] == '/') || (path[len-1] == '\\');
+        #elif defined(SDL_PLATFORM_MORPHOS)
+        const bool appended_separator = (path[len-1] == '/') || (path[len-1] == ':');
         #else
         const bool appended_separator = (path[len-1] == '/');
         #endif

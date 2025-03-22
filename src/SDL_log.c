@@ -28,12 +28,16 @@
 
 #include "SDL_log_c.h"
 
-#ifdef HAVE_STDIO_H
+#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_MORPHOS)
 #include <stdio.h>
 #endif
 
 #ifdef SDL_PLATFORM_ANDROID
 #include <android/log.h>
+#endif
+
+#ifdef SDL_PLATFORM_MORPHOS
+#include <proto/exec.h>
 #endif
 
 #include "stdlib/SDL_vacopy.h"
@@ -758,7 +762,9 @@ static void SDLCALL SDL_LogOutput(void *userdata, int category, SDL_LogPriority 
             (void)fclose(pFile);
         }
     }
-#elif defined(SDL_PLATFORM_3DS)
+ #elif defined(SDL_PLATFORM_MORPHOS)
+		NewRawDoFmt("%s%s\n", (APTR)1, NULL, GetLogPriorityPrefix(priority), message);
+ #elif defined(SDL_PLATFORM_3DS)
     {
         FILE *pFile;
         pFile = fopen("sdmc:/3ds/SDL_Log.txt", "a");
@@ -769,8 +775,8 @@ static void SDLCALL SDL_LogOutput(void *userdata, int category, SDL_LogPriority 
     }
 #endif
 #if defined(HAVE_STDIO_H) && \
-    !(defined(SDL_PLATFORM_APPLE) && (defined(SDL_VIDEO_DRIVER_COCOA) || defined(SDL_VIDEO_DRIVER_UIKIT))) && \
-    !(defined(SDL_PLATFORM_WIN32))
+   !(defined(SDL_PLATFORM_APPLE) && (defined(SDL_VIDEO_DRIVER_COCOA) || defined(SDL_VIDEO_DRIVER_UIKIT))) && \
+    !(defined(SDL_PLATFORM_WIN32)) && !(defined(SDL_PLATFORM_MORPHOS)) 
     (void)fprintf(stderr, "%s%s\n", GetLogPriorityPrefix(priority), message);
 #endif
 }

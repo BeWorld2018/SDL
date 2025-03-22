@@ -21,6 +21,9 @@
 #include "SDL_internal.h"
 
 #ifdef SDL_VIDEO_RENDER_OGL
+#ifdef __MORPHOS__
+#define _NO_PPCINLINE
+#endif
 #include "../../video/SDL_sysvideo.h" // For SDL_RecreateWindow
 #include <SDL3/SDL_opengl.h>
 #include "../SDL_sysrender.h"
@@ -410,13 +413,21 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
     case SDL_PIXELFORMAT_XRGB8888:
         *internalFormat = GL_RGBA8;
         *format = GL_BGRA;
+#ifdef __MORPHOS__
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
+#endif
         break;
     case SDL_PIXELFORMAT_ABGR8888:
     case SDL_PIXELFORMAT_XBGR8888:
         *internalFormat = GL_RGBA8;
         *format = GL_RGBA;
+#ifdef __MORPHOS__
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
+#endif
         break;
     case SDL_PIXELFORMAT_YV12:
     case SDL_PIXELFORMAT_IYUV:
@@ -1766,6 +1777,10 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, value);
     }
 
+	D(kprintf("GL_ARB_texture_non_power_of_two: %s\n", data->GL_ARB_texture_non_power_of_two_supported ? "ENABLED" : "DISABLED"));
+	D(kprintf("GL_ARB_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_ARB_texture_rectangle") ? "ENABLED" : "DISABLED"));
+	D(kprintf("GL_EXT_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_EXT_texture_rectangle") ? "ENABLED" : "DISABLED"));
+	
     // Check for multitexture support
     if (SDL_GL_ExtensionSupported("GL_ARB_multitexture")) {
         data->glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress("glActiveTextureARB");
@@ -1774,11 +1789,13 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
             data->glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &data->num_texture_units);
         }
     }
+	D(kprintf("GL_ARB_multitexture_supported: %s\n", data->GL_ARB_multitexture_supported ? "ENABLED" : "DISABLED"));
 
     // Check for shader support
     data->shaders = GL_CreateShaderContext();
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL shaders: %s",
                 data->shaders ? "ENABLED" : "DISABLED");
+    D(kprintf("OpenGL shaders: %s\n", data->shaders ? "ENABLED" : "DISABLED"));
 #ifdef SDL_HAVE_YUV
     // We support YV12 textures using 3 textures and a shader
     if (data->shaders && data->num_texture_units >= 3) {

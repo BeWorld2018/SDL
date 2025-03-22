@@ -42,6 +42,9 @@
 #define BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH  0x04
 
 #ifdef SDL_ALTIVEC_BLITTERS
+#ifdef HAVE_ALTIVEC_H
+#include <altivec.h>
+#endif
 #ifdef SDL_PLATFORM_MACOS
 #include <sys/sysctl.h>
 static size_t GetL3CacheSize(void)
@@ -56,6 +59,24 @@ static size_t GetL3CacheSize(void)
     }
 
     return result;
+}
+#elif defined(SDL_PLATFORM_MORPHOS)
+#include <exec/system.h>
+#include <proto/exec.h>
+
+static size_t
+SDL_IsG5(void)
+{
+    size_t is_g5 = 0;
+    char *cpu_family;
+
+    if (NewGetSystemAttrsA(&cpu_family, sizeof(cpu_family), SYSTEMINFOTYPE_CPUFAMILYNAME, NULL))
+    {
+        if (cpu_family && stricmp(cpu_family, "G5") == 0)
+            is_g5 = 1;
+    }
+
+    return is_g5;
 }
 #else
 static size_t GetL3CacheSize(void)
@@ -880,7 +901,12 @@ static Uint32 GetBlitFeatures(void)
                     | ((SDL_HasAltiVec()) ? BLIT_FEATURE_HAS_ALTIVEC : 0)
                     // Feature 4 is dont-use-prefetch
                     // !!!! FIXME: Check for G5 or later, not the cache size! Always prefetch on a G4.
-                    | ((GetL3CacheSize() == 0) ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0));
+                    #if defined(SDL_PLATFORM_MORPHOS)
+                                            | (SDL_IsG5() ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0)
+                    #else
+                                            | ((GetL3CacheSize() == 0) ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0)
+                    #endif
+                  );
     }
     return features;
 }

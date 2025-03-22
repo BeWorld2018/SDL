@@ -473,4 +473,7 @@
 #define SDL_PLATFORM_3DS 1
 #endif
 
+#if defined(__MORPHOS__)
+#define SDL_PLATFORM_MORPHOS    1
+#endif
 #endif /* SDL_platform_defines_h_ */

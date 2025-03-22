@@ -756,6 +756,8 @@ const char *SDL_GetPlatform(void)
     return "PlayStation 2";
 #elif defined(SDL_PLATFORM_PSP)
     return "PlayStation Portable";
+#elif defined(SDL_PLATFORM_MORPHOS)
+    return "MorphOS";
 #elif defined(SDL_PLATFORM_VITA)
     return "PlayStation Vita";
 #elif defined(SDL_PLATFORM_3DS)

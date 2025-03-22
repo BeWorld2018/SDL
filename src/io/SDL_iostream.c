@@ -26,6 +26,12 @@
 #include <unistd.h>
 #endif
 
+#define USE_DOS_H 1
+#if defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H)
+#include <proto/dos.h>
+#include "../video/morphos/SDL_misc.h"
+#endif
+
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
 #include <errno.h>
@@ -357,7 +363,509 @@ SDL_IOStream *SDL_IOFromHandle(HANDLE handle, const char *mode, bool autoclose)
 }
 #endif // defined(SDL_PLATFORM_WINDOWS)
 
-#if !defined(SDL_PLATFORM_WINDOWS)
+#if defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H)
+
+typedef struct IOStreamMorphOSData
+{
+    BPTR bptr;
+    bool append;
+    bool write;
+    bool read;
+    bool autoclose;
+} IOStreamMorphOSData;
+
+static BPTR SDLCALL morphos_file_open(const char *filename, const char *mode)
+{
+	
+    LONG accessMode = MODE_NEWFILE;
+
+    if ((SDL_strchr(mode, 'r') != NULL)) {
+        accessMode = MODE_OLDFILE;
+    }
+
+    if ((SDL_strchr(mode, 'a') != NULL)) {
+        accessMode = MODE_READWRITE;
+    }
+
+	D(kprintf("[%s] filename '%s' mode '%s' accessMode %ld\n", __FUNCTION__, filename, mode, accessMode));
+
+    BPTR bptr = Open(filename, accessMode);
+    
+    if (!bptr) {
+        SDL_SetError("Failed to open file (error %ld)", IoErr());
+    }
+
+    return bptr;
+}
+
+static Sint64 SDLCALL morphos_file_size(void *userdata)
+{
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+    struct FileInfoBlock *fib = AllocDosObject(DOS_FIB, NULL);
+    	
+    if (!fib) {
+        SDL_SetError("Couldn't allocate FileInfoBlock");
+        return -1;
+    }
+
+    if (!ExamineFH64(iodata->bptr, fib, TAG_DONE)) {
+        FreeDosObject(DOS_FIB, fib);
+        SDL_SetError("Couldn't get file size (error %ld)", IoErr());
+        return -1;
+    }
+
+    Sint64 filesize = fib->fib_Size64;
+    FreeDosObject(DOS_FIB, fib);
+	
+	//D(kprintf("[%s] File %p size %lld\n", __FUNCTION__, (void *)iodata->bptr, filesize));
+    return filesize;
+}
+
+static Sint64 SDLCALL morphos_file_seek(void *userdata, Sint64 offset, SDL_IOWhence whence)
+{
+	//D(kprintf("[%s] offset %lld, whence %d\n", __FUNCTION__, offset, whence));
+	
+    LONG mode;
+    switch (whence) {
+    case SDL_IO_SEEK_SET:
+        mode = OFFSET_BEGINNING;
+        break;
+    case SDL_IO_SEEK_CUR:
+        mode = OFFSET_CURRENT;
+        break;
+    case SDL_IO_SEEK_END:
+        mode = OFFSET_END;
+        break;
+    default:
+		D(kprintf("[%s] Unknown value for 'whence'\n", __FUNCTION__));
+        SDL_SetError("Unknown value for 'whence'");
+        return -1;
+    }
+
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+    Sint64 newPos = Seek64(iodata->bptr, offset, mode);
+    if (newPos == -1) {
+		D(kprintf("[%s] Couldn't change file position newPos=%d (error %ld)\n", __FUNCTION__, newPos, IoErr()));
+        SDL_SetError("Couldn't change file position (error %ld)", IoErr());
+		return -1;
+    }
+	Sint64 actPos = Seek64(iodata->bptr, 0, OFFSET_CURRENT);
+	
+	//D(kprintf("[%s] actPos=%d\n", __FUNCTION__, newPos));
+    return actPos;
+}
+
+static size_t SDLCALL morphos_file_read(void *userdata, void *ptr, size_t size, SDL_IOStatus *status)
+{
+	//D(kprintf("[%s] ptr %p, size %zu\n", __FUNCTION__, ptr, size));
+	
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+    if (!iodata->read) {
+        SDL_SetError("Write-only file");
+        return 0;
+    }
+
+    size_t count = Read(iodata->bptr, ptr, size);
+    if (count < size) {
+        SDL_SetError("Error reading from datastream, read %u of %u", count, size);
+    }
+	//D(kprintf("[%s] Read %lu bytes\n", __FUNCTION__, count));
+	 
+    return count;
+}
+
+static size_t SDLCALL morphos_file_write(void *userdata, const void *ptr, size_t size, SDL_IOStatus *status)
+{
+	//D(kprintf("[%s] ptr %p, size %zu\n", __FUNCTION__, ptr, size));
+	
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+    if (!iodata->write) {
+        SDL_SetError("Read-only file");
+        return 0;
+    }
+
+    if (iodata->append) {
+        Seek(iodata->bptr, 0, OFFSET_END);
+    }
+
+    size_t count = Write(iodata->bptr, (APTR)ptr, size);
+    if (count < size) {
+        SDL_SetError("Error writing to datastream, wrote %u of %u", count, size);
+    }
+	
+	//D(kprintf("[%s] Wrote %lu bytes\n", __FUNCTION__, count));
+	
+    return count;
+}
+
+static bool SDLCALL morphos_file_flush(void *userdata, SDL_IOStatus *status)
+{
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+	//D(kprintf("[%s] BPTR %p\n", __FUNCTION__, (void *)iodata->bptr));
+    if (!Flush(iodata->bptr)) {
+        return SDL_SetError("Error flushing datastream (error %ld)", IoErr());
+    }
+    return true;
+}
+
+static bool SDLCALL morphos_file_close(void *userdata)
+{
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
+	//D(kprintf("[%s] BPTR %p\n", __FUNCTION__, (void *)iodata->bptr));
+    bool status = true;
+    if (iodata->autoclose) {
+        if (!Close(iodata->bptr)) {
+            status = SDL_SetError("Error closing datastream (error %ld)", IoErr());
+        }
+    }
+    SDL_free(iodata);
+    return status;
+}
+
+SDL_IOStream *SDL_IOFromBPTR(BPTR bptr, const char *mode, bool autoclose)
+{
+    IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) SDL_calloc(1, sizeof (*iodata));
+   
+	//D(kprintf("[%s] BPTR %p, autoclose %d\n", __FUNCTION__, (void *)bptr, autoclose));
+
+    if (!iodata) {
+        if (autoclose) {
+            Close(bptr);
+        }
+        return NULL;
+    }
+
+    SDL_IOStreamInterface iface;
+    SDL_INIT_INTERFACE(&iface);
+    iface.size = morphos_file_size;
+    iface.seek = morphos_file_seek;
+    iface.read = morphos_file_read;
+    iface.write = morphos_file_write;
+	iface.flush = morphos_file_flush;
+    iface.close = morphos_file_close;
+
+    iodata->bptr = bptr;
+	
+	int r = SDL_strchr(mode, 'r') ? 1 : 0;
+    int w = SDL_strchr(mode, 'w') ? 1 : 0;
+    int p = SDL_strchr(mode, '+') ? 1 : 0;
+    int a = SDL_strchr(mode, 'a') ? 1 : 0;
+	
+    iodata->append = a;
+    iodata->read = r || p;/*r || (a && plus) || (w && plus)*/;
+    iodata->write = w || p || a;/*w ||  (r && plus) || a;*/
+	
+    iodata->autoclose = autoclose;
+
+    SDL_IOStream *iostr = SDL_OpenIO(&iface, iodata);
+    if (!iostr) {
+        iface.close(iodata);
+    } else {
+        const SDL_PropertiesID props = SDL_GetIOProperties(iostr);
+        if (props) {
+            //D(kprintf("Setting %s to %p\n", SDL_PROP_IOSTREAM_MORPHOS_POINTER, (void *)iodata->bptr));
+            SDL_SetPointerProperty(props, SDL_PROP_IOSTREAM_MORPHOS_POINTER, (void *)iodata->bptr);
+        } else {
+             D(kprintf("Failed to get IO properties\n"));
+        }
+    }
+
+    return iostr;
+}
+#endif // defined(SDL_PLATFORM_MORPHOS)
+
+#if defined(SDL_PLATFORM_AMIGAOS4)
+
+typedef struct IOStreamAmigaOS4Data
+{
+    BPTR bptr;
+    bool append;
+    bool write;
+    bool read;
+    bool autoclose;
+} IOStreamAmigaOS4Data;
+
+static BPTR SDLCALL amigaos4_file_open(const char *filename, const char *mode)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return ZERO;
+    }
+
+    dprintf("filename '%s' mode '%s'\n", filename, mode);
+
+    // "r" = reading, file must exist
+    // "w" = writing, truncate existing, file may not exist
+    // "r+"= reading or writing, file must exist
+    // "a" = writing, append file may not exist
+    // "a+"= append + read, file may not exist
+    // "w+" = read, write, truncate. file may not exist
+
+    int32 accessMode = MODE_NEWFILE;
+
+    if ((SDL_strchr(mode, 'r') != NULL)) {
+        accessMode = MODE_OLDFILE;
+    }
+
+    if ((SDL_strchr(mode, 'a') != NULL)) {
+        accessMode = MODE_READWRITE;
+    }
+
+    dprintf("filename '%s' mode '%s' accessMode %ld\n", filename, mode, accessMode);
+
+    const int32 defaultBufferSize = 0;
+    BPTR bptr = IDOS->FOpen(filename, accessMode, defaultBufferSize);
+
+    dprintf("BPTR %p\n", (void *)bptr);
+
+    if (bptr) {
+        // Use shared to mode to allow a child process to write the file
+        const int32 success = IDOS->ChangeMode(CHANGE_FH, bptr, CHANGE_MODE_SHARED);
+        if (!success) {
+            dprintf("Failed to change %p to shared mode\n", (void *)bptr);
+        }
+    } else {
+        SDL_SetError("Failed to open file (error %ld)", IDOS->IoErr());
+    }
+
+    return bptr;
+}
+
+static Sint64 SDLCALL amigaos4_file_size(void *userdata)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return -1;
+    }
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    const int64 filesize = IDOS->GetFileSize(iodata->bptr);
+
+    if (filesize == -1LL) {
+        SDL_SetError("Couldn't get file size (error %ld)", IDOS->IoErr());
+    }
+
+    dprintf("File %p size %lld\n", (void *)iodata->bptr, filesize);
+
+    return filesize;
+}
+
+static Sint64 SDLCALL amigaos4_file_seek(void *userdata, Sint64 offset, SDL_IOWhence whence)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return -1;
+    }
+
+    dprintf("offset %lld, whence %d\n", offset, whence);
+
+    int32 mode;
+
+    switch (whence) {
+    case SDL_IO_SEEK_SET:
+        mode = OFFSET_BEGINNING;
+        break;
+    case SDL_IO_SEEK_CUR:
+        mode = OFFSET_CURRENT;
+        break;
+    case SDL_IO_SEEK_END:
+        mode = OFFSET_END;
+        break;
+    default:
+        SDL_SetError("Unknown value for 'whence'");
+        return -1;
+    }
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    const int32 success = IDOS->ChangeFilePosition(iodata->bptr, offset, mode);
+
+    if (!success) {
+        SDL_SetError("Couldn't change file position (error %ld)", IDOS->IoErr());
+        return -1;
+    }
+
+    const int64 position = IDOS->GetFilePosition(iodata->bptr);
+
+    if (position == -1LL) {
+        SDL_SetError("Couldn't get file position (error %ld)", IDOS->IoErr());
+    }
+
+    return position;
+}
+
+static size_t SDLCALL amigaos4_file_read(void *userdata, void *ptr, size_t size, SDL_IOStatus *status)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return 0;
+    }
+
+    dprintf("ptr %p, size %zu\n", ptr, size);
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    if (!iodata->read) {
+        SDL_SetError("Write-only file");
+        return 0;
+    }
+
+    const uint32 count = IDOS->FRead(iodata->bptr, ptr, 1, size);
+
+    if (count < size) {
+        SDL_SetError("Error reading from datastream, read %lu of %zu", count, size);
+    }
+
+    dprintf("Read %lu bytes\n", count);
+
+    return (size_t)count;
+}
+
+static size_t SDLCALL amigaos4_file_write(void *userdata, const void *ptr, size_t size, SDL_IOStatus *status)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return 0;
+    }
+
+    dprintf("ptr %p, size %zu\n", ptr, size);
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    if (!iodata->write) {
+        SDL_SetError("Read-only file");
+        return 0;
+    }
+
+    if (iodata->append) {
+        const int32 success = IDOS->ChangeFilePosition(iodata->bptr, 0, OFFSET_END);
+        if (!success) {
+            SDL_SetError("Couldn't change file position (error %ld)", IDOS->IoErr());
+            return 0;
+        }
+    }
+
+    const uint32 count = IDOS->FWrite(iodata->bptr, ptr, 1, size);
+
+    // TODO: status
+
+    if (count < size) {
+        SDL_SetError("Error writing to datastream, wrote %lu of %zu", count, size);
+    }
+
+    dprintf("Wrote %lu bytes\n", count);
+
+    return (size_t)count;
+}
+
+static bool SDLCALL amigaos4_file_flush(void *userdata, SDL_IOStatus *status)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return false;
+    }
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    // TODO: status
+
+    dprintf("BPTR %p\n", (void *)iodata->bptr);
+
+    if (!IDOS->FFlush(iodata->bptr)) {
+        return SDL_SetError("Error flushing datastream (error %ld)", IDOS->IoErr());
+    }
+    return true;
+}
+
+static bool SDLCALL amigaos4_file_close(void *userdata)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return false;
+    }
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) userdata;
+
+    dprintf("BPTR %p\n", (void *)iodata->bptr);
+
+    bool status = true;
+    if (iodata->autoclose) {
+        if (!IDOS->FClose(iodata->bptr)) {
+            status = SDL_SetError("Error closing datastream (error %ld)", IDOS->IoErr());
+        }
+        iodata->bptr = ZERO;
+    }
+    SDL_free(iodata);
+    return status;
+}
+
+SDL_IOStream *SDL_IOFromBPTR(BPTR bptr, const char *mode, bool autoclose)
+{
+    if (!IDOS) {
+        dprintf("IDOS nullptr\n");
+        return NULL;
+    }
+
+    dprintf("BPTR %p, autoclose %d\n", (void *)bptr, autoclose);
+
+    IOStreamAmigaOS4Data *iodata = (IOStreamAmigaOS4Data *) SDL_calloc(1, sizeof (*iodata));
+    if (!iodata) {
+        dprintf("Failed to allocate iodata\n");
+        if (autoclose) {
+            dprintf("Auto-closing %p\n", (void *)bptr);
+            IDOS->FClose(bptr);
+        }
+        return NULL;
+    }
+
+    SDL_IOStreamInterface iface;
+    SDL_INIT_INTERFACE(&iface);
+    iface.size = amigaos4_file_size;
+    iface.seek = amigaos4_file_seek;
+    iface.read = amigaos4_file_read;
+    iface.write = amigaos4_file_write;
+    iface.flush = amigaos4_file_flush;
+    iface.close = amigaos4_file_close;
+
+    iodata->bptr = bptr;
+
+    // "r" = reading, file must exist
+    // "w" = writing, truncate existing, file may not exist
+    // "r+"= reading or writing, file must exist
+    // "a" = writing, append file may not exist
+    // "a+"= append + read, file may not exist
+    // "w+" = read, write, truncate. file may not exist
+    const bool a = (SDL_strchr(mode, 'a') != NULL);
+    const bool r = (SDL_strchr(mode, 'r') != NULL);
+    const bool w = (SDL_strchr(mode, 'w') != NULL);
+    const bool plus = (SDL_strchr(mode, '+') != NULL);
+
+    iodata->append = a;
+    iodata->read = r || (a && plus) || (w && plus);
+    iodata->write = w || (r && plus) || a;
+
+    iodata->autoclose = autoclose;
+
+    SDL_IOStream *iostr = SDL_OpenIO(&iface, iodata);
+    if (!iostr) {
+        dprintf("Closing IO stream\n");
+        iface.close(iodata);
+    } else {
+        const SDL_PropertiesID props = SDL_GetIOProperties(iostr);
+        if (props) {
+            dprintf("Setting %s to %p\n", SDL_PROP_IOSTREAM_AMIGAOS4_POINTER, (void *)iodata->bptr);
+            SDL_SetPointerProperty(props, SDL_PROP_IOSTREAM_AMIGAOS4_POINTER, (void *)iodata->bptr);
+        } else {
+            dprintf("Failed to get IO properties\n");
+        }
+    }
+
+    return iostr;
+}
+#endif // defined(SDL_PLATFORM_AMIGAOS4)
+
+#if !defined(SDL_PLATFORM_WINDOWS) && !defined(SDL_PLATFORM_AMIGAOS4) && !(defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H))
 
 // Functions to read/write file descriptors. Not used for windows.
 
@@ -513,7 +1021,7 @@ SDL_IOStream *SDL_IOFromFD(int fd, bool autoclose)
 }
 #endif // !defined(SDL_PLATFORM_WINDOWS)
 
-#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_WINDOWS)
+#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_WINDOWS) && !(defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H))
 
 // Functions to read/write stdio file pointers. Not used for windows.
 
@@ -785,7 +1293,7 @@ static bool SDLCALL mem_close(void *userdata)
 
 // Functions to create SDL_IOStream structures from various data sources
 
-#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_WINDOWS)
+#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_WINDOWS) && !(defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H))
 static bool IsRegularFileOrPipe(FILE *f)
 {
 #ifndef SDL_PLATFORM_EMSCRIPTEN
@@ -889,6 +1397,19 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
     HANDLE handle = windows_file_open(file, mode);
     if (handle != INVALID_HANDLE_VALUE) {
         iostr = SDL_IOFromHandle(handle, mode, true);
+    }
+
+#elif defined (SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H)
+	char *mpath = MOS_ConvertPath(file);
+	D(kprintf("[%s] mpath=%s\n", __FUNCTION__, mpath));
+	if (mpath)
+    {
+		//D(kprintf("[%s] file=%s\n", __FUNCTION__, file));
+		BPTR bptr = morphos_file_open(file, mode);
+		if (bptr != 0) {
+			iostr = SDL_IOFromBPTR(bptr, mode, true);
+		}
+		SDL_free(mpath);
     }
 
 #elif defined(HAVE_STDIO_H)

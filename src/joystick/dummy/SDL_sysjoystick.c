@@ -87,7 +87,11 @@ static bool DUMMY_JoystickOpen(SDL_Joystick *joystick, int device_index)
     return SDL_SetError("Logic error: No joysticks available");
 }
 
+#ifdef __MORPHOS__
+static bool DUMMY_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+#else
 static bool DUMMY_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
+#endif
 {
     return SDL_Unsupported();
 }

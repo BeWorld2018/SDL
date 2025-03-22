@@ -22,6 +22,9 @@
 
 #ifdef SDL_VIDEO_RENDER_OGL
 
+#ifdef __MORPHOS__
+#define _NO_PPCINLINE
+#endif
 #include <SDL3/SDL_opengl.h>
 #include "SDL_shaders_gl.h"
 

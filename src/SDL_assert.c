@@ -283,7 +283,7 @@ static SDL_AssertState SDLCALL SDL_PromptAssertion(const SDL_AssertData *data, v
                 break;
             }
         }
-#elif defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_3DS)
+#elif defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_3DS) && !defined(SDL_PLATFORM_MORPHOS)
         // this is a little hacky.
         for (;;) {
             char buf[32];
