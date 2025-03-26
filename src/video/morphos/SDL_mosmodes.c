@@ -337,7 +337,7 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 	int bpp = SDL_BITSPERPIXEL(mode->format);
 	
 	displaydata->screen = OpenScreenTags(NULL,
-				SA_GammaControl, TRUE,
+				//SA_GammaControl, TRUE,
 				SA_Width, mode->w,
 				SA_Height, mode->h,
 				SA_Depth, bpp,

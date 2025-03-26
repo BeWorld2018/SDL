@@ -58,7 +58,21 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 		// to force software renderer use framebuffer and not opengl
         SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
     }
-
+	
+	char *val = MOS_getenv("SDL3_THREAD_PRIORITY_POLICY");
+	if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
+		SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_LOW);
+	}
+	val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
+	if (val && strlen(val)>0) {	
+		D(kprintf("[%s] FORCE DRIVER=%s\n", __FUNCTION__, (strcmp(val, "opengl")==0 ? "opengl" : "software") ));
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : "software"));
+	}
+	val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
+	if (val && strlen(val)>0) {
+		SDL_SetHint(SDL_HINT_RENDER_VSYNC, (strcmp(val, "1")==0 ? "1" :"0"));
+	}
+	
 	return true;
 }
 

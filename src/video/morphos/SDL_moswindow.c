@@ -157,7 +157,6 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 
 						char *val = MOS_getenv("SDL3_THREAD_PRIORITY_POLICY");
 						if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
-							SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_LOW);
 							MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
 						}
 						val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
@@ -165,14 +164,12 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
 							MOS_GlobalMenu(data->menu, 1, 3, 1, (strcmp(val, "opengl")==0 ? 1 : 0));
 							MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "opengl")==0 ? 0 : 1));
-							SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : "software"));
 						}
 						val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 						if (val && strlen(val)>0) {
 							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 							MOS_GlobalMenu(data->menu, 1, 4, 1, (strcmp(val, "1")==0 ? 1 : 0));
 							MOS_GlobalMenu(data->menu, 1, 4, 2, (strcmp(val, "1")==0 ? 0 : 1));
-							SDL_SetHint(SDL_HINT_RENDER_VSYNC, (strcmp(val, "1")==0 ? "1" :"0"));
 						}
 					} else {
 						D(kprintf("[%s] Failed SetMenuStrip\n", __FUNCTION__));
@@ -292,8 +289,8 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 			}
 		}
 		
-		if (data->region)
-			DisposeRegion(data->region);
+		/*if (data->region)
+			DisposeRegion(data->region);*/
 
 		SDL_free(data->window_title);
 		SDL_free(data);
@@ -341,7 +338,7 @@ MOS_SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, struct Window *s
 		data->win = syswin;
 		data->__tglContext = NULL;
 		data->grabbed = FALSE;
-		data->region = NULL;
+		//data->region = NULL;
 		data->window_title = NULL;
 		data->videodata = ddata;
 		data->first_deltamove = FALSE;
@@ -569,6 +566,50 @@ MOS_DefineWindowBox(SDL_Window * window, struct Screen * screen, bool fullscreen
     }
 }
 
+static ULONG
+MOS_GetIDCMPFlags(SDL_Window * window, bool fullscreen)
+{
+    ULONG IDCMPFlags = IDCMP_RAWKEY 
+						| IDCMP_MOUSEMOVE 
+						| IDCMP_DELTAMOVE 
+						| IDCMP_MOUSEBUTTONS 
+						| IDCMP_REFRESHWINDOW 
+						| IDCMP_ACTIVEWINDOW 
+						| IDCMP_INACTIVEWINDOW;
+	
+	if (!fullscreen) {
+		if (!(window->flags & SDL_WINDOW_BORDERLESS)) {
+			IDCMPFlags |= IDCMP_CLOSEWINDOW | IDCMP_GADGETUP | IDCMP_CHANGEWINDOW | IDCMP_MENUPICK;
+		}
+		if (window->flags & SDL_WINDOW_RESIZABLE) {
+			IDCMPFlags |= IDCMP_NEWSIZE;
+		}
+	}
+
+    return IDCMPFlags;
+}
+
+static ULONG
+MOS_GetWindowFlags(SDL_Window * window, bool fullscreen)
+{
+    ULONG windowFlags = WFLG_SIMPLE_REFRESH/* WFLG_SMART_REFRESH | WFLG_NOCAREREFRESH*/ | WFLG_RMBTRAP | WFLG_REPORTMOUSE | WFLG_ACTIVATE;
+
+	if (fullscreen) {
+		windowFlags |= WFLG_BORDERLESS /*| WFLG_BACKDROP*/;
+	} else {
+		if (window->flags & SDL_WINDOW_BORDERLESS) {
+			windowFlags |= WFLG_BORDERLESS;
+		} else {
+			windowFlags |= WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET;
+		}
+		if (window->flags & SDL_WINDOW_RESIZABLE) {
+			windowFlags |= WFLG_SIZEGADGET | WFLG_SIZEBBOTTOM;
+		}
+	}
+
+    return windowFlags;
+}
+
 bool 
 MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window) 
 {
@@ -584,25 +625,13 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win == NULL && (window->flags & SDL_WINDOW_MINIMIZED) == 0) {
 
 		bool fullscreen = (window->flags & SDL_WINDOW_FULLSCREEN);
-		bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE);
 		struct Screen *screen = videodata->CustomScreen ? videodata->CustomScreen : videodata->PublicScreen;
 		 
 		SDL_Rect box;
 		MOS_DefineWindowBox(window, screen, fullscreen, &box);
 
-		size_t windowFlags = WFLG_SIMPLE_REFRESH/* WFLG_SMART_REFRESH | WFLG_NOCAREREFRESH*/ | WFLG_RMBTRAP | WFLG_REPORTMOUSE | WFLG_ACTIVATE;
-		if (fullscreen) {
-			windowFlags |= WFLG_BORDERLESS /*| WFLG_BACKDROP*/;
-		} else {
-			if (window->flags & SDL_WINDOW_BORDERLESS) {
-				windowFlags |= WFLG_BORDERLESS;
-			} else {
-				windowFlags |= WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET;
-			}
-			if (win_resizable) {
-				windowFlags |= WFLG_SIZEGADGET | WFLG_SIZEBBOTTOM;
-			}
-		}
+		ULONG windowFlags = MOS_GetWindowFlags(window, fullscreen);
+		ULONG IDCMPFlags = MOS_GetIDCMPFlags(window, fullscreen);
 	
 		if (data->window_title == NULL)
 			data->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
@@ -612,16 +641,7 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 			opacity_value = ((0.0) * (ULONG_MAX));
 
 		// D(kprintf("[%s] min %ld/%ld, normal %ld/%ld, max %ld/%ld, opacity_value %ld\n", __FUNCTION__, min_w, min_h, w, h, max_w, max_h, opacity_value));
-		ULONG IDCMPflags = IDCMP_RAWKEY | IDCMP_MOUSEMOVE | IDCMP_DELTAMOVE | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW;
-		if (!fullscreen) {
-			if (!(window->flags & SDL_WINDOW_BORDERLESS)) {
-				IDCMPflags |= IDCMP_CLOSEWINDOW | IDCMP_GADGETUP | IDCMP_CHANGEWINDOW | IDCMP_MENUPICK;
-			}
-			if (window->flags & SDL_WINDOW_RESIZABLE) {
-				IDCMPflags |= IDCMP_NEWSIZE;
-			}
-		}
-		
+
 		data->win = OpenWindowTags(NULL,
 			WA_Left, box.x, 
 			WA_Top,  box.y,
@@ -630,13 +650,13 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 			WA_Flags, windowFlags,
 			videodata->CustomScreen ? WA_CustomScreen : TAG_IGNORE, videodata->CustomScreen,
 			videodata->CustomScreen ? TAG_IGNORE : WA_PubScreen, videodata->PublicScreen,
-			data->region ? WA_TransparentRegion : TAG_IGNORE, data->region,
+			/*data->region ? WA_TransparentRegion : TAG_IGNORE, data->region,*/
 			WA_ScreenTitle, data->window_title,
 			(window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
 			WA_UserPort, &videodata->userPort,
 			WA_Opacity, opacity_value,
 			WA_FrontWindow, (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) ? TRUE : FALSE,
-			WA_IDCMP, IDCMPflags,
+			WA_IDCMP, IDCMPFlags,
 			WA_ExtraTitlebarGadgets, ETG_ICONIFY,
 			TAG_DONE);
 

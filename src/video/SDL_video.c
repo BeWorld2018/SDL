@@ -278,7 +278,18 @@ typedef struct
 
 static Uint32 SDL_DefaultGraphicsBackends(SDL_VideoDevice *_this)
 {
-#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MORPHOS)) || (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MACOS)) || (defined(SDL_PLATFORM_IOS) && !TARGET_OS_MACCATALYST)
+#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MORPHOS))	
+	const char *render_driver = NULL;
+	render_driver = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
+	if (render_driver && SDL_strcasecmp(render_driver, SDL_SOFTWARE_RENDERER) == 0) {
+		// No need SDL_WINDOW_OPENGL (load tinygl) if SOFTWARE is forced
+        render_driver = NULL;
+		return 0;
+    } else if (_this->GL_CreateContext) {
+		return SDL_WINDOW_OPENGL;
+    }
+#endif	
+#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MACOS)) || (defined(SDL_PLATFORM_IOS) && !TARGET_OS_MACCATALYST)
     if (_this->GL_CreateContext) {
         return SDL_WINDOW_OPENGL;
     }

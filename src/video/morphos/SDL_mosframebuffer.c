@@ -89,8 +89,6 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
 	APTR lock;
     APTR base_address;
     Uint32 bytes_per_row;
-    Uint32 depth;
-	struct BitMap * friend_bitmap;
 
 	SDL_WindowData *data = window->internal;
 	SDL_VideoData *vd = data->videodata;
@@ -104,12 +102,11 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
         D(kprintf("[%s] No system window\n", __FUNCTION__));
         return SDL_SetError("No system window");
     }
-
-    depth = 32;
-
+	
     *format = SDL_PIXELFORMAT_BGRA8888;
-	friend_bitmap = vd->CustomScreen ? vd->CustomScreen->RastPort.BitMap : data->win->RPort->BitMap;
-	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES | BMF_CLEAR, friend_bitmap);
+	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
+	Uint32 depth =  GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES|BMF_CLEAR, friend_bitmap);
 	if (!data->bitmap) {
 		D(kprintf("[%s] Failed to allocate bitmap for framebuffer\n", __FUNCTION__));
 		return SDL_SetError("Failed to allocate bitmap for framebuffer");
@@ -178,7 +175,7 @@ MOS_UpdateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, const S
 			int dy = r->y + windowBox.Top;
 		    int w =  MIN(r->w, windowBox.Width);
 			int h = MIN(r->h, windowBox.Height);
-			BltBitMapRastPort(data->bitmap,  r->x, r->y, data->win->RPort, dx, dy, w, h, 0x00C0);
+			BltBitMapRastPort(data->bitmap,  r->x, r->y, data->win->RPort, dx, dy, w, h, 0xc0);
 				
 		}
 				
