@@ -25,15 +25,17 @@
 #include "../SDL_sysvideo.h"
 #include "SDL_mosvideo.h"
 #include "SDL_moswindow.h"
+#include "../../core/morphos/SDL_library.h"
 
 #include <proto/exec.h>
+#include <proto/tinygl.h>
 #include <proto/graphics.h>
 
 #include <tgl/gl.h>
 #include <tgl/gla.h>
 
 GLContext *__tglContext;
-struct Library *TinyGLBase;
+extern struct SDL_Library *SDL3Base;
 
 bool
 MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
@@ -49,6 +51,9 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 				SDL_SetError("Failed to open tinygl.library 53.8+");
 				return -1;
 			}
+			if (SDL3Base->MyTinyGLBase)				
+				*SDL3Base->MyTinyGLBase = TinyGLBase;	
+			
 			return true;
 	} else 
 		SDL_SetError("Failed to open tinygl.library 53+");
@@ -72,9 +77,9 @@ void
 MOS_GL_UnloadLibrary(SDL_VideoDevice *_this)
 {
 	D(kprintf("[%s]\n", __FUNCTION__));
-	if (TinyGLBase) {
+	if (SDL3Base->MyTinyGLBase && *SDL3Base->MyTinyGLBase && TinyGLBase) {
 		CloseLibrary(TinyGLBase);
-		TinyGLBase = NULL;
+		*SDL3Base->MyTinyGLBase = TinyGLBase = NULL;
 	}
 }
 
@@ -173,12 +178,13 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 		bool success = MOS_GL_InitContext(_this, window);
 		if (success) {
 			D(kprintf("[%s] SUCCES 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext));		
+			*SDL3Base->MyGLContext = glcont;
 			return (SDL_GLContext)glcont;
 		} else {
 			D(kprintf("[%s] FAILED 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext));
 			MOS_GL_FreeBitMap(_this, window);
 			GLClose(glcont);
-			data->__tglContext = __tglContext = NULL;
+			*SDL3Base->MyGLContext = data->__tglContext = __tglContext = NULL;
 			
 			SDL_SetError("Couldn't initialize TinyGL context");
 		}
@@ -194,7 +200,7 @@ MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext co
 {
 	D(kprintf("[%s] context 0x%08lx\n", __FUNCTION__, context));
 	if (context)
-		__tglContext = (GLContext*)context;
+		*SDL3Base->MyGLContext = __tglContext = (GLContext*)context;
 	return true;
 }
 
@@ -266,7 +272,7 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
 			return false;
         }
 		GLClose((GLContext*)context);
-		__tglContext = NULL;
+		*SDL3Base->MyGLContext = __tglContext = NULL;
 		return true;
 		
 	}

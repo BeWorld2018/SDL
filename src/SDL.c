@@ -107,6 +107,9 @@ SDL_NORETURN void SDL_ExitProcess(int exitcode)
     exit(exitcode);
 #elif defined(SDL_PLATFORM_HAIKU)  // Haiku has _Exit, but it's not marked noreturn.
     _exit(exitcode);
+#elif defined(SDL_PLATFORM_MORPHOS)
+    extern void (*morphos_exit)(int exitcode);
+    morphos_exit(exitcode);
 #elif defined(HAVE__EXIT) // Upper case _Exit()
     _Exit(exitcode);
 #else

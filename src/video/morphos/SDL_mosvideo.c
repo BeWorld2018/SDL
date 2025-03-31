@@ -32,6 +32,7 @@
 #include "SDL_mosmessagebox.h"
 #include "SDL_mosopengl.h"
 #include "SDL_mosevents.h"
+#include "SDL_misc.h"
 
 #include <exec/execbase.h>
 #include <proto/commodities.h>

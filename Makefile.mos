@@ -1,40 +1,40 @@
-# Makefile to build the SDL3 for MorphOS 
+# Makefile to build the SDL3 library MORPHOS
 #
-# FEATURES:
-# *********
-# PTHREADS
-# USE TIMER UNIX
-# AHI AUDIO
-# OPENGL support !
-# OPENGL RENDERER supported
-# GAMEPAD
-# DIALOG
+# You need tinygl.library 53.9 and last SDK with last tinyGL SDK
+
 #
-# TODO FEATURES:
-# **************
-# PROCESS
-# testcolorspace = wront read color (opengl renderer)
+# Enable debug with -D__SDL_DEBUG flags (CDEFS)
 #
-# KNOWN BUGS:
-# ***********
-# ALTIVEC seem crash SDL3
-# MESSAGEBOX: dont support window parent
+#
+# make -f makefile.mos headers
+# how to build ?
+# make -f makefile.mos
+# to install sdl3.library to libs:
+# make -f makefile.mos install
+# to install SDK
+# make -f makefile.mos sdk
+# to build test files
+# make -f makefile.mos test
 
-# make -f makefile.mos debug = build with debug kprintf 
+CDEFS   = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL3_LIBRARY -D__SDL_DEBUG
+CC      = ppc-morphos-gcc-11 -noixemul
+AMIGADATE = $(shell date +"%-d.%-m.%Y")
+INCLUDE = -I./src -I./include -I./include/SDL3 -I./include/build_config -D__AMIGADATE__=\"$(AMIGADATE)\"
+CFLAGS  = -mcpu=750 -mtune=7450 -O1 -g $(INCLUDE) -mresident32 -Wall -Wno-pointer-sign -fno-strict-aliasing $(CDEFS)
+AR      = ppc-morphos-ar
 
-AR = ppc-morphos-ar
-RANLIB = ppc-morphos-ranlib
-CC = ppc-morphos-gcc-11
-CXX = ppc-morphos-g++-11
-STRIP = ppc-morphos-strip
+ECHE = echo -e
+BOLD = \033[1m
+NRML = \033[22m
 
-AMIGADATE = $(shell date +"%-d.%m.%Y")
+COMPILING = @$(ECHE) "compiling $(BOLD)$@$(NRML)..."
+LINKING = @$(ECHE) "linking $(BOLD)$@$(NRML)..."
+STRIPPING = @$(ECHE) "stripping $(BOLD)$@$(NRML)..."
+ARCHIVING = @$(ECHE) "archiving $(BOLD)$@$(NRML)..."
+HEADERING = @$(ECHE) "creating headers files $(BOLD)$@$(NRML)..."
 
-DEFINES =  -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS  =  -noixemul -O3 -Wall -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
-
-TARGET_STATIC  = libSDL3.a
-TESTLIB_STATIC = libSDL3_test.a
+TARGET  = libSDL3.a
+LIBRARY = sdl3.library
 
 SOURCES = \
 	./src/*.c \
@@ -53,6 +53,7 @@ SOURCES = \
 	./src/gpu/SDL_gpu.c \
 	./src/haptic/*.c \
 	./src/haptic/dummy/*.c \
+	./src/hidapi/*.c \
 	./src/io/*.c \
 	./src/io/generic/SDL_asyncio_generic.c \
 	./src/joystick/*.c \
@@ -60,6 +61,7 @@ SOURCES = \
 	./src/joystick/morphos/*.c \
 	./src/joystick/virtual/*.c \
 	./src/libm/*.c \
+	./src/loadso/dlopen/*.c \
 	./src/locale/*.c \
 	./src/locale/morphos/*.c \
 	./src/main/generic/SDL_sysmain_callbacks.c \
@@ -92,46 +94,68 @@ SOURCES = \
 	./src/video/dummy/*.c \
 	./src/video/yuv2rgb/*.c \
 
-TESTLIB_SOURCES =./src/test/*.c
+	
+CORESOURCES = src/core/morphos/*.c
+COREOBJECTS = $(shell echo $(CORESOURCES) | sed -e 's,\.c,\.o,g')
 
 OBJECTS = $(shell echo $(SOURCES) | sed -e 's,\.c,\.o,g')
-TESTLIB_OBJECTS = $(shell echo $(TESTLIB_SOURCES) | sed -e 's,\.c,\.o,g')
 
-ALL_OBJECTS = $(OBJECTS) $(TESTLIB_OBJECTS)
+all: $(LIBRARY) lib test
 
-all: $(TARGET_STATIC) $(TESTLIB_STATIC)
-	@echo All done
-	
-debug: CFLAGS +=  -D__SDL_DEBUG
-debug: all
+headers:
+	$(HEADERING)
+	/gg/bin/cvinclude.pl --fd=src/core/morphos/sdk/fd/sdl3_lib.fd --clib=src/core/morphos/sdk/clib/sdl3_protos.h --proto=src/core/morphos/sdk/proto/sdl3.h
+	/gg/bin/cvinclude.pl --fd=src/core/morphos/sdk/fd/sdl3_lib.fd --clib=src/core/morphos/sdk/clib/sdl3_protos.h --inline=src/core/morphos/sdk/ppcinline/sdl3.h
+	@perl -pe "s/va_list  __t__p1 = __p1;/va_list __t__p1;\\\\\n\t\tva_copy(__t__p1, __p1);/g" src/core/morphos/sdk/ppcinline/sdl3.h > src/core/morphos/sdk/ppcinline/sdl3tmp.h
+	@perl -pe "s/va_list  __t__p2 = __p2;/va_list __t__p2;\\\\\n\t\tva_copy(__t__p2, __p2);/g" src/core/morphos/sdk/ppcinline/sdl3tmp.h > src/core/morphos/sdk/ppcinline/sdl3.h
+	@perl -pe "s/va_list  __t__p3 = __p3;/va_list __t__p3;\\\\\n\t\tva_copy(__t__p3, __p3);/g" src/core/morphos/sdk/ppcinline/sdl3.h > src/core/morphos/sdk/ppcinline/sdl3tmp.h
+	rm src/core/morphos/sdk/ppcinline/sdl3.h
+	mv src/core/morphos/sdk/ppcinline/sdl3tmp.h src/core/morphos/sdk/ppcinline/sdl3.h
 
-$(TESTLIB_STATIC): $(TESTLIB_OBJECTS)
-	@echo Creating $@
-	$(AR) crvs $@ $^
-	$(RANLIB) $@
+lib:
+	@cd src/core/morphos/devenv; if ! $(MAKE) $(MAKECMDGOALS); then exit 1; fi;
 
-$(TARGET_STATIC): $(OBJECTS)
-	@echo Creating $@
-	$(AR) crvs $@ $^
-	$(RANLIB) $@
-
-clean:
-	@echo Cleaning
-	@rm -f $(TARGET_STATIC) $(TESTLIB_STATIC) $(ALL_OBJECTS) $(DEPS)
-
-install: all
-	mkdir -p /gg/usr/local/lib
+sdk: $(LIBRARY)
+	mkdir -p /gg/usr/local/bin
 	mkdir -p /gg/usr/local/include/SDL3
-	cp -f $(TARGET_STATIC) /gg/usr/local/lib
-	cp -f $(TESTLIB_STATIC) /gg/usr/local/lib
-	cp -f include/SDL3/*.h /gg/usr/local/include/SDL3
+	mkdir -p /gg/usr/local/lib
+	mkdir -p /gg/usr/local/lib/libb32
+	cp include/SDL3/*.h /gg/usr/local/include/SDL3
+	cp src/core/morphos/devenv/lib/libSDL3.a /gg/usr/local/lib/libSDL3.a
+	cp src/core/morphos/devenv/lib/libb32/libSDL3.a /gg/usr/local/lib/libb32/libSDL3.a
+	cp sdl3-config /gg/usr/local/bin/sdl3-config
 
-%.o : %.c
-	@echo Compiling $<
-	$(CC) -o $@ -c $< $(CFLAGS)
+install: $(LIBRARY) lib
+	cp $(LIBRARY) Libs:
+	-flushlib $(LIBRARY)
+
+test: $(LIBRARY) lib
+	@cd test; if ! $(MAKE) -f makefile.mos $(MAKECMDGOALS); then exit 1; fi;
 
 #src/video/SDL_blit_N.o: src/video/SDL_blit_N.c
 #	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c src/video/SDL_blit_N.c
 
 #src/core/morphos/SDL_cpu.o: src/core/morphos/SDL_cpu.c
 #	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $^
+
+src/core/morphos/SDL_library.o: src/core/morphos/SDL_library.c src/core/morphos/SDL_library.h src/core/morphos/SDL_stubs.h
+	$(COMPILING)
+	$(CC) -mcpu=750 $(INCLUDE) -Wall -fno-strict-aliasing -DAROS_ALMOST_COMPATIBLE -o $@ -c $*.c
+
+$(TARGET): $(OBJECTS)
+	$(ARCHIVING)
+	@$(AR) crvs $@ $^
+
+$(LIBRARY): $(TARGET) $(COREOBJECTS)
+	$(LINKING)
+	$(CC) -nostartfiles -mresident32 -Wl,-Map=sdl3.map $(COREOBJECTS) -o $@.db -L. -lSDL3 -lGL -lpthread -lc -lm
+	$(STRIPPING)
+	@ppc-morphos-strip -o $@ --remove-section=.comment $@.db
+
+clean:
+	rm -f $(LIBRARY) $(TARGET) $(OBJECTS) $(COREOBJECTS) *.db *.s
+	@cd src/core/morphos/devenv; if ! $(MAKE) $(MAKECMDGOALS); then exit 1; fi;
+	@cd test; if ! $(MAKE) -f makefile.mos $(MAKECMDGOALS); then exit 1; fi;
+
+dump:
+	ppc-morphos-objdump --disassemble-all --reloc $(LIBRARY).db >$(LIBRARY).s

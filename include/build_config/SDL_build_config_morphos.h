@@ -213,6 +213,7 @@
 #define SDL_HAPTIC_DUMMY 1
 
 /* Enable various process implementations */
+#define SDL_PROCESS_DUMMY 1
 //#define SDL_PROCESS_MORPHOS 1
 
 /* Enable various sensor drivers */
@@ -220,7 +221,7 @@
 #define SDL_SENSOR_DUMMY 1
 
 /* Enable various shared object loading systems */
-/* #undef SDL_LOADSO_DLOPEN */
+#define SDL_LOADSO_DLOPEN 1
 /* #undef SDL_LOADSO_DUMMY */
 
 /* Enable various threading systems */
