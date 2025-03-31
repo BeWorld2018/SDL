@@ -32,7 +32,7 @@
 bool
 MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 
 	if (MUIMasterBase) {
 		char *title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
@@ -65,9 +65,7 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 						syswin = data->win;
 					}*/
 					
-                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, message, NULL);
-					D(kprintf("[%s] MUI_REquestA\n", __FUNCTION__));
-						
+                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, message, NULL);					
                     if (rc == 0)
                         rc = mbd->numbuttons - 1;
                     else

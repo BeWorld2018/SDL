@@ -41,11 +41,11 @@ void MOS_CloseScreen(SDL_VideoDevice *_this)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
     if (data->CustomScreen && data->CustomScreen != data->PublicScreen) {
-        D(kprintf("[%s] Closing screen %p\n", __FUNCTION__, data->CustomScreen));
+        D("Closing screen %p", data->CustomScreen);
         if (!CloseScreen(data->CustomScreen)) {
-            D(kprintf("[%s] Screen has open window(s), cannot close\n", __FUNCTION__));
+            D("Screen has open window(s), cannot close");
         } else {
-            D(kprintf("[%s] Screen closed successfully\n", __FUNCTION__));
+            D("Screen closed successfully");
 			data->CustomScreen = NULL;
         }
     }
@@ -54,7 +54,7 @@ void MOS_CloseScreen(SDL_VideoDevice *_this)
 void MOS_CloseDisplay(SDL_VideoDevice *_this)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
-	D(kprintf("[%s] CustomScreen=0x%08lx  PublicScreen=0x%08lx \n", __FUNCTION__, data->CustomScreen, data->PublicScreen));
+	D("CustomScreen=0x%08lx  PublicScreen=0x%08lx", data->CustomScreen, data->PublicScreen);
 
 	MOS_CloseScreen(_this);
 	
@@ -92,23 +92,23 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
     }
 
     if (!GetDisplayInfoData(handle, (UBYTE *)&diminfo, sizeof(diminfo), DTAG_DIMS, 0)) {
-        D(kprintf("Failed to get dim info\n"));
+        D("Failed to get dim info");
         return false;
     }
 
     if (!GetDisplayInfoData(handle, (UBYTE *)&dispinfo, sizeof(dispinfo), DTAG_DISP, 0)) {
-        D(kprintf("Failed to get disp info\n"));
+        D("Failed to get disp info");
         return false;
     }
 
     if (!GetDisplayInfoData(NULL, (UBYTE *)&moninfo, sizeof(moninfo), DTAG_MNTR, id)) {
-        D(kprintf("Failed to get monitor info\n"));
+        D("Failed to get monitor info");
         return false;
     }
 
     data = (SDL_DisplayModeData *) SDL_malloc(sizeof(*data));
     if (!data) {
-    	D(kprintf("Failed Out Of memory\n"));
+    	D("Failed Out Of memory\n");
         return false;
     }
 
@@ -124,7 +124,7 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
     mode->refresh_rate = freq;
     mode->format = SDL_PIXELFORMAT_UNKNOWN;
 	
-	//D(kprintf("RTG mode %lu: w=%d, h=%d, bits=%d\n", id, mode->w, mode->h, diminfo.MaxDepth));
+	//D("RTG mode %lu: w=%d, h=%d, bits=%d\n", id, mode->w, mode->h, diminfo.MaxDepth);
 	
 	switch (diminfo.MaxDepth) {
 	case 32:
@@ -154,7 +154,7 @@ bool
 MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 {
 	SDL_DisplayData *displaydata = (SDL_DisplayData *) display->internal;
-	D(kprintf("[%s] Get mode from monitor %lu\n", __FUNCTION__, displaydata->monitor));
+	D("Get mode from monitor %lu", displaydata->monitor);
 	
     SDL_DisplayMode displaymode;
 
@@ -178,7 +178,7 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 				}
 			} else {
 				FreeMonitorModesList(lmodes);
-				D(kprintf("[%s] Failed to get display mode for %lu\n", __FUNCTION__, modeid));
+				D("Failed to get display mode for %lu",  modeid);
 				return false;
 			}
 						
@@ -187,7 +187,7 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 	} 
 	else 
 	{
-		D(kprintf("[%s] Failed to get display mode\n", __FUNCTION__));
+		D("Failed to get display mode");
 		return false;
 	}   
     
@@ -197,7 +197,7 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 bool
 MOS_InitModes(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 	SDL_VideoDisplay display;
 	SDL_DisplayMode mode;
@@ -225,7 +225,7 @@ MOS_InitModes(SDL_VideoDevice *_this)
 		displaydata->screen = NULL;
 		
 		if (!MOS_GetDisplayMode(modeid, &mode)) {
-				D(kprintf("[%s] Failed to get display mode for %lu\n", __FUNCTION__, modeid)); 
+				D("Failed to get display mode for %lu", modeid); 
 				SDL_free(displaydata);
 				return SDL_SetError("Couldn't get display mode");
 		}
@@ -236,7 +236,7 @@ MOS_InitModes(SDL_VideoDevice *_this)
 		display.name = monitorname;
 
 		SDL_AddVideoDisplay(&display, false);
-		D(kprintf("[%s] Added Workbench screen - monitor = %d - refresh=%f\n", __FUNCTION__, displaydata->monitor, mode.refresh_rate));
+		D("Added Workbench screen - monitor = %d - refresh=%f", displaydata->monitor, mode.refresh_rate);
 		
 		data->ScreenNotifyHandle = AddWorkbenchClient(&data->ScreenNotifyPort, -20);
 		
@@ -256,7 +256,7 @@ MOS_InitModes(SDL_VideoDevice *_this)
 		for (i = 0; (m = monitors[i]); i++) {
 			
 			if (m != mon) {
-				D(kprintf("[%s] Add other monitors = %d\n", __FUNCTION__, monitors[i]));
+				D("Add other monitors = %d", monitors[i]);
 				displaydata = (SDL_DisplayData *) SDL_malloc(sizeof(*displaydata));
 				if (displaydata) {
 					ULONG modeid = INVALID_ID;
@@ -279,36 +279,24 @@ MOS_InitModes(SDL_VideoDevice *_this)
 								GetAttr(MA_Mode_ModeID, bmode, (ULONG*)&newmodeid);
 								
 								if (!MOS_GetDisplayMode(newmodeid, &mode)) {
-									D(kprintf("[%s] Failed to get display mode for %lu - old=%lu\n", __FUNCTION__, newmodeid, modeid)); 
-									
-								} else {
-									
+									D("Failed to get display mode for %lu - old=%lu", newmodeid, modeid); 
 								}
-								
 								break;
 							}
-							
 						}
-						
-						FreeMonitorModesList(modes);
-					} else {
-						
+						FreeMonitorModesList(modes);					
 					}
-
 					display.desktop_mode = mode;
 					display.internal = displaydata;
 					GetAttr(MA_MonitorName, m, (ULONG*)&monitorname);
 					display.name = monitorname;
-					D(kprintf("[%s] Add video display '%s'\n", __FUNCTION__, display.name));
+					D("Add video display '%s'", display.name);
 					SDL_AddVideoDisplay(&display, false);
-					
 				}
 			}
 		}
-
 		FreeMonitorList(monitors);
 	}
-
 	return true;
 }
 
@@ -321,15 +309,16 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 	SDL_DisplayData *displaydata = (SDL_DisplayData *) display->internal;
 	
 	if (display->fullscreen_active == 0) {
-		D(kprintf("[%s] Not a fullscreen exclusive\n", __FUNCTION__, display, displaydata->screen));
+		D("Not a fullscreen exclusive");
 		return true;
 	}
 	
-	D(kprintf("[%s] display %p, screen %p\n", __FUNCTION__, display, displaydata->screen));
+	D("display %p, screen %p", display, displaydata->screen);
 	if (driverdata->CustomScreen) {
-		D(kprintf("[%s] screen exist... close all\n", __FUNCTION__));
+		D("screen exist... close all");
 		// close windows....
 		MOS_CloseWindows(_this);
+		// close screen
 		MOS_CloseScreen(_this);
 	}
 	
@@ -337,7 +326,6 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 	int bpp = SDL_BITSPERPIXEL(mode->format);
 	
 	displaydata->screen = OpenScreenTags(NULL,
-				//SA_GammaControl, TRUE,
 				SA_Width, mode->w,
 				SA_Height, mode->h,
 				SA_Depth, bpp,
@@ -352,8 +340,8 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 
 #ifdef __SDL_DEBUG				
     SDL_DisplayModeData *data = (SDL_DisplayModeData *) mode->internal;				
-	D(kprintf("[%s] Opened screen '%s' id %lu: %d*%d*%d (address %p) on monitor=%s\n", __FUNCTION__,
-        FilePart(driverdata->FullAppName), data->modeid, mode->w, mode->h, bpp, displaydata->screen, display->name));
+	D("Opened screen '%s' id %lu: %d*%d*%d (address %p) on monitor=%s", FilePart(driverdata->FullAppName), 
+		data->modeid, mode->w, mode->h, bpp, displaydata->screen, display->name);
 #endif
 		
     if (!displaydata->screen) {

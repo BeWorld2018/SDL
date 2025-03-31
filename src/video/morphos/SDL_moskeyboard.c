@@ -62,10 +62,10 @@ MOS_SyncKeyModifiers(SDL_VideoDevice *_this)
         { IEQUALIFIER_RCOMMAND, SDL_KMOD_RGUI, "Right Amiga" }
     };
 
-    //D(kprintf("[%s] Current qualifiers: %u\n", __FUNCTION__, qualifiers));
+    //D("Current qualifiers: %u", qualifiers);
 
     for (i = 0; i < SDL_arraysize(map); i++) {
-        //D(kprintf("[%s] %s %s\n", __FUNCTION__ , map[i].name, (qualifiers & map[i].qualifier) ? "ON" : "off"));
+        //D("%s %s", map[i].name, (qualifiers & map[i].qualifier) ? "ON" : "off");
         SDL_ToggleModState(map[i].keymod, (qualifiers & map[i].qualifier) != 0);
     }
 }
@@ -87,7 +87,7 @@ static SDL_Keycode MOS_MapRawKey(SDL_VideoDevice *_this, int code)
         return buffer[0];
 	}
 	
-	D(kprintf("[%s] (code %u) returned %d\n", __FUNCTION__, code, res));
+	D("(code %u) returned %d", code, res);
     return 0;
 }
 

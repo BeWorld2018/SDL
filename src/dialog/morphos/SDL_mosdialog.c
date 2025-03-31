@@ -92,9 +92,9 @@ static void MOS_HandleMultiselection(struct FileRequester *req, MOS_DialogArgs *
                 } else {
                     snprintf(paths[i], totalLen, "%s", filename);
                 }
-                D(kprintf("[%d] '%s'\n", i, paths[i]));
+                D("[%d] '%s'", i, paths[i]);
             } else {
-                D(kprintf("Failed to allocate memory\n"));
+                D("Failed to allocate memory");
             }
         }
 
@@ -107,7 +107,7 @@ static void MOS_HandleMultiselection(struct FileRequester *req, MOS_DialogArgs *
 
         SDL_free(paths);
     } else {
-        D(kprintf("Failed to allocate memory\n"));
+        D("Failed to allocate memory");
         callback(args->userdata, NULL, -1);
     }
 }
@@ -135,13 +135,13 @@ static void MOS_HandleSingleFile(struct FileRequester *req, MOS_DialogArgs *args
 
         if (path) {
             snprintf(path, totalLen, "%s%s%s", req->fr_Drawer, separator, filename);
-            D(kprintf("'%s'\n", path));
+            D("'%s'", path);
 
             const char *paths[2] = { path, NULL };
             callback(args->userdata, paths, -1);
             SDL_free(path);
         } else {
-            D(kprintf("Failed to allocate memory\n"));
+            D("Failed to allocate memory");
             callback(args->userdata, NULL, -1);
         }
     } else {
@@ -154,12 +154,12 @@ static void MOS_ShowDialog(MOS_DialogArgs *args)
 {
     SDL_DialogFileCallback callback = args->callback;
 
-    D(kprintf("title '%s', accept '%s', cancel '%s', default_dir '%s', default_file '%s'\n",
+    D("title '%s', accept '%s', cancel '%s', default_dir '%s', default_file '%s'", 
             args->title,
             args->accept,
             args->cancel,
             args->default_dir,
-            args->default_file));
+            args->default_file);
 
     struct FileRequester *req = AllocAslRequestTags(ASL_FileRequest,
         ASLFR_Window, args->window,
@@ -178,10 +178,10 @@ static void MOS_ShowDialog(MOS_DialogArgs *args)
     if (req) {
         const BOOL result = AslRequestTags(req, TAG_DONE);
 
-        D(kprintf("Result %d\n", result));
+        D("Result %d", result);
 
         if (result) {
-            D(kprintf("Drawer '%s', file '%s', args %ld\n", req->fr_Drawer, req->fr_File, req->fr_NumArgs));
+            D("Drawer '%s', file '%s', args %ld", req->fr_Drawer, req->fr_File, req->fr_NumArgs);
 
             if (req->fr_NumArgs > 0) {
                 MOS_HandleMultiselection(req, args);
@@ -299,7 +299,7 @@ void SDL_SYS_ShowFileDialogWithProperties(SDL_FileDialogType type, SDL_DialogFil
     if (window) {
         SDL_PropertiesID windowProps = SDL_GetWindowProperties(window);
         syswin = SDL_GetPointerProperty(windowProps, "SDL.window.morphos.window", NULL);
-        // D(kprintf("Syswin %p\n", syswin));
+        // D("Syswin %p\n", syswin);
     }
 
     const char* default_location = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_LOCATION_STRING, NULL);

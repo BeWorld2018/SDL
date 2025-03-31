@@ -32,6 +32,7 @@
 #include "SDL_mosmessagebox.h"
 #include "SDL_mosopengl.h"
 #include "SDL_mosevents.h"
+#include "SDL_misc.h"
 
 #include <exec/execbase.h>
 #include <proto/commodities.h>
@@ -42,7 +43,7 @@
 static bool
 MOS_VideoInit(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 
 	if (!MOS_InitModes(_this))
 		return SDL_SetError("Failed to initialize modes");
@@ -65,7 +66,6 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	}
 	val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
 	if (val && strlen(val)>0) {	
-		D(kprintf("[%s] FORCE DRIVER=%s\n", __FUNCTION__, (strcmp(val, "opengl")==0 ? "opengl" : "software") ));
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : "software"));
 	}
 	val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
@@ -78,7 +78,7 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 
 static void MOS_DeleteDevice(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 
 	if (data->inputReq) {
@@ -108,7 +108,7 @@ bool MOS_SuspendScreenSaver(SDL_VideoDevice *_this)
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 	LONG suspend = _this->suspend_screensaver;
 	
-	D(kprintf("[%s] screen 0x%08lx, suspend %ld\n", __FUNCTION__, data->PublicScreen, suspend));
+	D("Screen 0x%08lx, suspend %ld", data->PublicScreen, suspend);
 
 	if (suspend == 0 && data->ScreenSaverSuspendCount == 0)
 		return true;
@@ -158,7 +158,7 @@ static CONST_STRPTR MOS_GetTaskName()
 		}
 	}
 
-	D(kprintf("[%s] '%s'\n", __FUNCTION__, name));
+	D("'%s'", name);
 	return name;
 }
 
@@ -173,7 +173,7 @@ static void MOS_InitPort(struct MsgPort *port)
 
 static void MOS_InitBroker(SDL_VideoData *data)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	
 	STRPTR name = FilePart(data->FullAppName);
 	data->AppBroker.nb_Version = NB_VERSION;
@@ -192,7 +192,7 @@ static void MOS_InitBroker(SDL_VideoData *data)
 
 static void MOS_VideoQuit(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 
 	MOS_CloseWindows(_this);
 	MOS_CloseDisplay(_this);
@@ -203,9 +203,8 @@ static void MOS_VideoQuit(SDL_VideoDevice *_this)
 
 static SDL_VideoDevice *MOS_CreateDevice()
 {
-	/* Initialize all variables that we clean on shutdown */
+	D("");
 	SDL_VideoDevice *device = (SDL_VideoDevice *) SDL_calloc(1, sizeof(SDL_VideoDevice));
-	D(kprintf("[%s]\n", __FUNCTION__));
 
 	if (device) {
 		SDL_VideoData *data = (struct SDL_VideoData *) SDL_calloc(1, sizeof(SDL_VideoData));
@@ -310,7 +309,7 @@ static SDL_VideoDevice *MOS_CreateDevice()
 			device->FlashWindow = MOS_FlashWindow;
 			
 			device->SetWindowHitTest = MOS_SetWindowHitTest;
-
+			//device->UpdateWindowShape = MOS_UpdateWindowShape; // TODO
 			device->free = MOS_DeleteDevice;
 
 			return device;

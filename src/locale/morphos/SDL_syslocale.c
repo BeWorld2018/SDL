@@ -77,7 +77,7 @@ SDL_SYS_GetPreferredLocales(char *buf, size_t buflen)
 			curLoc = &locs[i];
 			if(SDL_strncmp(language, curLoc->name, sizeof(curLoc->name)) == 0)
 			{
-			  D(kprintf("[%s] found language name for '%s'\n", __FUNCTION__, curLoc->codeLang));
+			  D("found language name for '%s'", curLoc->codeLang);
 			  SDL_snprintf(buf, buflen, curLoc->codeLang);
 			  found = true;
 			  break;

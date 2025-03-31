@@ -77,7 +77,7 @@ char *SDL_SYS_GetPrefPath(const char *org, const char *app)
         SDL_snprintf(buffer + SDL_strlen(buffer), len - SDL_strlen(buffer), "%s/", app);
     }
 
-	//D("[%s] SDL_CreateDirectory: %s\n", __FUNCTION__, buffer);
+	//D("SDL_CreateDirectory: %s", buffer);
     if (SDL_CreateDirectory(buffer)) {
         return buffer;
     }
@@ -103,7 +103,7 @@ char *SDL_SYS_GetUserFolder(SDL_Folder folder)
             }
             break;
         default:
-            //D("[%s] Unsupported user folder %d\n", __FUNCTION__, folder);
+            //D("Unsupported user folder %d", folder);
             SDL_SetError("Unsupported user folder");
             break;
     }
