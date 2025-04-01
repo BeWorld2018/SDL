@@ -311,6 +311,12 @@ bool SDL_InitSubSystem(SDL_InitFlags flags)
         return SDL_SetError("Application didn't initialize properly, did you include SDL_main.h in the file containing your main() function?");
     }
 
+#ifdef __MORPHOS__
+	if (!MOS_InitThreadSubSystem()) {
+		 return SDL_SetError("MorphOS main threat failed !!");
+	}
+#endif
+
     SDL_InitMainThread();
 
 #ifdef SDL_USE_LIBDBUS
@@ -683,6 +689,10 @@ void SDL_Quit(void)
     SDL_QuitProperties();
 
     SDL_QuitMainThread();
+
+#ifdef __MORPHOS__
+	MOS_QuitThreadSubSystem();
+#endif
 
     SDL_bInMainQuit = false;
 }

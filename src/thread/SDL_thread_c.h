@@ -38,6 +38,8 @@
 #include "vita/SDL_systhread_c.h"
 #elif defined(SDL_THREAD_N3DS)
 #include "n3ds/SDL_systhread_c.h"
+#elif defined(SDL_THREAD_MORPHOS)
+#include "morphos/SDL_systhread_c.h"
 #else
 #error Need thread implementation for this platform
 #include "generic/SDL_systhread_c.h"

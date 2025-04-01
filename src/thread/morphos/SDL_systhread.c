@@ -1,0 +1,128 @@
+/*
+  Simple DirectMedia Layer
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+#include "SDL_internal.h"
+
+/* Thread management routines for SDL */
+
+#include "SDL_thread.h"
+#include "../SDL_systhread.h"
+
+#include <exec/execbase.h>
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <proto/threadpool.h>
+
+APTR threadpool;
+struct timerequest GlobalTimeReq;
+struct Library *MyTimerBase = NULL;
+
+bool MOS_InitThreadSubSystem(void)
+{
+	if (OpenDevice("timer.device", UNIT_MICROHZ, &GlobalTimeReq.tr_node, 0) == 0)
+	{
+		MyTimerBase = (struct Library *)GlobalTimeReq.tr_node.io_Device;
+	} else {
+		D(kprintf("[%s] Open timer.device failed\n", __FUCNTION__));
+		return false;
+	}
+	
+	threadpool = CreateThreadPoolTags(32768, THREADPOOL_Name, (size_t)"SDL3", /*THREADPOOL_DataSegment, (size_t)LibBase->DataSeg,*/ TAG_DONE);
+	if (threadpool == NULL) {
+		
+		D(kprintf("[%s] CreateThreadPoolTags failed\n", __FUCNTION__));
+		return false;
+	}
+	
+	return true;
+}
+
+void MOS_QuitThreadSubSystem(void)
+{
+
+	if (threadpool)
+		DeleteThreadPool(threadpool);
+
+	CloseDevice(&GlobalTimeReq.tr_node);	
+	
+}
+
+static void
+RunThread(APTR data, struct MsgPort *port)
+{
+	SDL_Thread *thread = data;
+	BPTR lock = thread->status;
+	thread->status = 0;
+	BPTR oldDir = CurrentDir(lock);
+	SDL_RunThread(data);
+	UnLock(CurrentDir(oldDir));
+}
+
+bool SDL_SYS_CreateThread(SDL_Thread *thread, SDL_FunctionPointer pfnBeginThread,
+                                 SDL_FunctionPointer pfnEndThread)
+{
+	thread->status = Lock("", SHARED_LOCK);
+	thread->handle = QueueWorkItem(threadpool, (APTR)RunThread, thread);
+	return thread->handle == WORKITEM_INVALID ? false : true;
+}
+
+void SDL_SYS_SetupThread(const char *name)
+{
+	struct Task *t = SysBase->ThisTask;
+	t->tc_Node.ln_Name = (STRPTR)name;
+}
+
+SDL_ThreadID SDL_GetCurrentThreadID(void)
+{
+	return GetCurrentWorkItem(threadpool);
+}
+
+bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
+{
+	ssize_t pri = 0;
+
+    switch (priority) {
+        case SDL_THREAD_PRIORITY_LOW:
+            pri = -1;
+            break;
+        case SDL_THREAD_PRIORITY_HIGH:
+            pri = 5;
+            break;
+        case SDL_THREAD_PRIORITY_TIME_CRITICAL:
+            pri = 10;
+            break;
+        default:
+            pri = 0;
+            break;
+    }
+	
+	SetTaskPri(SysBase->ThisTask, pri);
+	return true;
+}
+
+void SDL_SYS_WaitThread(SDL_Thread *thread)
+{
+	WaitWorkItem(threadpool, thread->handle);
+}
+
+void SDL_SYS_DetachThread(SDL_Thread *thread)
+{
+	thread->handle = WORKITEM_INVALID;
+}
