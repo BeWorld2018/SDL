@@ -82,19 +82,16 @@ int joystick_count = 0;
 
 static bool MORPHOS_JoystickInit(void)
 {
-
 	APTR sensor = NULL;
-
-	//D(kprintf("[%s] Obtain sensor list...\n", __FUNCTION__));
 	sensorlist = ObtainSensorsListTags(SENSORS_Class, SensorClass_HID, TAG_DONE);
 	while ((sensor = NextSensor(sensor, sensorlist, NULL)) && joystick_count < MAX_JOYSTICKS)
 	{
 		JoySensor[joystick_count++] = sensor;
 		const SDL_JoystickID id = joystick_count;
-		//D(kprintf("[%s] Add joystick SDL_JoystickID=%u\n", __FUNCTION__, id));
+		//D("Add joystick SDL_JoystickID=%u", id);
 		SDL_PrivateJoystickAdded(id);
 	}
-	D(kprintf("[%s] Found %ld joysticks...\n", __FUNCTION__, joystick_count));
+	D("Found %ld joysticks...", joystick_count);
 	
 	return true;
 }
@@ -143,7 +140,7 @@ static void MORPHOS_JoystickSetDevicePlayerIndex(int device_index, int player_in
 
 static SDL_GUID MORPHOS_JoystickGetDeviceGUID(int device_index)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 #ifdef USE_NEW_GUID
 	const char *name = NULL;
 	const char *vendorName = NULL;
@@ -214,7 +211,7 @@ static SDL_JoystickID MORPHOS_JoystickGetDeviceInstanceID(int device_index)
 
 static bool MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	APTR sensor = JoySensor[joystick->instance_id - 1];
 
 	if (sensor)
@@ -292,7 +289,7 @@ static bool MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 							GetSensorAttrTags(sensor, SENSORS_HID_Name, (IPTR)&name, TAG_DONE);
 							break;
 						default:
-							//D("[%s] unknown SensorType: %d\n", __FUNCTION__, type);
+							//D("Unknown SensorType: %d", type);
 							continue;
 					}
 				}
@@ -325,7 +322,7 @@ static bool MORPHOS_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency
 			if (duration < 600) duration = 600;
 			if (lpower > 0.0 || hpower > 0.0) 
 			{ 
-				D(kprintf("[%s] SetSensorAttrTags lpower=%f - hpower=%f - duration=%d\n", __FUNCTION__,lpower, hpower, duration));
+				D("SetSensorAttrTags lpower=%f - hpower=%f - duration=%d", lpower, hpower, duration);
 				if (lpower > 0) 
 				{
 					SetSensorAttrTags(hwdata->rumble[0], 
@@ -488,7 +485,7 @@ static void MORPHOS_JoystickUpdate(SDL_Joystick *joystick)
 
 void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	struct joystick_hwdata *hwdata = joystick->hwdata;
 	if (hwdata) 
 	{
@@ -503,14 +500,14 @@ void MORPHOS_JoystickClose(SDL_Joystick *joystick)
 
 static void MORPHOS_JoystickQuit(void)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	if (sensorlist)
 		ReleaseSensorsList(sensorlist, NULL);
 }
 
 static bool MORPHOS_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
     return SDL_Unsupported();
 }
 

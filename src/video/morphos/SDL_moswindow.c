@@ -77,10 +77,10 @@ static void
 MOS_RemoveAppWindow(SDL_WindowData *data)
 {
     if (data->appWin) {
-		D(kprintf("[%s] Removing AppWindow\n", __FUNCTION__));
+		D("Removing AppWindow");
 			
 		if (RemoveAppWindow(data->appWin)== FALSE) {
-			D(kprintf("[%s] Failed to remove AppWindow\n", __FUNCTION__));
+			D("Failed to remove AppWindow");
         }
         data->appWin = NULL;
     }
@@ -90,7 +90,7 @@ static void
 MOS_RemoveAppIcon(SDL_WindowData *data)
 {
 	if (data->appIcon) {
-        D(kprintf("[%s] Removing AppIcon\n", __FUNCTION__));
+        D("Removing AppIcon");
 		RemoveAppIcon(data->appIcon);
 		data->appIcon = NULL;
     }	
@@ -100,13 +100,13 @@ void MOS_RemoveMenuObject(SDL_WindowData *data)
 {
 
 	if (data->menu) {
-		D(kprintf("[%s] ClearMenuStrip and FreeMenus\n", __FUNCTION__));
+		D("ClearMenuStrip and FreeMenus");
 		ClearMenuStrip(data->win);
 		FreeMenus(data->menu);
 		data->menu = NULL;
 	}
 	if (data->menuvisualinfo) {
-		D(kprintf("[%s] FreeVisualInfo\n", __FUNCTION__));
+		D("FreeVisualInfo");
 		FreeVisualInfo(data->menuvisualinfo);
 		data->menuvisualinfo = NULL;
 	}
@@ -120,7 +120,7 @@ MOS_CreateAppWindow(SDL_VideoDevice *_this, SDL_Window * window)
     SDL_WindowData *data = window->internal;
 
     if (data->appWin) {
-        D(kprintf("[%s] AppWindow already exists for window '%s'\n", __FUNCTION__, window->title));
+        D("AppWindow already exists for window '%s'", window->title);
         return;
     }
 
@@ -128,9 +128,9 @@ MOS_CreateAppWindow(SDL_VideoDevice *_this, SDL_Window * window)
     data->appWin = AddAppWindow(0, (ULONG)window, data->win, &videodata->appMsgPort, TAG_DONE);
 
     if (!data->appWin) {
-        D(kprintf("[%s] Couldn't create AppWindow\n", __FUNCTION__));
+        D("Couldn't create AppWindow");
     } else {
-		D(kprintf("[%s] AddAppWindow OK \n", __FUNCTION__));
+		D("AddAppWindow OK");
 	}
 }
 
@@ -148,10 +148,10 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 			data->menu = CreateMenusA(SDL_NewMenu, NULL);
 			if (data->menu) {
 				if (!LayoutMenusA(data->menu, data->menuvisualinfo, NULL)) {
-					D(kprintf("[%s] Menu ERROR \n", __FUNCTION__));
+					D("Menu ERROR");
 					MOS_RemoveMenuObject(data);
 				} else {
-					D(kprintf("[%s] Menu OK \n", __FUNCTION__));
+					D("Menu OK");
 					
 					if (SetMenuStrip(data->win, data->menu)) {
 
@@ -172,14 +172,14 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 							MOS_GlobalMenu(data->menu, 1, 4, 2, (strcmp(val, "1")==0 ? 0 : 1));
 						}
 					} else {
-						D(kprintf("[%s] Failed SetMenuStrip\n", __FUNCTION__));
+						D("Failed SetMenuStrip");
 					}	
 				}
 			} else {
 				MOS_RemoveMenuObject(data);
 			}
 		} else {
-			D(kprintf("[%s] Failed GetVisualInfoA\n", __FUNCTION__));
+			D("Failed GetVisualInfoA");
 		}
 	}
 }
@@ -187,7 +187,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 static void 
 MOS_CloseWindowSafely(SDL_Window *window, struct Window *win)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	
 	if (SDL_GetKeyboardFocus() == window)
 		SDL_SetKeyboardFocus(NULL);
@@ -201,7 +201,7 @@ MOS_CloseWindowSafely(SDL_Window *window, struct Window *win)
 			SDL_WindowData *data = (SDL_WindowData *) window->internal;
 			
 			struct IntuiMessage *msg, *tmp;
-			//D(kprintf("[%s][%d]\n", __FUNCTION__, __LINE__));
+			//D("[%d]", __LINE__);
 			Forbid();
 
 			if (data->grabbed) {
@@ -229,7 +229,7 @@ MOS_CloseWindowSafely(SDL_Window *window, struct Window *win)
 void
 MOS_CloseWindows(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 	SDL_WindowData *wd = NULL;
 
@@ -249,7 +249,7 @@ static void
 MOS_CloseWindow(SDL_VideoDevice *_this, SDL_Window *window) 
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D(kprintf("[%s] 0x%08lx\n", __FUNCTION__, data->win));
+	D("data->win=0x%08lx", data->win);
 	if (data->win) {
 		
 		if (data->grabbed) {
@@ -270,7 +270,7 @@ MOS_CloseWindow(SDL_VideoDevice *_this, SDL_Window *window)
 void
 MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	if (data) {
@@ -285,13 +285,10 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 				MOS_CloseWindowSafely(window, data->win);
 				data->win = NULL;
 			} else {
-				D(kprintf("[%s] Ignored for native window\n", __FUNCTION__));
+				D("Ignored for native window");
 			}
 		}
 		
-		/*if (data->region)
-			DisposeRegion(data->region);*/
-
 		SDL_free(data->window_title);
 		SDL_free(data);
 		window->internal = NULL;
@@ -302,31 +299,31 @@ void
 MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D(kprintf("[%s] 0x%08lx\n", __FUNCTION__, data->win));
+	D("0x%08lx", data->win);
 	
     if (window->flags & SDL_WINDOW_EXTERNAL) {
-        D(kprintf("[%s] Cannot modify native window '%s'\n", __FUNCTION__, window->title));
+        D("Cannot modify native window '%s'", window->title);
         return;
     }
 
     if (data->win) {
-        D(kprintf("[%s] Closing system window '%s' before re-creation\n", __FUNCTION__, window->title));
+        D("Closing system window '%s' before re-creation", window->title);
         MOS_CloseWindow(_this, window);
     }
 
     MOS_CreateSystemWindow(_this, window);
     if (data->win) {
-		D(kprintf("[%s] window '%s' OK\n", __FUNCTION__, window->title));
+		D("window '%s' OK", window->title);
 		MOS_ShowWindow(_this, window);
     } else {
-        D(kprintf("[%s] Failed to re-create window '%s'\n", __FUNCTION__, window->title));
+        D("Failed to re-create window '%s'", window->title);
     }
 }
 
 static bool
 MOS_SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, struct Window *syswin)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) SDL_calloc(1, sizeof(*data));
 	SDL_VideoData *ddata = (SDL_VideoData *) _this->internal;
 	
@@ -338,7 +335,6 @@ MOS_SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, struct Window *s
 		data->win = syswin;
 		data->__tglContext = NULL;
 		data->grabbed = FALSE;
-		//data->region = NULL;
 		data->window_title = NULL;
 		data->videodata = ddata;
 		data->first_deltamove = FALSE;
@@ -365,7 +361,7 @@ MOS_SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, struct Window *s
 bool
 MOS_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_PropertiesID create_props)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	struct Window *win = (struct Window *)SDL_GetPointerProperty(create_props,"morphos.window",SDL_GetPointerProperty(create_props, "sdl2-compat.external_window", NULL));
 	
 	if (win) {
@@ -389,7 +385,7 @@ MOS_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_PropertiesID c
 
 		if (win->Flags & WFLG_WINDOWACTIVE) {
 			flags |= SDL_WINDOW_INPUT_FOCUS;
-			//SDL_SetKeyboardFocus(window);
+			//SDL_SetKeyboardFocus(window); // TO TEST
 		}
 
 		window->flags = flags;
@@ -411,7 +407,7 @@ MOS_SetWindowTitle(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win) {
 		APTR old = data->window_title;
 		APTR title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
-		D(kprintf("[%s] %s to %s (0x%08lx)\n", __FUNCTION__, window->title, title, data->win));
+		D("%s to %s (0x%08lx)", window->title, title, data->win);
 		SetWindowTitles(data->win, title, title);
 		data->window_title = title;
 		SDL_free(old);
@@ -428,7 +424,7 @@ bool
 MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D(kprintf("[%s] 0x%08lx position %d, %d\n", __FUNCTION__, data->win, window->pending.x, window->pending.y));
+	D("0x%08lx position %d, %d", data->win, window->pending.x, window->pending.y);
 
 	if (data->win) {
 
@@ -465,7 +461,7 @@ MOS_SetWindowLimits(SDL_Window * window, struct Window * syswin)
     BOOL ret = WindowLimits(syswin, minW, minH, maxW, maxH);
 
     if (!ret) {
-        D(kprintf("[%s] Setting window limits failed\n", __FUNCTION__));
+        D("Setting window limits failed");
     }
 }
 
@@ -501,7 +497,7 @@ MOS_SetWindowMinMaxSize(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	if (data->win) {
@@ -517,7 +513,7 @@ MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_WindowToFront(struct Window *win)
 {
-	D(kprintf("[%s] wnd 0x%08lx\n", __FUNCTION__, win));
+	D("wnd 0x%08lx", win);
 	WindowToFront(win);
 	ActivateWindow(win);
 }
@@ -529,14 +525,14 @@ MOS_CenterWindow(struct Screen * screen, SDL_Window * window)
         SDL_WINDOWPOS_ISUNDEFINED(window->windowed.x)) {
 
         window->x = window->windowed.x = (screen->Width - window->windowed.w) / 2;
-        //D(kprintf("X centered %d\n", window->x));
+        //D("X centered %d", window->x);
     }
 
     if (SDL_WINDOWPOS_ISCENTERED(window->windowed.y) ||
         SDL_WINDOWPOS_ISUNDEFINED(window->windowed.y)) {
 
         window->y = window->windowed.y = (screen->Height - window->windowed.h) / 2;
-        //D(kprintf("Y centered %d\n", window->y));
+        //D("Y centered %d", window->y);
     }
 }
 
@@ -615,10 +611,10 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	SDL_VideoData *videodata = data->videodata;
-	D(kprintf("[%s] wnd 0x%08lx, PublicScreen 0x%08lx, CustomScreen 0x%08lx\n", __PRETTY_FUNCTION__, data->win, videodata->PublicScreen, videodata->CustomScreen));
+	D("wnd 0x%08lx, PublicScreen 0x%08lx, CustomScreen 0x%08lx", data->win, videodata->PublicScreen, videodata->CustomScreen);
 
 	if (videodata->PublicScreen == NULL && videodata->CustomScreen == NULL) {
-		//D(kprintf("[%s] ALERTE GENERALE !!!\n", __PRETTY_FUNCTION__, data->win, videodata->PublicScreen));
+		//D("ALERT GENERAL !!!", data->win, videodata->PublicScreen);
 		return false;
 	}
 
@@ -640,7 +636,7 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		if (window->flags & SDL_WINDOW_HIDDEN)
 			opacity_value = ((0.0) * (ULONG_MAX));
 
-		// D(kprintf("[%s] min %ld/%ld, normal %ld/%ld, max %ld/%ld, opacity_value %ld\n", __FUNCTION__, min_w, min_h, w, h, max_w, max_h, opacity_value));
+		// D("min %ld/%ld, normal %ld/%ld, max %ld/%ld, opacity_value %ld", min_w, min_h, w, h, max_w, max_h, opacity_value);
 
 		data->win = OpenWindowTags(NULL,
 			WA_Left, box.x, 
@@ -650,7 +646,6 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 			WA_Flags, windowFlags,
 			videodata->CustomScreen ? WA_CustomScreen : TAG_IGNORE, videodata->CustomScreen,
 			videodata->CustomScreen ? TAG_IGNORE : WA_PubScreen, videodata->PublicScreen,
-			/*data->region ? WA_TransparentRegion : TAG_IGNORE, data->region,*/
 			WA_ScreenTitle, data->window_title,
 			(window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
 			WA_UserPort, &videodata->userPort,
@@ -681,7 +676,7 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		}
 		
 	} else if (data->win) {
-		D(kprintf("[%s] WINDOW ALWAYS CREATED \n", __FUNCTION__));
+		D("WINDOW ALWAYS CREATED");
 		MOS_WindowToFront(data->win);
 	}
 	
@@ -691,10 +686,10 @@ MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	if (data->appIcon) {
-        D(kprintf("[%s] Window '%s' is in iconified (minimized) stated, ignoring show request\n", __FUNCTION__, window->title));
+        D("Window '%s' is in iconified (minimized) stated, ignoring show request", window->title);
         return;
     }
 	
@@ -712,8 +707,6 @@ MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		
 		SDL_Mouse *mouse = SDL_GetMouse();
 		if (mouse) {
-			D(kprintf("[%s][%d] Mouse shown %d\n", __FUNCTION__, __LINE__, mouse->cursor_shown));
-			// Force cursor redraw
 			SDL_SetCursor(NULL);
 		}
 
@@ -723,14 +716,14 @@ MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_HideWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	if (window->is_destroying) {
         return;
     }
 	if (data->win) {
 		ULONG value = ((0.0) * (ULONG_MAX));
-		//D(kprintf("[%s] set window opaqueness to %lu\n", __FUNCTION__, value));
+		//D("set window opaqueness to %lu", value);
 		if (MOS_SetWindowOpacityPrivate(_this, window, value)) {
 			
 		}
@@ -745,23 +738,22 @@ MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Window * window
 	SDL_WindowData *data = window->internal;
 
 	if (window->flags & SDL_WINDOW_MINIMIZED) {
-		D(kprintf("[%s] Window '%s' is already iconified\n", __FUNCTION__, window->title));
+		D("Window '%s' is already iconified", window->title);
 	} else if ((window->flags & SDL_WINDOW_FULLSCREEN) && &videodata->CustomScreen) {
-		D(kprintf("[%s] Window '%s' is into fullscreen exclusive mode\n", __FUNCTION__, window->title));
+		D("Window '%s' is into fullscreen exclusive mode", window->title);
 	} else {
 		if (videodata->AppIcon) {
 			data->appIcon = AddAppIconA(0, (ULONG)window, (UBYTE*)FilePart(videodata->FullAppName), &videodata->appMsgPort, 0, videodata->AppIcon, NULL);	
 
 			if (data->appIcon) {
-				D(kprintf("[%s] iconifying '%s' - window=%p\n", __FUNCTION__,  window->title, window));
+				D("iconifying '%s' - window=%p",  window->title, window);
 				MOS_HideWindow(_this, window);
 				SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_MINIMIZED, 0, 0);
 			} else {
-				D(kprintf("[%s] Failed to add AppIcon\n", __FUNCTION__));
+				D("[Failed to add AppIcon");
 			}
-
 		} else {
-			D(kprintf("[%s] Failed to load icon\n", __FUNCTION__));
+			D("Failed to load icon");
 		}
 	}
 
@@ -770,16 +762,15 @@ MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Window * window
 void
 MOS_UniconifyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = window->internal;
 
 	if (data->appIcon) {
-		D(kprintf("[%s]\n", __FUNCTION__));
 		MOS_RemoveAppIcon(data);
 		MOS_ShowWindow(_this, window);
         SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESTORED, 0, 0);	
 	} else {
-		D(kprintf("[%s] Window '%s' isn't in iconified (minimized) state\n", __FUNCTION__, window->title));
+		D("Window '%s' isn't in iconified (minimized) state", window->title);
 	}
 }
 
@@ -787,7 +778,7 @@ void
 MOS_RaiseWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D(kprintf("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win));
+	D("wnd 0x%08lx", data->win);
 
 	if (data->win)
 		MOS_WindowToFront(data->win);
@@ -799,7 +790,7 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
     SDL_WindowData *data = window->internal;
 
     if (data->win) {
-		D(kprintf("[%s] wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d\n", __FUNCTION__, data->win, rect->x, rect->y, rect->w, rect->h));
+		D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
 
         SetAttrs(data->win,
             rect->x == 0 && rect->y == 0 ? TAG_IGNORE : WA_Left, rect->x,
@@ -809,7 +800,6 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
             TAG_DONE);
 			
 		if (data->__tglContext && (rect->h > 0 && rect->h > 0)) {
-			// ResizeContext only if change size
 			MOS_GL_ResizeContext(_this, window);
 		}
 
@@ -819,12 +809,12 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
 void
 MOS_MaximizeWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	
 	if (data->win) {
 		if (window->flags & SDL_WINDOW_FULLSCREEN) {
-			D(kprintf("[%s] What ?? you are with fullscreen mode! why ask MAXIMIZE?\n", __FUNCTION__));
+			D("What ?? you are with fullscreen mode! why ask MAXIMIZE?");
 			return;
 		}
 		
@@ -851,7 +841,7 @@ MOS_MaximizeWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		rect.w = width;
 		rect.h = height - syswin->BorderTop;
 		
-		D(kprintf("[%s] Maximizing '%s' at %d %d to w=%d h=%d\n", __FUNCTION__, window->title, 0, top, width, height));
+		D("Maximizing '%s' at %d %d to w=%d h=%d", window->title, 0, top, width, height);
 		
 		MOS_SetWindowBox(_this, window, &rect);
 		
@@ -863,7 +853,7 @@ MOS_MaximizeWindow(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_MinimizeWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	
 	MOS_IconifyWindow(_this, true, window);
 }
@@ -873,21 +863,21 @@ MOS_RestoreWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
 #ifdef __SDL_DEBUG
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D(kprintf("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win));
+	D("wnd 0x%08lx", data->win);
 #endif
 
 	if (window->flags & SDL_WINDOW_MINIMIZED) {
-		D(kprintf("[%s] Restoring iconified '%s'\n", __FUNCTION__, window->title));
+		D("Restoring iconified '%s'", window->title);
 		MOS_UniconifyWindow(_this, window);		
 	} else if (window->flags & SDL_WINDOW_MAXIMIZED) {
-		D(kprintf("[%s] Restoring '%s' to x %d, y %d, w %d, h %d\n", __FUNCTION__, window->title,
-		window->floating.x, window->floating.y, window->floating.w, window->floating.h));
+		D("Restoring '%s' to x %d, y %d, w %d, h %d", window->title,
+		window->floating.x, window->floating.y, window->floating.w, window->floating.h);
 
 		MOS_SetWindowBox(_this, window, &window->floating);
 		
 		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESTORED, 0, 0);
 	} else {
-		D(kprintf("[%s] Don't know what to do\n", __FUNCTION__));
+		D("Don't know what to do");
 	}
 }
 
@@ -913,21 +903,21 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 {
 	
 	if (window->is_destroying) {	
-		D(kprintf("[%s] Window '%s' is being destroyed, mode change ignored\n", __FUNCTION__, window->title));
+		D("Window '%s' is being destroyed, mode change ignored", window->title);
 		return SDL_FULLSCREEN_SUCCEEDED;
 	}
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	
-	D(kprintf("[%s] '%s': %s (%d), display %p\n", __FUNCTION__, window->title, MOS_DecodeFullscreenOp(fullscreen), fullscreen, display));
+	D("'%s': %s (%d), display %p", window->title, MOS_DecodeFullscreenOp(fullscreen), fullscreen, display);
 	
 	if (window->flags & SDL_WINDOW_EXTERNAL) {
-		D(kprintf("[%s] Native window '%s' (%p), mode change ignored\n", __FUNCTION__, window->title, data->win));
+		D("Native window '%s' (%p), mode change ignored", window->title, data->win);
 		return SDL_FULLSCREEN_SUCCEEDED;
 	}
 
 	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE && (window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
-			D(kprintf("[%s] leave fullscreen ! why here (fullscreen=%d) ?\n", __FUNCTION__, (window->flags & SDL_WINDOW_FULLSCREEN)));
+			D("leave fullscreen ! why here (fullscreen=%d) ?", (window->flags & SDL_WINDOW_FULLSCREEN));
 			return SDL_FULLSCREEN_SUCCEEDED;
 	}
 	
@@ -935,9 +925,9 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 		SDL_DisplayData *displayData = display->internal;
 		if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
 			if (displayData->screen && data->win) {
-				D(kprintf("[%s] WScreen %p, screen %p\n", __FUNCTION__, data->win->WScreen, displayData->screen));
+				D("WScreen %p, screen %p", data->win->WScreen, displayData->screen);
 				if (data->win->WScreen == displayData->screen) {
-					D(kprintf("[%s] Same screen, useless mode change ignored\n", __FUNCTION__));
+					D("Same screen, useless mode change ignored");
 					return SDL_FULLSCREEN_SUCCEEDED;
 				}
 			}
@@ -947,7 +937,7 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 	int oldWidth = 0, oldHeight = 0;
 	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
 		if ((data->old_w && data->old_h) && (data->old_w != data->win->Width && data->old_h != data->win->Height)) {
-			D(kprintf("[%s] Change position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h));
+			D("Change position %d,%d and size %d,%d", data->old_x, data->old_y, data->old_w, data->old_h);
 			window->x = data->old_x;
 			window->y = data->old_y;
 			window->w = data->old_w;
@@ -966,7 +956,7 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 			data->old_y = data->win->TopEdge;
 			data->old_w = ww;
 			data->old_h = hh;
-			D(kprintf("[%s] Save actual position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h));
+			D("Save actual position %d,%d and size %d,%d", data->old_x, data->old_y, data->old_w, data->old_h);
 		}
 	}
 
@@ -979,15 +969,14 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 	
 	if (data->win) {
 		
-		D(kprintf("[%s] Reopening window '%s' (%p) due to mode change\n", __FUNCTION__,
-			window->title, data->win));
+		D("Reopening window '%s' (%p) due to mode change", window->title, data->win);
 			
 		MOS_GetWindowSize(data->win, &oldWidth, &oldHeight);	
 		
 		MOS_CloseWindow(_this, window);
 
 	} else {
-		D(kprintf("[%s] System window doesn't exist yet, let's open it\n", __FUNCTION__));
+		D("System window doesn't exist yet, let's open it");
 	}
 	
 	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
@@ -1007,7 +996,7 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 			MOS_GetWindowSize(data->win, &width, &height);
 			
 			if (oldWidth != width || oldHeight != height) {
-				D(kprintf("[%s] Inform SDL about window resize %d x %d - before %d x %d\n", __FUNCTION__, width, height, oldWidth, oldHeight));
+				D("Inform SDL about window resize %d x %d - before %d x %d", width, height, oldWidth, oldHeight);
 				SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
             }
 		}
@@ -1015,7 +1004,6 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 		if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
 			if (window->flags & SDL_WINDOW_MAXIMIZED) {
 				data->wasMaximized = TRUE;
-				// testautomation video_getSetWindowState verifies this
 				window->flags &= ~SDL_WINDOW_MAXIMIZED;
 			}
 		} else if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
@@ -1035,7 +1023,7 @@ MOS_SetWindowGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed)
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	if (data->win && data->grabbed != grabbed) {
-		D(kprintf("[%s] grabbed=%d\n", __FUNCTION__, grabbed));
+		D("grabbed=%d", grabbed);
 
 		data->grabbed = grabbed;
 		if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
@@ -1055,7 +1043,7 @@ MOS_SetWindowGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed)
 void
 MOS_SetWindowAlwaysOnTop(SDL_VideoDevice *_this, SDL_Window * window, bool on_top)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = window->internal;
 	if (data->win) {
 		MOS_RecreateWindow(_this, window);
@@ -1071,14 +1059,14 @@ MOS_SetWindowHitTest(SDL_Window *window, bool enabled)
 void
 MOS_SetWindowResizable(SDL_VideoDevice *_this, SDL_Window * window, bool resizable)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	MOS_RecreateWindow(_this, window);
 }
 
 void
 MOS_SetWindowBordered(SDL_VideoDevice *_this, SDL_Window * window, bool bordered)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	MOS_RecreateWindow(_this, window);
 }
 
@@ -1089,7 +1077,7 @@ MOS_SetWindowOpacityPrivate(SDL_VideoDevice *_this, SDL_Window * window, ULONG v
 	
 	LONG ret = SetAttrs(data->win, WA_Opacity, value, TAG_DONE);
 	if (ret) {
-		D(kprintf("[%s] Failed to set window opaqueness to %lu\n", __FUNCTION__, value));
+		D("Failed to set window opaqueness to %lu", value);
 		return false;
 	}
 	
@@ -1105,7 +1093,7 @@ MOS_SetWindowOpacity(SDL_VideoDevice *_this, SDL_Window * window, float opacity)
 	
     ULONG value = ((opacity) * (ULONG_MAX));
 
-	D(kprintf("[%s] set window opaqueness to %lu\n", __FUNCTION__, value));
+	D("set window opaqueness to %lu", value);
 	
     return MOS_SetWindowOpacityPrivate(_this, window, value) ? true : false;
 }
@@ -1139,7 +1127,7 @@ MOS_FlashOperationPrivate(SDL_VideoDevice *_this, SDL_Window * window)
 bool
 MOS_FlashWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_FlashOperation operation)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	if (!data->win) return 0;

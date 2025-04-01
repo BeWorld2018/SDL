@@ -259,14 +259,18 @@
 /* Enable dialog subsystem */
 #define SDL_DIALOG_MORPHOS 1
 
-#ifdef __MORPHOS__
 #ifdef __SDL_DEBUG
-#include <proto/utility.h>
-extern void kprintf(const char *, ... );
-#define D(x) x
+	#include <exec/types.h>
+	struct ExecBase *SysBase;
+	#define E(fmt, ...) ({((STRPTR (*)(void *, CONST_STRPTR , APTR (*)(APTR, UBYTE), STRPTR , ...))*(void**)((long)(SysBase) - 922))((void*)(SysBase), fmt, (APTR)1, NULL, ##__VA_ARGS__);})
+	#define D(fmt, ...) { \
+		char nfmt[1024]; \
+		snprintf(nfmt, sizeof(nfmt), "[%s] %s\n", __FUNCTION__, fmt); \
+		E(nfmt, ##__VA_ARGS__); \
+	}
 #else
-#define D(x)
+	#define D(x, ...)
 #endif
-#endif
+
 
 #endif /* SDL_config_morphos_h_ */

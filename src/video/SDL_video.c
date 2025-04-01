@@ -2035,7 +2035,7 @@ bool SDL_UpdateFullscreenMode(SDL_Window *window, SDL_FullscreenOp fullscreen, b
 
 #if defined(SDL_PLATFORM_MORPHOS)
         if (window->is_destroying) {
-            D(kprintf("[%s] Window is destroying, ignore mode change\n", __FUNCTION__));
+            D("Window is destroying, ignore mode change");
             goto done;
         }
 #else

@@ -26,6 +26,7 @@
 #include <cybergraphx/cybergraphics.h>
 #include <proto/cybergraphics.h>
 #include <proto/graphics.h>
+#include <graphics/rpattr.h>
 
 // software renderer:
 // on real hardware... WritePixelArray seem faster
@@ -39,7 +40,7 @@
 void
 MOS_DestroyWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window)
 {
-	D(kprintf("[%s][%d]\n", __FUNCTION__, __LINE__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 #ifdef OLDFB
 	if (data) {
@@ -50,7 +51,7 @@ MOS_DestroyWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window)
 	}
 #else
 	if (data->bitmap) {
-        D(kprintf("[%s] Freeing bitmap %p\n", __FUNCTION__, data->bitmap));
+        D("Freeing bitmap %p", data->bitmap);
         FreeBitMap(data->bitmap);
         data->bitmap = NULL;
     }
@@ -61,7 +62,7 @@ bool
 MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_PixelFormat *format,
                             void **pixels, int *pitch)
 {
-	D(kprintf("[%s][%d]\n", __FUNCTION__, __LINE__));
+	D("");
 #ifdef OLDFB
 
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
@@ -91,15 +92,13 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
     Uint32 bytes_per_row;
 
 	SDL_WindowData *data = window->internal;
-	SDL_VideoData *vd = data->videodata;
-	
     if (data->bitmap) {
-        D(kprintf("[%s] Freeing old bitmap %p\n", __FUNCTION__, data->bitmap));
+        D("Freeing old bitmap %p", data->bitmap);
         FreeBitMap(data->bitmap);
     }
 
 	if (!data->win) {
-        D(kprintf("[%s] No system window\n", __FUNCTION__));
+        D("No system window");
         return SDL_SetError("No system window");
     }
 	
@@ -108,10 +107,11 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
 	Uint32 depth =  GetBitMapAttr(friend_bitmap, BMA_DEPTH);
 	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES|BMF_CLEAR, friend_bitmap);
 	if (!data->bitmap) {
-		D(kprintf("[%s] Failed to allocate bitmap for framebuffer\n", __FUNCTION__));
+		D("Failed to allocate bitmap for framebuffer");
 		return SDL_SetError("Failed to allocate bitmap for framebuffer");
-	}
-	D(kprintf("[%s] allocate bitmap %d x %d x %d for framebuffer\n", __FUNCTION__,window->w, window->h, depth));
+	} 
+		
+	D("Allocate bitmap %d x %d x %d for framebuffer", window->w, window->h, depth);
 	lock = LockBitMapTags(
         data->bitmap,
         LBMI_BASEADDRESS, &base_address,
@@ -124,7 +124,7 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
 
         UnLockBitMap(lock);
     } else {
-        D(kprintf("[%s] Failed to lock bitmap\n"));
+        D("Failed to lock bitmap");
 
         FreeBitMap(data->bitmap);
         data->bitmap = NULL;
@@ -176,10 +176,7 @@ MOS_UpdateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, const S
 		    int w =  MIN(r->w, windowBox.Width);
 			int h = MIN(r->h, windowBox.Height);
 			BltBitMapRastPort(data->bitmap,  r->x, r->y, data->win->RPort, dx, dy, w, h, 0xc0);
-				
 		}
-				
-				
 	}
 #endif	
 	return true;

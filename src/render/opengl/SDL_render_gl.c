@@ -1777,10 +1777,6 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, value);
     }
 
-	D(kprintf("GL_ARB_texture_non_power_of_two: %s\n", data->GL_ARB_texture_non_power_of_two_supported ? "ENABLED" : "DISABLED"));
-	D(kprintf("GL_ARB_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_ARB_texture_rectangle") ? "ENABLED" : "DISABLED"));
-	D(kprintf("GL_EXT_texture_rectangle: %s\n", SDL_GL_ExtensionSupported("GL_EXT_texture_rectangle") ? "ENABLED" : "DISABLED"));
-	
     // Check for multitexture support
     if (SDL_GL_ExtensionSupported("GL_ARB_multitexture")) {
         data->glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress("glActiveTextureARB");
@@ -1789,13 +1785,12 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
             data->glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &data->num_texture_units);
         }
     }
-	D(kprintf("GL_ARB_multitexture_supported: %s\n", data->GL_ARB_multitexture_supported ? "ENABLED" : "DISABLED"));
 
     // Check for shader support
     data->shaders = GL_CreateShaderContext();
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL shaders: %s",
                 data->shaders ? "ENABLED" : "DISABLED");
-    D(kprintf("OpenGL shaders: %s\n", data->shaders ? "ENABLED" : "DISABLED"));
+
 #ifdef SDL_HAVE_YUV
     // We support YV12 textures using 3 textures and a shader
     if (data->shaders && data->num_texture_units >= 3) {

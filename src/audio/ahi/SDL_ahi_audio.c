@@ -42,7 +42,7 @@ static bool
 MOS_OpenAhiDevice(MOSAudioData * MOS_data)
 {
     if (MOS_data->deviceOpen) {
-        D(kprintf("[%s] Device already open\n", __FUNCTION__));
+        D("Device already open");
     }
 
     MOS_data->deviceOpen = false;
@@ -58,7 +58,7 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
 
             if (!OpenDevice(AHINAME, 0, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
 
-                D(kprintf("[%s] %s opened\n", __FUNCTION__, AHINAME));
+                D("%s opened", AHINAME);
 
                 /* Create a copy */
                 MOS_data->ahiRequest[1] = AllocMem( sizeof(struct AHIRequest), MEMF_CLEAR);
@@ -66,22 +66,22 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
 				
                 if (MOS_data->ahiRequest[1]) {
 
-                    //D(kprintf("[%s] IO requests created\n", __FUNCTION__));
+                    //D("IO requests created");
 
                     MOS_data->deviceOpen = true;
                     MOS_data->currentBuffer = 0;
                     MOS_data->link = NULL;
                 } else {
-                    D(kprintf("[%s] Failed to duplicate IO request\n", __FUNCTION__));
+                    D("Failed to duplicate IO request");
                 }
             } else {
-                D(kprintf("[%s] Failed to open %s\n", __FUNCTION__, AHINAME));
+                D("Failed to open %s", AHINAME);
             }
         } else {
-            D(kprintf("[%s] Failed to create IO request\n", __FUNCTION__));
+            D("Failed to create IO request");
         }
     } else {
-        D(kprintf("[%s] Failed to create reply port\n", __FUNCTION__));
+        D("Failed to create reply port");
     }
 
     return MOS_data->deviceOpen;
@@ -114,7 +114,7 @@ MOS_CloseAhiDevice(MOSAudioData * MOS_data)
 
     MOS_data->deviceOpen = false;
 
-    D(kprintf("[%s] Device closed\n", __FUNCTION__));
+    D("Device closed");
 }
 
 static bool
@@ -125,7 +125,7 @@ MOS_AudioAvailable(void)
     MOSAudioData *tempData = SDL_calloc(1, sizeof(MOSAudioData));
 
     if (!tempData) {
-        D(kprintf("[%s] Failed to allocate temp data\n", __FUNCTION__));
+        D("Failed to allocate temp data");
     } else {
         isAvailable = MOS_OpenAhiDevice(tempData);
 
@@ -134,7 +134,7 @@ MOS_AudioAvailable(void)
         SDL_free(tempData);
     }
 
-    //D(kprintf("[%s] AHI is %savailable\n", __FUNCTION__, isAvailable ? "" : "not "));
+    //D("AHI is %savailable", isAvailable ? "" : "not ");
     return isAvailable;
 }
 
@@ -166,7 +166,7 @@ MOS_CloseDevice(SDL_AudioDevice *_this)
 {
     MOSAudioData *MOS_data = _this->hidden;
 
-    D(kprintf("[%s]Called for device %p\n", __FUNCTION__, _this));
+    D("Called for device %p", _this);
 
     MOS_CloseAhiDevice(MOS_data);
 
@@ -197,7 +197,7 @@ MOS_DetectDevices(SDL_AudioDevice **default_output, SDL_AudioDevice **default_ca
     *default_output = SDL_AddAudioDevice(/*iscapture=*/false, "AHI default output device", &output, SDL_strdup("default"));
     *default_capture = SDL_AddAudioDevice(/*iscapture=*/true, "AHI default capture device", &capture, SDL_strdup("default"));
 
-    //D(kprintf("[%s] Default_output device %p, default_capture device %p\n", __FUNCTION__, *default_output, *default_capture));
+    //D("Default_output device %p, default_capture device %p", *default_output, *default_capture);
 }
 
 static bool
@@ -205,12 +205,12 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
 {
     MOSAudioData *MOS_data = NULL;
 
-    D(kprintf("[%s] Called for device %p\n", __FUNCTION__, _this));
+    D("Called for device %p", _this);
 
     _this->hidden = (MOSAudioData *) SDL_malloc(sizeof(MOSAudioData));
 
     if (!_this->hidden) {
-        D(kprintf("[%s]Failed to allocate private data\n", __FUNCTION__));
+        D("Failed to allocate private data");
         return SDL_OutOfMemory();
     }
 
@@ -248,7 +248,7 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
 
     if (MOS_data->audioBuffer[0] == NULL || MOS_data->audioBuffer[1] == NULL) {
         MOS_CloseDevice(_this);
-        D(kprintf("[%s] No memory for audio buffer\n", __FUNCTION__));
+        D("No memory for audio buffer");
         SDL_SetError("No memory for audio buffer");
         return false;
     }
@@ -278,19 +278,19 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
                     MOS_data->ahiType = AHIST_L7_1;
                     break;
                 default:
-                    D(kprintf("[%s]Unsupported channel count %u for 32-bit mode\n", __FUNCTION__, _this->spec.channels));
+                    D("Unsupported channel count %u for 32-bit mode", _this->spec.channels);
                     MOS_data->ahiType = AHIST_M32S;
                     break;
             }
             break;
 
         default:
-            D(kprintf("[%s]Unsupported audio format 0x%X requested\n", __FUNCTION__, _this->spec.format));
+            D("Unsupported audio format 0x%X requested", _this->spec.format);
             MOS_data->ahiType = (_this->spec.channels < 2) ? AHIST_M16S : AHIST_S16S;
             break;
     }
 
-    D(kprintf("[%s] AHI format 0x%lX\n", __FUNCTION__, MOS_data->ahiType));
+    D("AHI format 0x%lX", MOS_data->ahiType);
 
     return true;
 }
@@ -300,7 +300,7 @@ MOS_ThreadInit(SDL_AudioDevice *_this)
 {
     MOSAudioData *MOS_data = _this->hidden;
     if (!MOS_OpenAhiDevice(MOS_data)) {
-        D(kprintf("[%s]Failed to open AHI\n", __FUNCTION__));
+        D("Failed to open AHI");
     }
     SetTaskPri(FindTask(NULL), 5);
 }
@@ -308,7 +308,7 @@ MOS_ThreadInit(SDL_AudioDevice *_this)
 static void
 MOS_ThreadDeinit(SDL_AudioDevice *_this)
 {
-    //D(kprintf("[%s]Called for device %p\n", __FUNCTION__, _this));
+    //D("Called for device %p", _this);
 }
 
 static bool
@@ -365,7 +365,7 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
     int                 current = MOS_data->currentBuffer;
 
     if (!MOS_data->deviceOpen) {
-        // D(kprintf("[%s] Device is not open\n", __FUNCTION__));
+        // D("Device is not open");
         return false;
     }
 
@@ -404,7 +404,7 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
 static Uint8 *
 MOS_GetDeviceBuf(SDL_AudioDevice *_this, int *buffer_size)
 {
-    //D(kprintf("[%s]Called for device %p\n", __FUNCTION__, _this));
+    //D("Called for device %p", _this);
 
     if (buffer_size) {
         MOSAudioData *MOS_data = _this->hidden;
@@ -418,7 +418,7 @@ MOS_GetDeviceBuf(SDL_AudioDevice *_this, int *buffer_size)
 static bool
 MOS_WaitRecordingDevice(SDL_AudioDevice *device)
 {
-    //D(kprintf("[%s] Called for device %p\n", __FUNCTION__, device));
+    //D("Called for device %p", device);
     return true;
 }
 
@@ -439,10 +439,10 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
     void *completedBuffer;
     int current;
 
-    //D(kprintf("[%s]Called for device %p, buffer %p, buflen %d, spec %p\n", __FUNCTION__, _this, buffer, buflen, spec));
+    //D("Called for device %p, buffer %p, buflen %d, spec %p", _this, buffer, buflen, spec);
 
     if (!MOS_data->deviceOpen) {
-        D(kprintf("[%s] Device is not open\n"));
+        D("Device is not open");
         return 0;
     }
 
@@ -465,7 +465,7 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
 
         request->ahir_Std.io_Offset = 0;
 
-        D(kprintf("[%s] Start recording\n", __FUNCTION__));
+        D("Start recording");
 
         DoIO((struct IORequest *)request);
         MOS_data->link = NULL;
@@ -495,7 +495,7 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
     MOS_data->lastCaptureTicks = now;
     MOS_data->currentBuffer = current;
 
-    //D(kprintf("[%s]%d bytes copied\n", __FUNCTION__, copyLen));
+    //D("%d bytes copied", copyLen);
 
     return copyLen;
 }

@@ -74,7 +74,6 @@ MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *dat
         globalMouseState.buttonPressed[button] = state;
 		SDL_SendMouseButton(0, data->window, 0, button, state);
 	}
-	
 }
 
 static int
@@ -149,7 +148,7 @@ MOS_MouseMove(SDL_VideoDevice *_this, struct IntuiMessage *m, SDL_WindowData *da
 		globalMouseState.y = m->IDCMPWindow->WScreen->MouseY;
 		
 		if (SDL_GetRelativeMouseMode()) {
-			//D(kprintf("[%s] SDL_GetRelativeMouseMode first_deltamove=%d\n", __FUNCTION__, data->first_deltamove));
+			//D("SDL_GetRelativeMouseMode first_deltamove=%d", data->first_deltamove);
 			if (data->first_deltamove) {
 				data->first_deltamove = FALSE;
 				return;
@@ -172,7 +171,7 @@ MOS_HandleActivation(SDL_VideoDevice *_this, struct IntuiMessage *m, bool activa
 	if (data) {
 		SDL_Window *sdlwin = data->window;
 		if (sdlwin) {	
-			D(kprintf("[%s] Window %p activation %d relative=%d \n", __FUNCTION__, sdlwin, activated, SDL_GetRelativeMouseMode()));
+			D("Window %p activation %d relative=%d", sdlwin, activated, SDL_GetRelativeMouseMode());
 			if (activated) {
 				
 				SDL_SendWindowEvent(sdlwin, SDL_EVENT_WINDOW_SHOWN, 0, 0);
@@ -184,7 +183,6 @@ MOS_HandleActivation(SDL_VideoDevice *_this, struct IntuiMessage *m, bool activa
 			} else {
 				
 				if (SDL_GetKeyboardFocus() == sdlwin) {
-					//D(kprintf("[%s][%d] - relative=%d \n", __FUNCTION__, __LINE__, SDL_GetRelativeMouseMode()));
 					if (!SDL_GetRelativeMouseMode())
 						SDL_SetKeyboardFocus(NULL);
 					
@@ -204,13 +202,13 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 		SDL_GetWindowPosition(data->window, &x, &y);
 
 		if (syswin->LeftEdge != x || syswin->TopEdge != y) {
-			//D(kprintf("[%s] Move\n", __FUNCTION__));
+			//D("Move");
 			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_MOVED, syswin->LeftEdge, syswin->TopEdge);
 		}
 		int width = syswin->Width - syswin->BorderLeft - syswin->BorderRight;
 		int height = syswin->Height - syswin->BorderTop - syswin->BorderBottom;
 		if (width != data->window->w || height != data->window->h) {
-			//D(kprintf("[%s] Resize\n", __FUNCTION__));
+			//D("Resize");
 			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_RESIZED, width, height);
 			if (__tglContext) MOS_GL_ResizeContext(_this, data->window);
 		}
@@ -219,7 +217,7 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 
 static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
 	
 	switch (((struct Gadget *)m->IAddress)->GadgetID) {
@@ -227,7 +225,7 @@ static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m
 			MOS_IconifyWindow(_this, true, data->window);
 			break;
 		case ETI_Jump:
-			// D(kprintf("[%s] ETI_JUMP\n", __FUNCTION__)/;
+			// D("ETI_JUMP");
 			break;
 	}
 }
@@ -396,7 +394,7 @@ MOS_CheckBrokerMsg(SDL_VideoDevice *_this)
 		size_t id = CxMsgID(msg);
 		size_t tp = CxMsgType(msg);
 
-		//D(kprintf("[%s] check CxMsg\n", __FUNCTION__));
+		//D("check CxMsg");
 		ReplyMsg((APTR)msg);
 
 		if (tp == CXM_COMMAND) {
@@ -426,7 +424,7 @@ MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 		struct ScreenNotifyMessage *snm;
 
 		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
-			//D(kprintf("[%s] check ScreenNotifyMessage\n", __FUNCTION__));
+			//D("check ScreenNotifyMessage");
 
 			switch ((size_t)snm->snm_Value) {
 				case FALSE:
@@ -453,7 +451,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 	struct AppMessage *msg;
 	
 	while ((msg = (struct AppMessage *)GetMsg(&data->appMsgPort)) != NULL) {
-		//D(kprintf("[%s] check AppMessage\n", __FUNCTION__));
+		//D("check AppMessage");
 		SDL_Window *window = (SDL_Window *)msg->am_UserData;
 		switch (msg->am_Type) {
 			case AMTYPE_APPWINDOW: 
@@ -464,7 +462,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 						if (argptr->wa_Lock) {
 							NameFromLock(argptr->wa_Lock, filename, 1024);
 							AddPart((STRPTR)filename, (STRPTR)argptr->wa_Name, 1024);
-							D(kprintf("[%s] SDL_SendDropfile : '%s'\n", __FUNCTION__, filename));
+							D("SDL_SendDropfile : '%s'", filename);
 							SDL_SendDropFile(window, NULL, filename);
 							argptr++;
 						}
@@ -477,7 +475,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 				MOS_UniconifyWindow(_this, window);
 				break;
 			default:
-				//D(kprintf("[%s] Unknown AppMsg %d %p\n", __FUNCTION__, msg->am_Type, (APTR)msg->am_UserData));
+				//D("Unknown AppMsg %d %p",  msg->am_Type, (APTR)msg->am_UserData);
 				break;
 		}
 

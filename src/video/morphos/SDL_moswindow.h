@@ -55,7 +55,6 @@ struct SDL_WindowData
 	struct MinNode node;
 
 	SDL_Framebuffer *fb;
-	//struct Region *region;
 	
 	SDL_Window 			*window;
 	struct Window 		*win;

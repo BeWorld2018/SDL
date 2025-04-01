@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -39,7 +39,6 @@ MOS_GlobalMouseState globalMouseState;
 static Uint32
 MOS_GetDoubleClickTimeInMillis(SDL_VideoDevice *_this)
 {
-	//D(kprintf("[%s]\n", __FUNCTION__));
     Uint32 interval = 500;
 
     struct RDArgs rda;
@@ -55,7 +54,7 @@ MOS_GetDoubleClickTimeInMillis(SDL_VideoDevice *_this)
         }
         SDL_free(rda.RDA_Source.CS_Buffer);
     }
-	D(kprintf("[%s] interval = %d\n", __FUNCTION__, interval));
+	D("interval=%d", interval);
     return interval;
 }
 
@@ -70,10 +69,10 @@ MOS_CreateCursorInternal()
         if (data) {
             cursor->internal = data;
         } else {
-			D(kprintf("[%s] error SDL_CursorData\n", __FUNCTION__));
+			D("error SDL_CursorData");
 		}
     } else {
-		D(kprintf("[%s] error cursor\n", __FUNCTION__));
+		D("error cursor");
 	}
 
     return cursor;
@@ -82,7 +81,7 @@ MOS_CreateCursorInternal()
 static SDL_Cursor *
 MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_Cursor *cursor = MOS_CreateCursorInternal();
 
 	if (cursor) {
@@ -124,10 +123,10 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 
 			FreeBitMap(bmp);
 		} else {
-			D(kprintf("[%s] AllocBitMap failed! \n", __FUNCTION__));
+			D("AllocBitMap failed!");
 		}
 	} else {
-		D(kprintf("[%s] cursor NULL \n", __FUNCTION__));
+		D("cursor NULL");
 	}
 
 	return cursor;
@@ -261,7 +260,7 @@ MOS_WarpMouseInternal(struct Screen *screen, float x, float y)
     bool result = false;
 
 	if (vd->inputReq != NULL) {
-		//D(kprintf("[%s] %f, %f\n", __FUNCTION__, x, y));
+		//D("%f, %f",x, y);
 		struct InputEvent ie = { 0 };
 		struct IEPointerPixel newpos = { 0 };
 
@@ -291,7 +290,7 @@ MOS_WarpMouseInternal(struct Screen *screen, float x, float y)
 static bool
 MOS_WarpMouseGlobal(float x, float y)
 {
-    D(kprintf("[%s] Warping mouse to %f, %f\n", __FUNCTION__, x, y));
+    D("Warping mouse to %f, %f", x, y);
 
     return MOS_WarpMouseInternal(NULL, x, y);
 }
@@ -302,7 +301,7 @@ MOS_WarpMouse(SDL_Window * window, float x, float y)
 	SDL_WindowData *data = (SDL_WindowData *)window->internal;
 	struct Window *syswin = data->win;
 	
-	D(kprintf("[%s] Warping mouse to %f, %f\n", __FUNCTION__, x, y));
+	D("Warping mouse to %f, %f", x, y);
 	
 	bool relativeMouseMode = SDL_GetRelativeMouseMode();
 	
@@ -313,7 +312,6 @@ MOS_WarpMouse(SDL_Window * window, float x, float y)
 			x + syswin->BorderLeft + syswin->LeftEdge,
 			y + syswin->BorderTop + syswin->TopEdge);	
 	} else {
-	//	D(kprintf("[%s] !warpHostPointer\n", __FUNCTION__));
 		SDL_SendMouseMotion(0, window, 0, relativeMouseMode, x, y);
 	}
 	
@@ -323,7 +321,7 @@ MOS_WarpMouse(SDL_Window * window, float x, float y)
 static bool
 MOS_SetRelativeMouseMode(bool enabled)
 {
-	D(kprintf("[%s] enabled=%d\n", __FUNCTION__, enabled));
+	D("enabled=%d", enabled);
 	
 	SDL_VideoDevice *video = SDL_GetVideoDevice();
 	SDL_VideoData *data = (SDL_VideoData *)video->internal;
@@ -380,7 +378,7 @@ MOS_GetGlobalMouseState(float * x, float * y)
 bool
 MOS_InitMouse(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_Mouse *mouse = SDL_GetMouse();
 	char buffer[16];
 
@@ -403,7 +401,7 @@ MOS_InitMouse(SDL_VideoDevice *_this)
 void
 MOS_QuitMouse(SDL_VideoDevice *_this)
 {
-	D(kprintf("[%s]\n", __FUNCTION__));
+	D("");
 	SDL_Mouse *mouse = SDL_GetMouse();
 	
 	if ( mouse->def_cursor ) {
