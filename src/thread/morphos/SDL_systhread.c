@@ -41,14 +41,14 @@ bool MOS_InitThreadSubSystem(void)
 	{
 		MyTimerBase = (struct Library *)GlobalTimeReq.tr_node.io_Device;
 	} else {
-		D(kprintf("[%s] Open timer.device failed\n", __FUCNTION__));
+		D("Open timer.device failed");
 		return false;
 	}
 	
 	threadpool = CreateThreadPoolTags(32768, THREADPOOL_Name, poolname, /*THREADPOOL_DataSegment, (size_t)LibBase->DataSeg,*/ TAG_DONE);
 	if (threadpool == NULL) {
 		
-		D(kprintf("[%s] CreateThreadPoolTags failed\n", __FUCNTION__));
+		D("CreateThreadPoolTags failed");
 		return false;
 	}
 	
