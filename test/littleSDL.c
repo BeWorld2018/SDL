@@ -21,12 +21,13 @@ static void ToggleFullscreen(SDL_Window* w)
 
 int main(int argc, char *argv[])
 {
-	
+	printf("Ok starting..\n");
 	SDL_Window* gWindow = NULL;
 	SDL_Renderer* gRenderer = NULL;;
 
 	if (SDL_Init(SDL_INIT_VIDEO) == 0)
 	{
+		printf("SDL_Init Error: %s\n", SDL_GetError());
         SDL_Log("SDL_Init Error: %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
@@ -36,12 +37,14 @@ int main(int argc, char *argv[])
 	gWindow = SDL_CreateWindow( "SDL3 Little Example", 800, 600, SDL_WINDOW_RESIZABLE);
 	if (!gWindow)
 	{
+		printf("Window could not be created! SDL error: %s\n", SDL_GetError());
 		SDL_Log( "Window could not be created! SDL error: %s\n", SDL_GetError() );
 		SDL_Quit();
 		return EXIT_FAILURE;
 	}
 	gRenderer = SDL_CreateRenderer(gWindow, NULL);
 	if (!gRenderer) {
+		printf( "Renderer could not be created! SDL error: %s\n", SDL_GetError() );
 		SDL_Log( "Renderer could not be created! SDL error: %s\n", SDL_GetError() );
 		SDL_DestroyWindow( gWindow );
 		gWindow = NULL;

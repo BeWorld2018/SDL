@@ -2,7 +2,7 @@
 
 CC      = ppc-morphos-gcc-11 -noixemul
 INCLUDE = -I../../../../include/ -I../../../../include/SDL3 -I../sdk
-CFLAGS  = -mcpu=750 -mtune=7450 -O3 $(INCLUDE) -Wall -Wno-pointer-sign -fno-strict-aliasing -D_LARGEFILE64_SOURCE
+CFLAGS  = -O3 $(INCLUDE) -Wall -Wno-pointer-sign -fno-strict-aliasing -D_LARGEFILE64_SOURCE
 AR	= ppc-morphos-ar
 CVI = /gg/bin/cvinclude.pl
 

@@ -357,7 +357,7 @@ torturethread: torturethread.o
 	$(CC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -f $(TARGETS) *.o $(DEPS)
+	rm -f $(TARGETS) *.o $(DEPS) $(COBJS) $(TESTLIB)
 
 %.d : %.c
 	@echo Making dependencies for $<
