@@ -63,9 +63,12 @@ struct Library       *ThreadPoolBase = NULL;
 struct Library       *DynLoadBase = NULL;
 struct Library       *OpenURLBase = NULL;
 struct Library       *GadToolsBase = NULL;
-// struct Library		*LowLevelBase = NULL;
+struct Library		 *AslBase = NULL;
+struct Library		 *InputBase = NULL;
 
 struct timerequest   GlobalTimeReq;
+struct IOStdReq 	 *iorequest;
+struct MsgPort 		 *port;
 
 u_int32_t DataL1LineSize = 0;
 BYTE HasAltiVec = 0;
@@ -148,12 +151,25 @@ static int init_libs(struct SDL_Library *base, struct ExecBase *SysBase)
 	{
 		TimerBase = (struct Library *)GlobalTimeReq.tr_node.io_Device;
 
-		sort_ctdt(base);
-		init_system(base, SysBase);
+		if((port = CreateMsgPort()) != NULL) 
+		{
+			if((iorequest = (struct IOStdReq *)CreateIORequest(port, sizeof(*iorequest))) != NULL) 
+			{
+				if(OpenDevice("input.device", 0, (struct IORequest*)iorequest, 0) == 0)
+      			{
+					InputBase = (struct Library *)iorequest->io_Device;
 
-		return 1;
+					sort_ctdt(base);
+					init_system(base, SysBase);
+					return 1;
+				}
+				DeleteIORequest((struct IORequest *)iorequest);
+
+			}
+			DeleteMsgPort(port);
+			
+		}
 	}
-
 	return 0;
 }
 
@@ -226,6 +242,12 @@ static BPTR DeleteLib(struct SDL_Library *LibBase, struct ExecBase *SysBase)
 		CloseLibrary((struct Library *)LibBase->MyDOSBase);
 		CloseLibrary((struct Library *)LibBase->MyIntuiBase);
 		CloseLibrary(UtilityBase);
+		
+		CloseDevice((struct IORequest*)iorequest);
+		DeleteIORequest((struct IORequest *)iorequest);
+
+		DeleteMsgPort(port);
+		
 		CloseDevice(&GlobalTimeReq.tr_node);
 
 		SegList = LibBase->SegList;
@@ -259,6 +281,7 @@ static void UserLibClose(struct SDL_Library *LibBase, struct ExecBase *SysBase)
 	CloseLibrary(DynLoadBase);
 	CloseLibrary(OpenURLBase);
 	CloseLibrary(GadToolsBase);
+	CloseLibrary(AslBase);
 	
 	CyberGfxBase     = LibBase->MyCyberGfxBase     = NULL;
 	KeymapBase       = LibBase->MyKeymapBase       = NULL;
@@ -277,6 +300,7 @@ static void UserLibClose(struct SDL_Library *LibBase, struct ExecBase *SysBase)
 	DynLoadBase = NULL;
 	OpenURLBase = NULL;
 	GadToolsBase = NULL;
+	AslBase = NULL;
 }
 
 /**********************************************************************
@@ -385,6 +409,7 @@ struct Library *LIB_Open(void)
 		 && ((ThreadPoolBase   =                                     OpenLibrary("threadpool.library"   , 53)) != NULL)
          && ((DynLoadBase      =                                     OpenLibrary("dynload.library"      ,  0)) != NULL)
 		 && ((GadToolsBase	   =									 OpenLibrary("gadtools.library"		,  0)) != NULL)
+		 && ((AslBase	   	   =									 OpenLibrary("asl.library"			, 53)) != NULL)
 		 && ((OpenURLBase 	   = 									 OpenLibrary("openurl.library"		,  0)) != NULL))
 		{
 			LibBase->Alloc = 1;
