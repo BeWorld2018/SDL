@@ -33,6 +33,7 @@
 APTR threadpool;
 struct timerequest GlobalTimeReq;
 struct Library *MyTimerBase = NULL;
+const static char *poolname = "SDL3";
 
 bool MOS_InitThreadSubSystem(void)
 {
@@ -44,7 +45,7 @@ bool MOS_InitThreadSubSystem(void)
 		return false;
 	}
 	
-	threadpool = CreateThreadPoolTags(32768, THREADPOOL_Name, (size_t)"SDL3", /*THREADPOOL_DataSegment, (size_t)LibBase->DataSeg,*/ TAG_DONE);
+	threadpool = CreateThreadPoolTags(32768, THREADPOOL_Name, poolname, /*THREADPOOL_DataSegment, (size_t)LibBase->DataSeg,*/ TAG_DONE);
 	if (threadpool == NULL) {
 		
 		D(kprintf("[%s] CreateThreadPoolTags failed\n", __FUCNTION__));
