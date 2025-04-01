@@ -1,8 +1,9 @@
 # Makefile to build the MorphOS SDL tests
 
-CC     = ppc-morphos-gcc-9
+AR = ppc-morphos-ar
+CC     = ppc-morphos-gcc-11
 CFLAGS = -noixemul -O1 -g -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
-LIBS	= -noixemul -L.. -lSDL3_test -lSDL3 -lGL -lm -lpthread
+LIBS	= -noixemul -L. -lSDL3_test -L../src/core/morphos/devenv/lib/ -lSDL3 -lGL -lm
 
 SRC_FILES = $(wildcard *.c)
 #DEPS = $(SRC_FILES:.c=.d)
@@ -83,7 +84,16 @@ TARGETS = littleSDL checkkeys \
 
 # 	testloadso \ 	testprocess \
 
-all: $(TARGETS)
+CSRCS = SDL_test_assert.c SDL_test_common.c SDL_test_compare.c \
+        SDL_test_crc32.c SDL_test_font.c SDL_test_fuzzer.c SDL_test_harness.c \
+        SDL_test_log.c SDL_test_md5.c SDL_test_memory.c
+TESTLIB = libSDL3_test.a
+COBJS = $(addprefix ../src/test/, $(CSRCS:.c=.o))
+
+all: $(TESTLIB) $(TARGETS)
+
+$(TESTLIB): $(COBJS)
+	$(AR) crvs $@ $^
 
 checkkeys: checkkeys.o
 	$(CC) -o $@ $^ $(LIBS)
