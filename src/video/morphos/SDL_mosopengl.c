@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -104,38 +104,18 @@ MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	SDL_VideoData *vd = data->videodata;
 
-	MOS_GL_FreeBitMap(_this, window);
+	if (data->bitmap != NULL)
+		MOS_GL_FreeBitMap(_this, window);
 	
-	int h = 0, w = 0;
-	struct BitMap * friend_bitmap;
-	ULONG depth = 0;
-	if (data->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP) {
-		//D("[%s] DESKTOP FULLSCREEN\n", __FUNCTION__);
-		w = vd->WScreen->Width;
-		h = vd->WScreen->Height;
-		friend_bitmap = data->win->RPort->BitMap;	
-	} else if (data->winflags & SDL_MOS_WINDOW_FULLSCREEN){
-		//D("[%s] REAL FULLSCREEN\n", __FUNCTION__);
-		w = vd->CustomScreen->Width;
-		h = vd->CustomScreen->Height;
-		friend_bitmap=vd->CustomScreen->RastPort.BitMap;
-	} else if (data->win) {
-		//D("[%s] WINDOWED\n", __FUNCTION__);
-		w = window->w;
-		h= window->h;	
-		friend_bitmap =	data->win->RPort->BitMap;	
-	}  else {
-		if (vd->WScreen == NULL)
-			MOS_GetScreen(vd->VideoDevice, vd->FullScreen, (window->flags & SDL_WINDOW_OPENGL) != 0);
-		// SDL_WINDOW_HIDDEN
-		w = window->w;
-		h= window->h;
-		friend_bitmap =	vd->WScreen->RastPort.BitMap;	
-	} 
-	depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
+	ULONG depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
 
+	int w = getv(data->win, WA_InnerWidth);
+	int h = getv(data->win, WA_InnerHeight);
+	
+	D("[%s] AllocBitMap w=%d h=%d depth=%d\n", __FUNCTION__, w, h, (int)depth);
+	
 	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
@@ -144,7 +124,6 @@ MOS_GL_InitContext(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	SDL_VideoData *vd = data->videodata;
 	
 	if (data->__tglContext != NULL) {
 		GLADestroyContext(data->__tglContext);
@@ -163,19 +142,21 @@ MOS_GL_InitContext(_THIS, SDL_Window * window)
 		tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
 		tgltags[0].ti_Data = (IPTR)data->bitmap;
 	} else {
-		if (vd->CustomScreen != NULL && (data->winflags & SDL_MOS_WINDOW_FULLSCREEN) && (!(data->winflags & SDL_MOS_WINDOW_FULLSCREEN_DESKTOP))) {
-			tgltags[0].ti_Tag = TGL_CONTEXT_SCREEN;
-			tgltags[0].ti_Data = (IPTR)vd->CustomScreen;		
-		} else {
-			tgltags[0].ti_Tag = TGL_CONTEXT_WINDOW;
-			tgltags[0].ti_Data = (IPTR)data->win;			
-		}
+		D("[%s] Failed to AllocBitmap !", __FUNCTION__);	
+		return SDL_FALSE;
 	}
 		
 	// Initialize new context
-    if (GLAInitializeContext(__tglContext, tgltags)) {
+ 	int success = GLAInitializeContext(__tglContext, tgltags);
+	if (success) {
 		data->__tglContext = __tglContext;
-        return SDL_TRUE;
+		
+		// Clean Screen
+		if (!window->flags & SDL_WINDOW_FULLSCREEN) {
+			GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
+			GLClear(__tglContext, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+		}
+		return SDL_TRUE;	
 	}
 
 	return SDL_FALSE;		

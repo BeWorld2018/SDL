@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -25,6 +25,9 @@
 #include <cybergraphx/cybergraphics.h>
 #include <intuition/intuition.h>
 #include <proto/cybergraphics.h>
+#include <graphics/rpattr.h>
+#include <proto/graphics.h>
+//#define OLDFB
 
 #ifndef MIN
 #   define MIN(x,y) ((x)<(y)?(x):(y))
@@ -35,11 +38,19 @@ void
 MOS_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	if (data->fb) {
-		D("[%s]\n", __FUNCTION__);
-		SDL_free(data->fb);
-		data->fb = NULL;
+#ifdef OLDFB
+	if (data) {
+		if (data->fb) {
+			SDL_free(data->fb);
+			data->fb = NULL;
+		}
 	}
+#else
+	if (data->bitmap) {
+        FreeBitMap(data->bitmap);
+        data->bitmap = NULL;
+    }
+#endif
 }
 
 int
@@ -47,6 +58,7 @@ MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
                             void ** pixels, int *pitch)
 {
 	D("[%s]\n", __FUNCTION__);
+#ifdef OLDFB
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 	SDL_Framebuffer *fb;
@@ -81,7 +93,47 @@ MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
 	} else {
 		return SDL_OutOfMemory();
 	}
+#else
+	APTR lock;
+    APTR base_address;
+    Uint32 bytes_per_row;
 
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+    if (data->bitmap) {
+        FreeBitMap(data->bitmap);
+    }
+
+	if (!data->win) {
+        return SDL_SetError("No system window");
+    }
+	
+    *format = SDL_PIXELFORMAT_BGRA8888;
+	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
+	Uint32 depth =  GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES|BMF_CLEAR, friend_bitmap);
+	if (!data->bitmap) {
+		return SDL_SetError("Failed to allocate bitmap for framebuffer");
+	} 
+		
+	D("[%s] Allocate bitmap %d x %d x %d for framebuffer\n", __FUNCTION__, window->w, window->h, depth);
+	lock = LockBitMapTags(
+        data->bitmap,
+        LBMI_BASEADDRESS, &base_address,
+        LBMI_BYTESPERROW, &bytes_per_row,
+        TAG_DONE);
+
+    if (lock) {
+        *pixels = base_address;
+        *pitch = bytes_per_row;
+
+        UnLockBitMap(lock);
+    } else {
+        FreeBitMap(data->bitmap);
+        data->bitmap = NULL;
+        return SDL_SetError("Failed to lock framebuffer bitmap");
+    }
+
+#endif
 	return 0;
 }
 
@@ -89,7 +141,8 @@ int
 MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-    if (!data || !data->win || !data->fb) {
+#ifdef OLDFB 
+	if (!data || !data->win || !data->fb) {
         return 0;
     }
 
@@ -130,6 +183,24 @@ MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, 
 				break; 
 		}
 	}
-    
+ #else	
+	if (data->bitmap && data->win) {
+		
+		const struct IBox windowBox = {
+                data->win->BorderLeft,
+                data->win->BorderTop,
+                data->win->Width - data->win->BorderLeft - data->win->BorderRight,
+                data->win->Height - data->win->BorderTop - data->win->BorderBottom };
+		
+		for (int i = 0; i < numrects; ++i) {
+            const SDL_Rect * r = &rects[i];
+			int dx = r->x + windowBox.Left;
+			int dy = r->y + windowBox.Top;
+		    int w =  MIN(r->w, windowBox.Width);
+			int h = MIN(r->h, windowBox.Height);
+			BltBitMapRastPort(data->bitmap,  r->x, r->y, data->win->RPort, dx, dy, w, h, 0xc0);
+		}
+	}
+#endif  
 	return 0;
 }
