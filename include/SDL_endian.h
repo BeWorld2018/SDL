@@ -353,12 +353,6 @@ SDL_SwapFloat(float x)
     return swapper.f;
 }
 
-#ifdef __MORPHOS__
-#include <exec/types.h>
-extern void SDL_CopyAndSwap16(APTR srcx, APTR destx, LONG units);
-extern void SDL_CopyAndSwap32(APTR srcx, APTR destx, LONG units);
-#endif
-
 /* remove extra macros */
 #undef HAS_BROKEN_BSWAP
 #undef HAS_BUILTIN_BSWAP16
