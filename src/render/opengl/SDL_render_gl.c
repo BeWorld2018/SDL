@@ -21,6 +21,9 @@
 #include "SDL_internal.h"
 
 #ifdef SDL_VIDEO_RENDER_OGL
+#ifdef __MORPHOS__
+#define _NO_PPCINLINE
+#endif
 #include "../../video/SDL_sysvideo.h" // For SDL_RecreateWindow
 #include <SDL3/SDL_opengl.h>
 #include "../SDL_sysrender.h"
@@ -413,13 +416,21 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
     case SDL_PIXELFORMAT_XRGB8888:
         *internalFormat = GL_RGBA8;
         *format = GL_BGRA;
+#ifdef __MORPHOS__
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
+#endif
         break;
     case SDL_PIXELFORMAT_ABGR8888:
     case SDL_PIXELFORMAT_XBGR8888:
         *internalFormat = GL_RGBA8;
         *format = GL_RGBA;
+#ifdef __MORPHOS__
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
+#endif
         break;
     case SDL_PIXELFORMAT_YV12:
     case SDL_PIXELFORMAT_IYUV:

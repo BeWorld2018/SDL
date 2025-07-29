@@ -39,6 +39,7 @@ bool SDL_GetPowerInfo_PSP(SDL_PowerState *, int *, int *);
 bool SDL_GetPowerInfo_VITA(SDL_PowerState *, int *, int *);
 bool SDL_GetPowerInfo_N3DS(SDL_PowerState *, int *, int *);
 bool SDL_GetPowerInfo_Emscripten(SDL_PowerState *, int *, int *);
+bool SDL_GetPowerInfo_MorphOS(SDL_PowerState *, int *, int *);
 
 // this one is static in SDL_power.c
 /* bool SDL_GetPowerInfo_Hardwired(SDL_PowerState *, int *, int *);*/

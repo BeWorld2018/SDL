@@ -138,6 +138,9 @@ static VideoBootStrap *bootstrap[] = {
 #ifdef SDL_VIDEO_DRIVER_EMSCRIPTEN
     &Emscripten_bootstrap,
 #endif
+#if SDL_VIDEO_DRIVER_MORPHOS
+    &MORPHOS_bootstrap,
+#endif
 #ifdef SDL_VIDEO_DRIVER_QNX
     &QNX_bootstrap,
 #endif
@@ -283,6 +286,17 @@ typedef struct
 
 static Uint32 SDL_DefaultGraphicsBackends(SDL_VideoDevice *_this)
 {
+#if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MORPHOS))	
+	const char *render_driver = NULL;
+	render_driver = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
+	if (render_driver && SDL_strcasecmp(render_driver, SDL_SOFTWARE_RENDERER) == 0) {
+		// No need SDL_WINDOW_OPENGL (load tinygl) if SOFTWARE is forced
+        render_driver = NULL;
+		return 0;
+    } else if (_this->GL_CreateContext) {
+		return SDL_WINDOW_OPENGL;
+    }
+#endif	
 #if (defined(SDL_VIDEO_OPENGL) && defined(SDL_PLATFORM_MACOS)) || (defined(SDL_PLATFORM_IOS) && !TARGET_OS_MACCATALYST)
     if (_this->GL_CreateContext) {
         return SDL_WINDOW_OPENGL;
@@ -1519,9 +1533,11 @@ bool SDL_SetDisplayModeForDisplay(SDL_VideoDisplay *display, SDL_DisplayMode *mo
         mode = &display->desktop_mode;
     }
 
+#if !defined(SDL_PLATFORM_MORPHOS)
     if (mode == display->current_mode) {
         return true;
     }
+#endif
 
     // Actually change the display mode
     if (_this->SetDisplayMode) {
@@ -2041,12 +2057,19 @@ bool SDL_UpdateFullscreenMode(SDL_Window *window, SDL_FullscreenOp fullscreen, b
     } else {
         bool resized = false;
 
+#if defined(SDL_PLATFORM_MORPHOS)
+        if (window->is_destroying) {
+            D("Window is destroying, ignore mode change");
+            goto done;
+        }
+#else
         // Restore the desktop mode
         if (display) {
             display->fullscreen_active = false;
 
             SDL_SetDisplayModeForDisplay(display, NULL);
         }
+#endif
         if (commit) {
             SDL_FullscreenResult ret = SDL_FULLSCREEN_SUCCEEDED;
             if (_this->SetWindowFullscreen) {
@@ -2462,7 +2485,12 @@ SDL_Window *SDL_CreateWindowWithProperties(SDL_PropertiesID props)
             return NULL;
         }
         if (!SDL_GL_LoadLibrary(NULL)) {
+#if defined(SDL_PLATFORM_MORPHOS)
+			// mode software if tinygl failed !
+			flags &= ~SDL_WINDOW_OPENGL;
+#else
             return NULL;
+#endif
         }
     }
 

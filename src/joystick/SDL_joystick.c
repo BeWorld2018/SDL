@@ -100,6 +100,9 @@ static SDL_JoystickDriver *SDL_joystick_drivers[] = {
 #ifdef SDL_JOYSTICK_VIRTUAL
     &SDL_VIRTUAL_JoystickDriver,
 #endif
+#ifdef SDL_JOYSTICK_MORPHOS
+    &SDL_MORPHOS_JoystickDriver,
+#endif
 #ifdef SDL_JOYSTICK_VITA
     &SDL_VITA_JoystickDriver,
 #endif

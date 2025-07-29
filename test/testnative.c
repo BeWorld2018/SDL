@@ -39,6 +39,9 @@ static NativeWindowFactory *factories[] = {
 #ifdef TEST_NATIVE_COCOA
     &CocoaWindowFactory,
 #endif
+#ifdef TEST_NATIVE_MORPHOS
+    &MorphOSWindowFactory,
+#endif
     NULL
 };
 static NativeWindowFactory *factory = NULL;

@@ -14,6 +14,10 @@
 
 #ifdef HAVE_OPENGL
 
+#ifdef __MORPHOS__
+#define _NO_PPCINLINE
+#endif
+
 #include <stdlib.h>
 
 #include <SDL3/SDL_opengl.h>
