@@ -60,6 +60,8 @@ SOURCES = \
 	./src/joystick/morphos/*.c \
 	./src/joystick/virtual/*.c \
 	./src/libm/*.c \
+	./src/loadso/morphos/*.c \
+	./src/loadso/morphos/libdll/*.c \
 	./src/locale/*.c \
 	./src/locale/morphos/*.c \
 	./src/main/generic/SDL_sysmain_callbacks.c \

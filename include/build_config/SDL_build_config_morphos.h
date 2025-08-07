@@ -221,6 +221,7 @@
 #define SDL_SENSOR_DUMMY 1
 
 /* Enable various shared object loading systems */
+#define SDL_LOADSO_MORPHOS 1
 /* #undef SDL_LOADSO_DLOPEN */
 /* #undef SDL_LOADSO_DUMMY */
 

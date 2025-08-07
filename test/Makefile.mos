@@ -42,6 +42,7 @@ TARGETS = littleSDL checkkeys \
 	testime \
 	testintersections \
 	testkeys \
+	testloadso \
 	testlocale \
 	testlock \
 	testmessage \
