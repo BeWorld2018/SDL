@@ -1690,6 +1690,21 @@ SDL_DisplayID SDL_GetDisplayForRect(const SDL_Rect *rect)
     return GetDisplayForRect(rect->x, rect->y, rect->w, rect->h);
 }
 
+static SDL_DisplayID GetDisplayAtOrigin(int x, int y)
+{
+    for (int i = 0; i < _this->num_displays; ++i) {
+        SDL_Rect rect;
+        const SDL_DisplayID cur_id = _this->displays[i]->id;
+        if (SDL_GetDisplayBounds(cur_id, &rect)) {
+            if (x == rect.x && y == rect.y) {
+                return cur_id;
+            }
+        }
+    }
+
+    return 0;
+}
+
 SDL_DisplayID SDL_GetDisplayForWindowPosition(SDL_Window *window)
 {
     int x, y;
@@ -1743,13 +1758,20 @@ SDL_VideoDisplay *SDL_GetVideoDisplayForFullscreenWindow(SDL_Window *window)
      * the current position won't be updated at the time of the fullscreen call.
      */
     if (!displayID) {
+        displayID = window->pending_displayID;
+    }
+    if (!displayID) {
         // Use the pending position and dimensions, if available, otherwise, use the current.
         const int x = window->last_position_pending ? window->pending.x : window->x;
         const int y = window->last_position_pending ? window->pending.y : window->y;
         const int w = window->last_size_pending ? window->pending.w : window->w;
         const int h = window->last_size_pending ? window->pending.h : window->h;
 
-        displayID = GetDisplayForRect(x, y, w, h);
+        // Check if the window is exactly at the origin of a display. Otherwise, fall back to the generic check.
+        displayID = GetDisplayAtOrigin(x, y);
+        if (!displayID) {
+            displayID = GetDisplayForRect(x, y, w, h);
+        }
     }
     if (!displayID) {
         // Use the primary display for a window if we can't find it anywhere else
@@ -2387,6 +2409,7 @@ SDL_Window *SDL_CreateWindowWithProperties(SDL_PropertiesID props)
     SDL_Window *parent = (SDL_Window *)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_CREATE_PARENT_POINTER, NULL);
     SDL_WindowFlags flags = SDL_GetWindowFlagProperties(props);
     SDL_WindowFlags type_flags, graphics_flags;
+    SDL_DisplayID displayID = 0;
     bool undefined_x = false;
     bool undefined_y = false;
     bool external_graphics_context = SDL_GetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN, false);
@@ -2446,7 +2469,6 @@ SDL_Window *SDL_CreateWindowWithProperties(SDL_PropertiesID props)
 
     if (SDL_WINDOWPOS_ISUNDEFINED(x) || SDL_WINDOWPOS_ISUNDEFINED(y) ||
         SDL_WINDOWPOS_ISCENTERED(x) || SDL_WINDOWPOS_ISCENTERED(y)) {
-        SDL_DisplayID displayID = 0;
         SDL_Rect bounds;
 
         if ((SDL_WINDOWPOS_ISUNDEFINED(x) || SDL_WINDOWPOS_ISCENTERED(x)) && (x & 0xFFFF)) {
@@ -2534,6 +2556,7 @@ SDL_Window *SDL_CreateWindowWithProperties(SDL_PropertiesID props)
     window->floating.h = window->windowed.h = window->h = h;
     window->undefined_x = undefined_x;
     window->undefined_y = undefined_y;
+    window->pending_displayID = displayID;
 
     SDL_VideoDisplay *display = SDL_GetVideoDisplayForWindow(window);
     if (display) {
@@ -2637,6 +2660,71 @@ SDL_Window *SDL_CreatePopupWindow(SDL_Window *parent, int offset_x, int offset_y
     window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     return window;
+}
+
+static bool SDL_ReconfigureWindowInternal(SDL_Window *window, SDL_WindowFlags flags)
+{
+    bool loaded_opengl = false;
+    bool loaded_vulkan = false;
+
+    if (!_this->ReconfigureWindow) {
+        return false;
+    }
+
+    // Don't attempt to reconfigure external windows.
+    if (window->flags & SDL_WINDOW_EXTERNAL) {
+        return false;
+    }
+
+    // Only attempt to reconfigure if the window has no existing graphics flags.
+    if (window->flags & (SDL_WINDOW_OPENGL | SDL_WINDOW_METAL | SDL_WINDOW_VULKAN)) {
+        return false;
+    }
+
+    const SDL_WindowFlags graphics_flags = flags & (SDL_WINDOW_OPENGL | SDL_WINDOW_METAL | SDL_WINDOW_VULKAN);
+    if (graphics_flags & (graphics_flags - 1)) {
+        return SDL_SetError("Conflicting window flags specified");
+    }
+
+    if ((flags & SDL_WINDOW_OPENGL) && !_this->GL_CreateContext) {
+        return SDL_ContextNotSupported("OpenGL");
+    }
+    if ((flags & SDL_WINDOW_VULKAN) && !_this->Vulkan_CreateSurface) {
+        return SDL_ContextNotSupported("Vulkan");
+    }
+    if ((flags & SDL_WINDOW_METAL) && !_this->Metal_CreateView) {
+        return SDL_ContextNotSupported("Metal");
+    }
+
+    SDL_DestroyWindowSurface(window);
+
+    if (graphics_flags & SDL_WINDOW_OPENGL) {
+        loaded_opengl = SDL_GL_LoadLibrary(NULL);
+        if (!loaded_opengl) {
+            return false;
+        }
+    } else if (graphics_flags & SDL_WINDOW_VULKAN) {
+        loaded_vulkan = SDL_GL_LoadLibrary(NULL);
+        if (!loaded_vulkan) {
+            return false;
+        }
+    }
+
+    // Try to reconfigure the window for the requested graphics flags.
+    if (!_this->ReconfigureWindow(_this, window, graphics_flags)) {
+        if (loaded_opengl) {
+            SDL_GL_UnloadLibrary();
+        }
+        if (loaded_vulkan) {
+            SDL_Vulkan_UnloadLibrary();
+        }
+
+        return false;
+    }
+
+    window->flags |= graphics_flags;
+
+    return true;
 }
 
 bool SDL_RecreateWindow(SDL_Window *window, SDL_WindowFlags flags)
@@ -2793,6 +2881,16 @@ bool SDL_RecreateWindow(SDL_Window *window, SDL_WindowFlags flags)
     return true;
 }
 
+bool SDL_ReconfigureWindow(SDL_Window *window, SDL_WindowFlags flags)
+{
+    // Try to reconfigure the window for the desired flags first, before completely destroying and recreating it.
+    if (!SDL_ReconfigureWindowInternal(window, flags)) {
+        return SDL_RecreateWindow(window, flags);
+    }
+
+    return true;
+}
+
 bool SDL_HasWindows(void)
 {
     return _this && _this->windows;
@@ -2913,6 +3011,7 @@ bool SDL_SetWindowPosition(SDL_Window *window, int x, int y)
     const int h = window->last_size_pending ? window->pending.h : window->windowed.h;
 
     original_displayID = SDL_GetDisplayForWindow(window);
+    window->pending_displayID = 0;
 
     if (SDL_WINDOWPOS_ISUNDEFINED(x)) {
         x = window->windowed.x;
@@ -2933,6 +3032,8 @@ bool SDL_SetWindowPosition(SDL_Window *window, int x, int y)
             displayID = SDL_GetPrimaryDisplay();
         }
 
+        window->pending_displayID = displayID;
+
         SDL_zero(bounds);
         if (!SDL_GetDisplayUsableBounds(displayID, &bounds) || w > bounds.w || h > bounds.h) {
             if (!SDL_GetDisplayBounds(displayID, &bounds)) {
@@ -2945,6 +3046,12 @@ bool SDL_SetWindowPosition(SDL_Window *window, int x, int y)
         if (SDL_WINDOWPOS_ISCENTERED(y)) {
             y = bounds.y + (bounds.h - h) / 2;
         }
+    } else {
+        /* See if the requested window position matches the origin of any displays and set
+         * the pending fullscreen display ID if it does. This needs to be set early in case
+         * the window is prevented from moving to the exact origin due to struts.
+         */
+        window->pending_displayID = GetDisplayAtOrigin(x, y);
     }
 
     window->pending.x = x;
