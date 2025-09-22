@@ -1,7 +1,8 @@
 # Makefile to build the MorphOS SDL tests
 
 AR = ppc-morphos-ar
-CC	= ppc-morphos-gcc-11
+CC	= ppc-morphos-gcc-9
+STRIP = ppc-morphos-strip
 CFLAGS	= -noixemul -O2 -Wall -g -I../include -DHAVE_OPENGL
 LIBS	= -L. -lSDL2test -L../src/core/morphos/devenv/lib/ -lSDL2 -lGL -noixemul -lm
 
@@ -86,14 +87,16 @@ all: $(TESTLIB) $(TARGETS)
 $(TESTLIB): $(COBJS)
 	$(AR) crvs $@ $^
 
-checkkeys: checkkeys.o
+checkkeys: checkkeys.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 	
 checkkeysthreads: checkkeysthreads.o
 	$(CC) -o $@ $^ $(LIBS)
 
 controllermap: controllermap.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 loopwave: loopwave.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
@@ -159,6 +162,7 @@ testhittesting: testhittesting.o
 
 testdraw2: testdraw2.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 testdrawchessboard: testdrawchessboard.o
 	$(CC) -o $@ $^ $(LIBS)
@@ -174,6 +178,7 @@ testfile: testfile.o
 
 testgamecontroller: testgamecontroller.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
  
 testgeometry: testgeometry.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
@@ -210,9 +215,11 @@ testime: testime.o testutils.o
 
 testjoystick: testjoystick.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 testkeys: testkeys.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 testlocale: testlocale.o
 	$(CC) -o $@ $^ $(LIBS)
@@ -264,6 +271,7 @@ testshape: testshape.o
 
 testsprite2: testsprite2.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 testspriteminimal: testspriteminimal.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
@@ -282,6 +290,7 @@ testviewport: testviewport.o testutils.o
 
 testwm2: testwm2.o
 	$(CC) -o $@ $^ $(LIBS)
+	$(STRIP) $@
 
 testyuv: testyuv.o testyuv_cvt.o
 	$(CC) -o $@ $^ $(LIBS)
