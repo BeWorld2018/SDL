@@ -1262,8 +1262,8 @@ extern "C" {
  *
  * This variable can be set to the following values:
  *
- * - "0": RAWINPUT drivers are not used
- * - "1": RAWINPUT drivers are used (the default)
+ * - "0": RAWINPUT drivers are not used (the default)
+ * - "1": RAWINPUT drivers are used
  */
 #define SDL_HINT_JOYSTICK_RAWINPUT "SDL_JOYSTICK_RAWINPUT"
 
@@ -2023,6 +2023,37 @@ extern "C" {
  * will be loaded and interpreted as the value of the variable.
  */
 #define SDL_HINT_ROG_GAMEPAD_MICE_EXCLUDED "SDL_ROG_GAMEPAD_MICE_EXCLUDED"
+
+/**
+ * Variable controlling the width of the PS2's framebuffer in pixels
+ *
+ * By default, this variable is "640"
+ */
+#define SDL_HINT_PS2_GS_WIDTH    "SDL_PS2_GS_WIDTH"
+
+/**
+ * Variable controlling the height of the PS2's framebuffer in pixels
+ *
+ * By default, this variable is "448"
+ */
+#define SDL_HINT_PS2_GS_HEIGHT    "SDL_PS2_GS_HEIGHT"
+
+/**
+ * Variable controlling whether the signal is interlaced or progressive
+ *
+ * - "0": Image is interlaced. (default)
+ * - "1": Image is progressive
+ */
+#define SDL_HINT_PS2_GS_PROGRESSIVE    "SDL_PS2_GS_PROGRESSIVE"
+
+/**
+ * Variable controlling the video mode of the console
+ *
+ * - "": Console-native. (default)
+ * - "NTSC": 60hz region
+ * - "PAL": 50hz region
+ */
+#define SDL_HINT_PS2_GS_MODE    "SDL_PS2_GS_MODE"
 
 /**
  * A variable controlling if VSYNC is automatically disable if doesn't reach
