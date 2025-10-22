@@ -1000,6 +1000,8 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 				data->wasMaximized = TRUE;
 				window->flags &= ~SDL_WINDOW_MAXIMIZED;
 			}
+			SDL_SetMouseFocus(window);
+
 		} else if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
 			if (data->wasMaximized) {
 				window->flags |= SDL_WINDOW_MAXIMIZED;
