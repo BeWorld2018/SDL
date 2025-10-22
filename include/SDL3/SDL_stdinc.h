@@ -62,6 +62,13 @@ typedef signed __int32 int32_t;
 typedef unsigned __int32 uint32_t;
 typedef signed __int64 int64_t;
 typedef unsigned __int64 uint64_t;
+#ifndef _INTPTR_T_DEFINED
+#ifdef _WIN64
+typedef __int64 intptr_t;
+#else
+typedef int intptr_t;
+#endif
+#endif
 #ifndef _UINTPTR_T_DEFINED
 #ifdef _WIN64
 typedef unsigned __int64 uintptr_t;
@@ -5992,6 +5999,10 @@ size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t size);
 
 #if !defined(HAVE_WCSLCAT) && !defined(wcslcat)
 size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t size);
+#endif
+
+#if !defined(HAVE_STRTOK_R) && !defined(strtok_r)
+char *strtok_r(char *str, const char *delim, char **saveptr);
 #endif
 
 #ifndef _WIN32

@@ -761,12 +761,44 @@ static void Cocoa_WaitForMiniaturizable(SDL_Window *window)
     }
 }
 
+static void Cocoa_IncrementCursorFrame(void)
+{
+    SDL_Mouse *mouse = SDL_GetMouse();
+
+    if (mouse->cur_cursor) {
+        SDL_CursorData *cdata = mouse->cur_cursor->internal;
+        cdata->current_frame = (cdata->current_frame + 1) % cdata->num_cursors;
+
+        SDL_Window *focus = SDL_GetMouseFocus();
+        if (focus) {
+            SDL_CocoaWindowData *_data = (__bridge SDL_CocoaWindowData *)focus->internal;
+            [_data.nswindow invalidateCursorRectsForView:_data.sdlContentView];
+        }
+    }
+}
+
 static NSCursor *Cocoa_GetDesiredCursor(void)
 {
     SDL_Mouse *mouse = SDL_GetMouse();
 
     if (mouse->cursor_visible && mouse->cur_cursor && !mouse->relative_mode) {
-        return (__bridge NSCursor *)mouse->cur_cursor->internal;
+        SDL_CursorData *cdata = mouse->cur_cursor->internal;
+
+        if (cdata) {
+            if (cdata->num_cursors > 1 && cdata->frames[cdata->current_frame].duration && !cdata->frameTimer) {
+                const NSTimeInterval interval = cdata->frames[cdata->current_frame].duration * 0.001;
+                cdata->frameTimer = [NSTimer timerWithTimeInterval:interval
+                                                           repeats:NO
+                                                             block:^(NSTimer *timer) {
+                                                               cdata->frameTimer = nil;
+                                                               Cocoa_IncrementCursorFrame();
+                                                             }];
+
+                [[NSRunLoop currentRunLoop] addTimer:cdata->frameTimer forMode:NSRunLoopCommonModes];
+            }
+
+            return (__bridge NSCursor *)cdata->frames[cdata->current_frame].cursor;
+        }
     }
 
     return [NSCursor invisibleCursor];
@@ -1862,6 +1894,19 @@ static void Cocoa_SendMouseButtonClicks(SDL_Mouse *mouse, NSEvent *theEvent, SDL
     x = point.x;
     y = (window->h - point.y);
 
+    // On macOS 26 if you move away from a space and then back, mouse motion events will have incorrect
+    // values at the top of the screen. The global mouse position query is still correct, so we'll fall
+    // back to that until this is fixed by Apple. Mouse button events are interestingly not affected.
+    if (@available(macOS 26.0, *)) {
+        if ([_data.listener isInFullscreenSpace]) {
+            int posx = 0, posy = 0;
+            SDL_GetWindowPosition(window, &posx, &posy);
+            SDL_GetGlobalMouseState(&x, &y);
+            x -= posx;
+            y -= posy;
+        }
+    }
+
     if (NSAppKitVersionNumber >= NSAppKitVersionNumber10_13_2) {
         // Mouse grab is taken care of by the confinement rect
     } else {
@@ -1975,6 +2020,27 @@ static void Cocoa_SendMouseButtonClicks(SDL_Mouse *mouse, NSEvent *theEvent, SDL
 - (void)touchesCancelledWithEvent:(NSEvent *)theEvent
 {
     [self handleTouches:NSTouchPhaseCancelled withEvent:theEvent];
+}
+
+- (void)magnifyWithEvent:(NSEvent *)theEvent
+{
+    switch ([theEvent phase]) {
+    case NSEventPhaseBegan:
+        SDL_SendPinch(SDL_EVENT_PINCH_BEGIN, Cocoa_GetEventTimestamp([theEvent timestamp]), NULL, 0);
+        break;
+    case NSEventPhaseChanged:
+        {
+            CGFloat scale = 1.0f + [theEvent magnification];
+            SDL_SendPinch(SDL_EVENT_PINCH_UPDATE, Cocoa_GetEventTimestamp([theEvent timestamp]), NULL, scale);
+        }
+        break;
+    case NSEventPhaseEnded:
+    case NSEventPhaseCancelled:
+        SDL_SendPinch(SDL_EVENT_PINCH_END, Cocoa_GetEventTimestamp([theEvent timestamp]), NULL, 0);
+        break;
+    default:
+        break;
+    }
 }
 
 - (void)handleTouches:(NSTouchPhase)phase withEvent:(NSEvent *)theEvent

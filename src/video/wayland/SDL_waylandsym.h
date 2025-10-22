@@ -88,6 +88,10 @@ SDL_WAYLAND_SYM(struct wl_proxy *, wl_proxy_marshal_flags, (struct wl_proxy *pro
 SDL_WAYLAND_SYM(struct wl_proxy *, wl_proxy_marshal_array_flags, (struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, uint32_t version,  uint32_t flags, union wl_argument *args))
 #endif
 
+#if SDL_WAYLAND_CHECK_VERSION(1, 23, 0) || defined(SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC)
+SDL_WAYLAND_SYM_OPT(struct wl_event_queue *, wl_display_create_queue_with_name, (struct wl_display *display, const char *name))
+#endif
+
 #if 0 // TODO RECONNECT: See waylandvideo.c for more information!
 #if SDL_WAYLAND_CHECK_VERSION(broken, on, purpose)
 SDL_WAYLAND_SYM(int, wl_display_reconnect, (struct wl_display *))
@@ -151,22 +155,19 @@ SDL_WAYLAND_SYM(enum xkb_compose_status, xkb_compose_state_get_status, (struct x
 SDL_WAYLAND_SYM(xkb_keysym_t, xkb_compose_state_get_one_sym, (struct xkb_compose_state *) )
 SDL_WAYLAND_SYM(void, xkb_keymap_key_for_each, (struct xkb_keymap *, xkb_keymap_key_iter_t, void *) )
 SDL_WAYLAND_SYM(xkb_layout_index_t, xkb_keymap_num_layouts, (struct xkb_keymap *) )
-SDL_WAYLAND_SYM(int, xkb_keymap_key_get_syms_by_level, (struct xkb_keymap *,
-                                                        xkb_keycode_t,
-                                                        xkb_layout_index_t,
-                                                        xkb_level_index_t,
-                                                        const xkb_keysym_t **) )
+SDL_WAYLAND_SYM(int, xkb_keymap_key_get_syms_by_level, (struct xkb_keymap *, xkb_keycode_t, xkb_layout_index_t, xkb_level_index_t, const xkb_keysym_t **) )
 SDL_WAYLAND_SYM(xkb_level_index_t, xkb_keymap_num_levels_for_key, (struct xkb_keymap *, xkb_keycode_t, xkb_layout_index_t) )
-SDL_WAYLAND_SYM(size_t, xkb_keymap_key_get_mods_for_level, (struct xkb_keymap *,
-                                                            xkb_keycode_t,
-                                                            xkb_layout_index_t,
-                                                            xkb_level_index_t,
-                                                            xkb_mod_mask_t *,
-                                                            size_t masks_size) )
 SDL_WAYLAND_SYM(uint32_t, xkb_keysym_to_utf32, (xkb_keysym_t) )
-SDL_WAYLAND_SYM(uint32_t, xkb_keymap_mod_get_index, (struct xkb_keymap *,
-                                                      const char *) )
+SDL_WAYLAND_SYM(uint32_t, xkb_keymap_mod_get_index, (struct xkb_keymap *, const char *) )
 SDL_WAYLAND_SYM(const char *, xkb_keymap_layout_get_name, (struct xkb_keymap *, xkb_layout_index_t))
+
+#if SDL_XKBCOMMON_CHECK_VERSION(1, 0, 0)
+SDL_WAYLAND_SYM(size_t, xkb_keymap_key_get_mods_for_level, (struct xkb_keymap *, xkb_keycode_t, xkb_layout_index_t, xkb_level_index_t, xkb_mod_mask_t *, size_t) )
+#else
+// Only needed in the fallback replacement for xkb_keymap_key_get_mods_for_level().
+SDL_WAYLAND_SYM(xkb_level_index_t, xkb_state_key_get_level, (struct xkb_state *, xkb_keycode_t, xkb_layout_index_t) )
+#endif
+
 #if SDL_XKBCOMMON_CHECK_VERSION(1, 10, 0)
 SDL_WAYLAND_SYM(xkb_mod_mask_t, xkb_keymap_mod_get_mask, (struct xkb_keymap *, const char *))
 #endif
