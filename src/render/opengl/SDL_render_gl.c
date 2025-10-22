@@ -422,21 +422,13 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
     case SDL_PIXELFORMAT_BGRX32:
         *internalFormat = GL_RGBA8;
         *format = GL_BGRA;
-#ifdef __MORPHOS__
-        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
-#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
-#endif
         break;
     case SDL_PIXELFORMAT_RGBA32:
     case SDL_PIXELFORMAT_RGBX32:
         *internalFormat = GL_RGBA8;
         *format = GL_RGBA;
-#ifdef __MORPHOS__
-        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
-#else
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
-#endif
         break;
     case SDL_PIXELFORMAT_INDEX8:
     case SDL_PIXELFORMAT_YV12:
@@ -1939,7 +1931,10 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
 
     // RGBA32 is always supported with OpenGL
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA32);
-    if (bgra_supported) {
+    #ifndef __MORPHOS__ // MorphOS support that but dont have this extension
+    if (bgra_supported)
+    #endif
+    {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);
     }
 
