@@ -8,6 +8,8 @@ SRC_FILES = $(wildcard *.c)
 #DEPS = $(SRC_FILES:.c=.d)
 
 TARGETS = littleSDL checkkeys \
+	testpalette \
+	testsoftwaretransparent \
 	childprocess \
 	loopwave \
 	testasyncio \
@@ -69,7 +71,6 @@ TARGETS = littleSDL checkkeys \
 	testsprite \
 	testspriteminimal \
 	testspritesurface \
-	teststreaming \
 	testsurround \
 	testthread \
 	testtime \
@@ -254,6 +255,12 @@ testoffscreen: testoffscreen.o
 testoverlay: testoverlay.o testyuv_cvt.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
 
+testpalette: testpalette.o
+	$(CC) -o $@ $^ $(LIBS)
+
+testsoftwaretransparent: testsoftwaretransparent.o
+	$(CC) -o $@ $^ $(LIBS)
+	
 testpen: testpen.o
 	$(CC) -o $@ $^ $(LIBS)
 
@@ -311,9 +318,6 @@ testspriteminimal: testspriteminimal.o testutils.o
 testspritesurface: testspritesurface.o testutils.o
 	$(CC) -o $@ $^ $(LIBS)
 
-teststreaming: teststreaming.o testutils.o
-	$(CC) -o $@ $^ $(LIBS)
-
 testsurround: testsurround.o
 	$(CC) -o $@ $^ $(LIBS)
 
@@ -359,7 +363,7 @@ clean:
 	$(CC) $(CFLAGS) -o $@ -c $< 
 
 dump:
-	ppc-morphos-objdump --disassemble-all --reloc littleSDL >littleSDL.s
+	ppc-morphos-objdump --disassemble-all --reloc testloadso >testloadso.s
 	
 # Load .d files
 ifneq ($(MAKECMDGOALS),clean)

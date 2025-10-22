@@ -892,7 +892,7 @@ static void ConvertAltivec32to32_prefetch(SDL_BlitInfo *info)
 }
 
 // !!!! FIXME: Check for G5 or later, not the cache size! Always prefetch on a G4.
-#ifdef defined(SDL_PLATFORM_MORPHOS)
+#if defined(SDL_PLATFORM_MORPHOS)
 #define GetBlitFeatures()   \
             ((SDL_HasAltiVec() ? BLIT_FEATURE_HAS_ALTIVEC : 0) | \
              (SDL_IsG5() ? BLIT_FEATURE_ALTIVEC_DONT_USE_PREFETCH : 0))

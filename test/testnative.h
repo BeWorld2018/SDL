@@ -52,3 +52,5 @@ extern NativeWindowFactory CocoaWindowFactory;
 #define TEST_NATIVE_MORPHOS
 extern NativeWindowFactory MorphOSWindowFactory;
 #endif
+
+#endif

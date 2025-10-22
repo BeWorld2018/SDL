@@ -259,6 +259,9 @@
 /* Enable dialog subsystem */
 #define SDL_DIALOG_MORPHOS 1
 
+/* Enable tray subsystem */
+#define SDL_TRAY_DUMMY 1
+
 #ifdef __SDL_DEBUG
 	#include <exec/types.h>
 	struct ExecBase *SysBase;
