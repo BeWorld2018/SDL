@@ -127,7 +127,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         /* Rebuild converted_texture if the dimensions have changed (window resized, etc). */
         if ((surface->w != converted_texture_width) || (surface->h != converted_texture_height)) {
             SDL_DestroyTexture(converted_texture);
-            converted_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, surface->w, surface->h);
+			#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+			SDL_PixelFormat pformat = SDL_PIXELFORMAT_ARGB8888;
+			#else
+			SDL_PixelFormat pformat = SDL_PIXELFORMAT_RGBA8888;
+			#endif
+            
+			converted_texture = SDL_CreateTexture(renderer, pformat, SDL_TEXTUREACCESS_STREAMING, surface->w, surface->h);
             if (!converted_texture) {
                 SDL_Log("Couldn't (re)create conversion texture: %s", SDL_GetError());
                 return SDL_APP_FAILURE;
