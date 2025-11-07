@@ -1251,7 +1251,7 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
 
         if (SDL_IsJoystickSteamController(vendor, product)) {
             // Steam controllers have 2 back paddle buttons
-            SDL_strlcat(mapping_string, "paddle1:b12,paddle2:b11,", sizeof(mapping_string));
+            SDL_strlcat(mapping_string, "paddle1:b11,paddle2:b12,", sizeof(mapping_string));
         } else if (SDL_IsJoystickNintendoSwitchPro(vendor, product) ||
                    SDL_IsJoystickNintendoSwitchProInputOnly(vendor, product)) {
             // Nintendo Switch Pro controllers have a screenshot button
@@ -1280,6 +1280,9 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
             SDL_strlcat(mapping_string, "paddle1:b11,paddle2:b12,paddle3:b13,paddle4:b14,", sizeof(mapping_string));
             if (guid.data[15] >= SDL_FLYDIGI_VADER2) {
                 // Vader series of controllers have C/Z buttons
+                SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
+            } else if (guid.data[15] == SDL_FLYDIGI_APEX5) {
+                // Apex 5 has additional shoulder macro buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
             }
         } else if (vendor == USB_VENDOR_8BITDO && product == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS) {
@@ -2248,17 +2251,6 @@ static GamepadMapping_t *SDL_PrivateGetGamepadMappingForNameAndGUID(const char *
     SDL_AssertJoysticksLocked();
 
     mapping = SDL_PrivateGetGamepadMappingForGUID(guid, false);
-#ifdef SDL_PLATFORM_LINUX
-    if (!mapping && name) {
-        if (SDL_strstr(name, "Xbox 360 Wireless Receiver")) {
-            // The Linux driver xpad.c maps the wireless dpad to buttons
-            bool existing;
-            mapping = SDL_PrivateAddMappingForGUID(guid,
-                                                   "none,X360 Wireless Controller,a:b0,b:b1,back:b6,dpdown:b14,dpleft:b11,dpright:b12,dpup:b13,guide:b8,leftshoulder:b4,leftstick:b9,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b10,righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,",
-                                                   &existing, SDL_GAMEPAD_MAPPING_PRIORITY_DEFAULT);
-        }
-    }
-#endif // SDL_PLATFORM_LINUX
 
     return mapping;
 }
@@ -3184,7 +3176,7 @@ char *SDL_GetGamepadMappingForID(SDL_JoystickID instance_id)
 }
 
 /*
- * Return 1 if the joystick with this name and GUID is a supported gamepad
+ * Return true if the joystick with this name and GUID is a supported gamepad
  */
 bool SDL_IsGamepadNameAndGUID(const char *name, SDL_GUID guid)
 {
@@ -3204,7 +3196,7 @@ bool SDL_IsGamepadNameAndGUID(const char *name, SDL_GUID guid)
 }
 
 /*
- * Return 1 if the joystick at this device index is a supported gamepad
+ * Return true if the joystick at this device index is a supported gamepad
  */
 bool SDL_IsGamepad(SDL_JoystickID instance_id)
 {
@@ -3236,7 +3228,7 @@ bool SDL_IsGamepad(SDL_JoystickID instance_id)
 }
 
 /*
- * Return 1 if the gamepad should be ignored by SDL
+ * Return true if the gamepad should be ignored by SDL
  */
 bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version, const char *name)
 {
