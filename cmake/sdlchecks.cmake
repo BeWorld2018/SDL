@@ -588,6 +588,31 @@ macro(CheckFribidi)
   endif()
 endmacro()
 
+macro(CheckLibThai)
+  if(SDL_LIBTHAI)
+    set(LIBTHAI_PKG_CONFIG_SPEC libthai)
+    set(PC_LIBTHAI_FOUND FALSE)
+    if(PKG_CONFIG_FOUND)
+      pkg_check_modules(PC_LIBTHAI IMPORTED_TARGET ${LIBTHAI_PKG_CONFIG_SPEC})
+    endif()
+    if(PC_LIBTHAI_FOUND)
+      set(HAVE_LIBTHAI TRUE)
+      set(HAVE_LIBTHAI_H 1)
+      if(SDL_LIBTHAI_SHARED AND NOT HAVE_SDL_LOADSO)
+        message(WARNING "You must have SDL_LoadObject() support for dynamic libthai loading")
+      endif()
+      FindLibraryAndSONAME("thai" LIBDIRS ${PC_LIBTHAI_LIBRARY_DIRS})
+      if(SDL_LIBTHAI_SHARED AND THAI_LIB AND HAVE_SDL_LOADSO)
+        set(SDL_LIBTHAI_DYNAMIC "\"${THAI_LIB_SONAME}\"")
+        set(HAVE_LIBTHAI_SHARED TRUE)
+        sdl_include_directories(PRIVATE SYSTEM $<TARGET_PROPERTY:PkgConfig::PC_LIBTHAI,INTERFACE_INCLUDE_DIRECTORIES>)
+      else()
+        sdl_link_dependency(libthai LIBS PkgConfig::PC_LIBTHAI PKG_CONFIG_PREFIX PC_LIBTHAI PKG_CONFIG_SPECS ${LIBTHAI_PKG_CONFIG_SPEC})
+      endif()
+    endif()
+  endif()
+endmacro()
+
 macro(WaylandProtocolGen _SCANNER _CODE_MODE _XML _PROTL)
     set(_WAYLAND_PROT_C_CODE "${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols/${_PROTL}-protocol.c")
     set(_WAYLAND_PROT_H_CODE "${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols/${_PROTL}-client-protocol.h")
@@ -800,13 +825,29 @@ macro(CheckOpenVR)
   endif()
 endmacro()
 
+# Requires
+# - N/A
+macro(FindOpenGLHeaders)
+  find_package(OpenGL MODULE)
+  # OPENGL_INCLUDE_DIRS is preferred over OPENGL_INCLUDE_DIR, but was only added in 3.29,
+  # If the CMake minimum version is changed to be >= 3.29, the second check should be removed.
+  if(OPENGL_INCLUDE_DIRS)
+    list(APPEND CMAKE_REQUIRED_INCLUDES ${OPENGL_INCLUDE_DIRS})
+  elseif(OPENGL_INCLUDE_DIR)
+    list(APPEND CMAKE_REQUIRED_INCLUDES ${OPENGL_INCLUDE_DIR})
+  endif()
+endmacro()
+
 # Requires:
 # - nada
 macro(CheckGLX)
   if(SDL_OPENGL)
+    cmake_push_check_state()
+    FindOpenGLHeaders()
     check_c_source_compiles("
         #include <GL/glx.h>
         int main(int argc, char** argv) { return 0; }" HAVE_OPENGL_GLX)
+    cmake_pop_check_state()
     if(HAVE_OPENGL_GLX AND NOT HAVE_ROCKCHIP)
       set(SDL_VIDEO_OPENGL_GLX 1)
     endif()
@@ -840,10 +881,13 @@ endmacro()
 # - nada
 macro(CheckOpenGL)
   if(SDL_OPENGL)
+    cmake_push_check_state()
+    FindOpenGLHeaders()
     check_c_source_compiles("
         #include <GL/gl.h>
         #include <GL/glext.h>
         int main(int argc, char** argv) { return 0; }" HAVE_OPENGL)
+    cmake_pop_check_state()
     if(HAVE_OPENGL)
       set(SDL_VIDEO_OPENGL 1)
       set(SDL_VIDEO_RENDER_OGL 1)
@@ -856,6 +900,7 @@ endmacro()
 macro(CheckOpenGLES)
   if(SDL_OPENGLES)
     cmake_push_check_state()
+    FindOpenGLHeaders()
     list(APPEND CMAKE_REQUIRED_INCLUDES "${SDL3_SOURCE_DIR}/src/video/khronos")
     check_c_source_compiles("
         #include <GLES/gl.h>

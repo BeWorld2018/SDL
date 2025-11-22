@@ -20,41 +20,57 @@
 */
 #include "SDL_internal.h"
 
-#ifdef SDL_FILESYSTEM_ANDROID
+#ifdef HAVE_LIBTHAI_H
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-// System dependent filesystem routines
+#include "SDL_libthai.h"
 
-#include "../SDL_sysfilesystem.h"
+#ifdef SDL_LIBTHAI_DYNAMIC
+SDL_ELF_NOTE_DLOPEN(
+    "Thai",
+    "Thai language support",
+    SDL_ELF_NOTE_DLOPEN_PRIORITY_SUGGESTED,
+    SDL_LIBTHAI_DYNAMIC
+);
+#endif
 
-#include <unistd.h>
 
-char *SDL_SYS_GetBasePath(void)
+SDL_LibThai *SDL_LibThai_Create(void)
 {
-    return SDL_strdup("./");
-}
+    SDL_LibThai *th;
 
-char *SDL_SYS_GetPrefPath(const char *org, const char *app)
-{
-    const char *path = SDL_GetAndroidInternalStoragePath();
-    if (path) {
-        size_t pathlen = SDL_strlen(path) + 2;
-        char *fullpath = (char *)SDL_malloc(pathlen);
-        if (!fullpath) {
-            return NULL;
-        }
-        SDL_snprintf(fullpath, pathlen, "%s/", path);
-        return fullpath;
+    th = (SDL_LibThai *)SDL_malloc(sizeof(SDL_LibThai));
+    if (!th) {
+        return NULL;
     }
-    return NULL;
+
+#ifdef SDL_LIBTHAI_DYNAMIC
+    #define SDL_LIBTHAI_LOAD_SYM(a, x, n, t) x = ((t)SDL_LoadFunction(a->lib, n)); if (!x) { SDL_UnloadObject(a->lib); SDL_free(a); return NULL; }
+
+    th->lib = SDL_LoadObject(SDL_LIBTHAI_DYNAMIC);
+    if (!th->lib) {
+        SDL_free(th);
+        return NULL;
+    }
+
+    SDL_LIBTHAI_LOAD_SYM(th, th->make_cells, "th_make_cells", SDL_LibThaiMakeCells);
+#else
+    th->make_cells = th_make_cells;
+#endif
+
+    return th;
 }
 
-char *SDL_SYS_GetUserFolder(SDL_Folder folder)
+void SDL_LibThai_Destroy(SDL_LibThai *th)
 {
-    /* TODO: see https://developer.android.com/reference/android/os/Environment#lfields
-       and https://stackoverflow.com/questions/39332085/get-path-to-pictures-directory */
-    SDL_Unsupported();
-    return NULL;
+    if (!th) {
+        return;
+    }
+
+#ifdef SDL_LIBTHAI_DYNAMIC
+    SDL_UnloadObject(th->lib);
+#endif
+
+    SDL_free(th);
 }
 
-#endif // SDL_FILESYSTEM_ANDROID
+#endif

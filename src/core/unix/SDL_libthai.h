@@ -19,14 +19,25 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_RLEaccel_c_h_
-#define SDL_RLEaccel_c_h_
-
 #include "SDL_internal.h"
 
-// Useful functions and variables from SDL_RLEaccel.c
+#ifndef SDL_libthai_h_
+#define SDL_libthai_h_
 
-extern bool SDL_RLESurface(SDL_Surface *surface);
-extern void SDL_UnRLESurface(SDL_Surface *surface);
+#ifdef HAVE_LIBTHAI_H
+#include <thai/thcell.h>
 
-#endif // SDL_RLEaccel_c_h_
+typedef size_t (*SDL_LibThaiMakeCells)(const thchar_t *s, size_t, struct thcell_t cells[], size_t *, int);
+
+typedef struct SDL_LibThai {
+    SDL_SharedObject *lib;
+ 
+    SDL_LibThaiMakeCells make_cells;
+} SDL_LibThai;
+
+extern SDL_LibThai *SDL_LibThai_Create(void);
+extern void SDL_LibThai_Destroy(SDL_LibThai *th);
+
+#endif // HAVE_LIBTHAI_H
+
+#endif // SDL_libthai_h_
