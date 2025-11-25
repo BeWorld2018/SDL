@@ -2496,11 +2496,6 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     }
 }
 
-LRESULT CALLBACK WIN_DefWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    return CallWindowProc(DefWindowProc, hwnd, msg, wParam, lParam);
-}
-
 int WIN_WaitEventTimeout(SDL_VideoDevice *_this, Sint64 timeoutNS)
 {
     if (g_WindowsEnableMessageLoop) {
@@ -2554,6 +2549,26 @@ void WIN_SendWakeupEvent(SDL_VideoDevice *_this, SDL_Window *window)
 {
     SDL_WindowData *data = window->internal;
     PostMessage(data->hwnd, data->videodata->_SDL_WAKEUP, 0, 0);
+}
+
+// Simplified event pump for using when creating and destroying windows
+void WIN_PumpEventsForHWND(SDL_VideoDevice *_this, HWND hwnd)
+{
+    MSG msg;
+
+    if (g_WindowsEnableMessageLoop) {
+        SDL_processing_messages = true;
+
+        while (PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE)) {
+            WIN_SetMessageTick(msg.time);
+
+            // Always translate the message in case it's a non-SDL window (e.g. with Qt integration)
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        SDL_processing_messages = false;
+    }
 }
 
 void WIN_PumpEvents(SDL_VideoDevice *_this)
@@ -2784,7 +2799,7 @@ bool SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.lpszClassName = SDL_Appname;
     wcex.style = SDL_Appstyle;
-    wcex.lpfnWndProc = WIN_DefWindowProc;
+    wcex.lpfnWndProc = WIN_WindowProc;
     wcex.hInstance = SDL_Instance;
 
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
