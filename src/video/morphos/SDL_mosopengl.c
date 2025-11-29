@@ -52,6 +52,8 @@ MOS_GL_LoadLibrary(_THIS, const char *path)
 	if (TinyGLBase) {
 			if (!LIB_MINVER(TinyGLBase, 53, 8))		
 			{
+				CloseLibrary(TinyGLBase);
+				TinyGLBase = NULL;
 				SDL_SetError("Failed to open tinygl.library 53.8+");
 				return -1;
 			}
@@ -81,10 +83,12 @@ void
 MOS_GL_UnloadLibrary(_THIS)
 {
 	D("[%s]\n", __FUNCTION__);
-
-	if (SDL2Base->MyTinyGLBase && *SDL2Base->MyTinyGLBase && TinyGLBase) {
+	if (TinyGLBase) {
 		CloseLibrary(TinyGLBase);
-		*SDL2Base->MyTinyGLBase = TinyGLBase = NULL;
+		TinyGLBase = NULL;
+	}
+	if (SDL2Base->MyTinyGLBase) {
+		*SDL2Base->MyTinyGLBase = NULL;
 	}
 }
 
@@ -102,21 +106,22 @@ MOS_GL_FreeBitMap(_THIS, SDL_Window *window)
 static SDL_bool
 MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 {
-	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (data->bitmap != NULL)
-		MOS_GL_FreeBitMap(_this, window);
+	MOS_GL_FreeBitMap(_this, window);
 	
-	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
-	ULONG depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+    struct BitMap *fb = data->win->RPort->BitMap;
+    ULONG depth = GetBitMapAttr(fb, BMA_DEPTH);
 
 	int w = getv(data->win, WA_InnerWidth);
 	int h = getv(data->win, WA_InnerHeight);
 	
 	D("[%s] AllocBitMap w=%d h=%d depth=%d\n", __FUNCTION__, w, h, (int)depth);
+    data->bitmap = AllocBitMap(w, h, depth,
+                               BMF_MINPLANES | BMF_DISPLAYABLE | BMF_3DTARGET,
+                               fb);
+    return (data->bitmap != NULL);
 	
-	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
 static SDL_bool
@@ -145,17 +150,11 @@ MOS_GL_InitContext(_THIS, SDL_Window * window)
 		D("[%s] Failed to AllocBitmap !", __FUNCTION__);	
 		return SDL_FALSE;
 	}
-		
+
 	// Initialize new context
  	int success = GLAInitializeContext(__tglContext, tgltags);
 	if (success) {
 		data->__tglContext = __tglContext;
-		
-		// Clean Screen
-		if (!window->flags & SDL_WINDOW_FULLSCREEN) {
-			GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
-			GLClear(__tglContext, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-		}
 		return SDL_TRUE;	
 	}
 
@@ -215,10 +214,15 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 int
 MOS_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
 {
-	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
-    if (window && context) {
-        *SDL2Base->MyGLContext = __tglContext = context;
-    }
+	if (context)
+	{
+		*SDL2Base->MyGLContext = __tglContext = context; 
+	}
+	else
+	{
+		*SDL2Base->MyGLContext = NULL;
+		__tglContext = NULL;
+	}
 	return 0;
 }
 
@@ -238,7 +242,6 @@ MOS_GL_GetDrawableSize(_THIS, SDL_Window *window, int *width, int *height)
         *width = w;
     if (height)
         *height = h;
-
 
 }
 
@@ -270,8 +273,10 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (!data->win || !data->__tglContext || !__tglContext)
-		return 0;
+	if (!data->win || !data->__tglContext) {
+		SDL_SetError("SwapWindow called with no valid GL context");
+		return -1;
+	}
 
 	SDL_VideoData *video = _this->driverdata;
 	if (video->vsyncEnabled && data->win->WScreen) {
@@ -289,32 +294,38 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 				window->w, window->h, 0xc0);
 	}
 	
-	
 	return 0;
 }
 
 void
 MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
 {
-	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
+    if (!TinyGLBase || !context)
+        return;
 
-	if (TinyGLBase != NULL && context) {
-		SDL_Window *sdlwin;
+    SDL_Window *sdlwin;
+    SDL_bool destroyed = SDL_FALSE;
+	
+    for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
+        SDL_WindowData *data = sdlwin->driverdata;
+	     D("[%s] data->__tglContext=0x%08lx\n", __FUNCTION__, data->__tglContext);
+        if (data->__tglContext == context) {
 
-		for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
-
-			SDL_WindowData *data = sdlwin->driverdata;
-
-			if (data->__tglContext == context) {
-                D("[%s] Found TinyGL context 0x%08lx, clearing window binding\n", __FUNCTION__, context);
-                GLADestroyContext(context);
-				data->__tglContext = NULL;
-                MOS_GL_FreeBitMap(_this, sdlwin);
+            if (!destroyed) {
+				D("[%s] GLADestroyContext data->__tglContext=0x%08lx\n", __FUNCTION__, data->__tglContext);
+                GLADestroyContext(data->__tglContext);
+                destroyed = SDL_TRUE;
 			}
-		}
+			data->__tglContext = NULL;
+			MOS_GL_FreeBitMap(_this, sdlwin);
+        }
+    }
+
+    if (destroyed) {
 		GLClose(context);
-		*SDL2Base->MyGLContext = __tglContext = NULL;
-	}
+    }
+
+    *SDL2Base->MyGLContext = __tglContext = NULL;
 }
 
 int
@@ -323,10 +334,10 @@ MOS_GL_ResizeContext(_THIS, SDL_Window *window)
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] Context=0x%08lx data->__tglContext=0x%08lx\n", __FUNCTION__, __tglContext, data->__tglContext);
-	if (data->__tglContext == NULL || __tglContext == NULL || data->win == NULL) {
+	if (data->__tglContext == NULL || data->win == NULL) {
 		return -1;
 	}
-	
+
 	return (MOS_GL_InitContext(_this, window) ? 0 : -1);
 }
 
