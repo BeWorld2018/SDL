@@ -1167,7 +1167,8 @@ static int SDL_PeepEventsInternal(SDL_Event *events, int numevents, SDL_EventAct
         if (action == SDL_ADDEVENT) {
             CHECK_PARAM(!events) {
                 SDL_UnlockMutex(SDL_EventQ.lock);
-                return SDL_InvalidParamError("events");
+                SDL_InvalidParamError("events");
+                return -1;
             }
             for (i = 0; i < numevents; ++i) {
                 used += SDL_AddEvent(&events[i]);
@@ -1493,6 +1494,9 @@ void SDL_PumpEventMaintenance(void)
 // Run the system dependent event loops
 static void SDL_PumpEventsInternal(bool push_sentinel)
 {
+    // This should only be called on the main thread, check in debug builds
+    SDL_assert(SDL_IsMainThread());
+
     // Free any temporary memory from old events
     SDL_FreeTemporaryMemory();
 
