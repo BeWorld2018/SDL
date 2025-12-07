@@ -4655,6 +4655,8 @@ void SDL_VideoQuit(void)
         return;
     }
 
+    _this->is_quitting = true;
+
     // Halt event processing before doing anything else
 #if 0 // This was moved to the end to fix a memory leak
     SDL_QuitPen();
