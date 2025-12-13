@@ -46,6 +46,7 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 			
 			if (!LIB_MINVER(TinyGLBase, 53, 10))		
 			{
+				CloseLibrary(TinyGLBase);
 				SDL_SetError("Failed to open tinygl.library 53.10+");
 				return false;
 			}
@@ -94,8 +95,7 @@ bool MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
 	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
-	if (data->bitmap != NULL)
-		MOS_GL_FreeBitMap(_this, window);
+	MOS_GL_FreeBitMap(_this, window);
 	
 	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
 	ULONG depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
@@ -186,6 +186,9 @@ MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext co
 	D("context 0x%08lx", context);
 	if (context)
 		__tglContext = (GLContext*)context;
+	else
+		__tglContext = NULL;
+	
 	return true;
 }
 
@@ -271,7 +274,7 @@ MOS_GL_ResizeContext(SDL_VideoDevice *_this, SDL_Window *window)
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	
 	D("Context=0x%08lx data->__tglContext=0x%08lx data->win=0x%08lx", __tglContext, data->__tglContext, data->win);
-	if (data->__tglContext == NULL || __tglContext == NULL || data->win == NULL) {
+	if (data->__tglContext == NULL || data->win == NULL) {
 		return false;
 	}
 	
