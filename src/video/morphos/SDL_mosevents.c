@@ -264,6 +264,17 @@ MOS_GlobalMenu(struct Menu * mymenu, UWORD menu, UWORD item, UWORD sub, UWORD ch
 	}
 }
 
+static void MOS_forcevsync(SDL_Window *window, bool val) 
+{
+	SDL_Renderer *renderer = SDL_GetRenderer(window);
+	if (renderer) {
+		if (!SDL_SetRenderVSync(renderer, val)) {
+			SDL_Log("Couldn't enable vsync: %s", SDL_GetError());
+		}
+	}
+							
+}
+
 static void
 MOS_HandleMenu(SDL_VideoDevice *_this, struct IntuiMessage *m)
 {
@@ -317,12 +328,14 @@ MOS_HandleMenu(SDL_VideoDevice *_this, struct IntuiMessage *m)
 						MOS_GlobalMenu(data->menu, 1, 4, 2, 0);
 						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 						MOS_setenv("SDL3_HINT_RENDER_VSYNC", "1", true);
+						MOS_forcevsync(data->window, 1);
 						break;
 					case MID_RVDISABLE:
 						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
 						SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
 						MOS_setenv("SDL3_HINT_RENDER_VSYNC", "0", true);
+						MOS_forcevsync(data->window, 0);					
 						break;
 					default:
 						break;
