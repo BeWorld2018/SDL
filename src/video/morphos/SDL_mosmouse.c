@@ -81,7 +81,6 @@ MOS_CreateCursorInternal()
 static SDL_Cursor *
 MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
-	D("");
 	SDL_Cursor *cursor = MOS_CreateCursorInternal();
 
 	if (cursor) {
@@ -93,7 +92,7 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 		data->offx = hot_x;
 		data->offy = hot_y;
 
-		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
+		bmp = AllocBitMap(((surface->w + 15) / 16) * 16, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
 
 		if (bmp != NULL) {
 			struct RastPort rp;
@@ -110,7 +109,7 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 							POINTERA_BitMap, bmp,
 							POINTERA_XOffset, -hot_x,
 							POINTERA_YOffset, -hot_y,
-							POINTERA_WordWidth, 1,
+							POINTERA_WordWidth, bmp->BytesPerRow / 2,
 							POINTERA_XResolution, POINTERXRESN_SCREENRES,
                             POINTERA_YResolution, POINTERYRESN_SCREENRESASPECT,
 							TAG_DONE);
