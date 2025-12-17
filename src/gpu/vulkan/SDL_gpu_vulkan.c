@@ -3235,14 +3235,6 @@ static void VULKAN_INTERNAL_DestroySwapchain(
             NULL);
         windowData->swapchain = VK_NULL_HANDLE;
     }
-
-    if (windowData->surface) {
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
-        windowData->surface = VK_NULL_HANDLE;
-    }
 }
 
 static void VULKAN_INTERNAL_DestroyGraphicsPipelineResourceLayout(
@@ -4363,7 +4355,9 @@ static bool VULKAN_INTERNAL_QuerySwapchainSupport(
         &supportsPresent);
 
     // Initialize these in case anything fails
+    outputDetails->formats = NULL;
     outputDetails->formatsLength = 0;
+    outputDetails->presentModes = NULL;
     outputDetails->presentModesLength = 0;
 
     if (!supportsPresent) {
@@ -4386,22 +4380,33 @@ static bool VULKAN_INTERNAL_QuerySwapchainSupport(
         surface,
         &outputDetails->formatsLength,
         NULL);
-    CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfaceFormatsKHR, false);
+    if (result != VK_SUCCESS) {
+        // Make sure the driver didn't mess up this value.
+        outputDetails->formatsLength = 0;
+        CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfaceFormatsKHR, false);
+    }
     result = renderer->vkGetPhysicalDeviceSurfacePresentModesKHR(
         physicalDevice,
         surface,
         &outputDetails->presentModesLength,
         NULL);
-    CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfacePresentModesKHR, false);
+    if (result != VK_SUCCESS) {
+        // Make sure the driver didn't mess up this value.
+        outputDetails->presentModesLength = 0;
+        // Reset this one, too.
+        outputDetails->formatsLength = 0;
+        CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfacePresentModesKHR, false);
+    }
 
     // Generate the arrays, if applicable
 
-    outputDetails->formats = NULL;
     if (outputDetails->formatsLength != 0) {
         outputDetails->formats = (VkSurfaceFormatKHR *)SDL_malloc(
             sizeof(VkSurfaceFormatKHR) * outputDetails->formatsLength);
 
         if (!outputDetails->formats) { // OOM
+            outputDetails->formatsLength = 0;
+            outputDetails->presentModesLength = 0;
             return false;
         }
 
@@ -4412,17 +4417,22 @@ static bool VULKAN_INTERNAL_QuerySwapchainSupport(
             outputDetails->formats);
         if (result != VK_SUCCESS) {
             SDL_free(outputDetails->formats);
+            outputDetails->formats = NULL;
+            outputDetails->formatsLength = 0;
+            outputDetails->presentModesLength = 0;
             CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfaceFormatsKHR, false);
         }
     }
 
-    outputDetails->presentModes = NULL;
     if (outputDetails->presentModesLength != 0) {
         outputDetails->presentModes = (VkPresentModeKHR *)SDL_malloc(
             sizeof(VkPresentModeKHR) * outputDetails->presentModesLength);
 
         if (!outputDetails->presentModes) { // OOM
             SDL_free(outputDetails->formats);
+            outputDetails->formats = NULL;
+            outputDetails->formatsLength = 0;
+            outputDetails->presentModesLength = 0;
             return false;
         }
 
@@ -4434,6 +4444,10 @@ static bool VULKAN_INTERNAL_QuerySwapchainSupport(
         if (result != VK_SUCCESS) {
             SDL_free(outputDetails->formats);
             SDL_free(outputDetails->presentModes);
+            outputDetails->formats = NULL;
+            outputDetails->presentModes = NULL;
+            outputDetails->formatsLength = 0;
+            outputDetails->presentModesLength = 0;
             CHECK_VULKAN_ERROR_AND_RETURN(result, vkGetPhysicalDeviceSurfacePresentModesKHR, false);
         }
     }
@@ -4499,39 +4513,11 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
 
     windowData->frameCounter = 0;
 
-    // We dont have to create surface again on recreate swapchain
-    if (windowData->surface == VK_NULL_HANDLE) {
-        SDL_VideoDevice *_this = SDL_GetVideoDevice();
-        SDL_assert(_this && _this->Vulkan_CreateSurface);
-
-        // Each swapchain must have its own surface.
-        if (!_this->Vulkan_CreateSurface(
-                _this,
-                windowData->window,
-                renderer->instance,
-                NULL, // FIXME: VAllocationCallbacks
-                &windowData->surface)) {
-            return false;
-        }
-    }
-    SDL_assert(windowData->surface);
-
     if (!VULKAN_INTERNAL_QuerySwapchainSupport(
             renderer,
             renderer->physicalDevice,
             windowData->surface,
             &swapchainSupportDetails)) {
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
-        windowData->surface = VK_NULL_HANDLE;
-        if (swapchainSupportDetails.formatsLength > 0) {
-            SDL_free(swapchainSupportDetails.formats);
-        }
-        if (swapchainSupportDetails.presentModesLength > 0) {
-            SDL_free(swapchainSupportDetails.presentModes);
-        }
         return false;
     }
 
@@ -4564,12 +4550,6 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
         swapchainSupportDetails.presentModesLength);
 
     if (!hasValidSwapchainComposition || !hasValidPresentMode) {
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
-        windowData->surface = VK_NULL_HANDLE;
-
         if (swapchainSupportDetails.formatsLength > 0) {
             SDL_free(swapchainSupportDetails.formats);
         }
@@ -4590,11 +4570,6 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
     // NVIDIA + Win32 can return 0 extent when the window is minimized. Try again!
     if (swapchainSupportDetails.capabilities.currentExtent.width == 0 ||
         swapchainSupportDetails.capabilities.currentExtent.height == 0) {
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
-        windowData->surface = VK_NULL_HANDLE;
         if (swapchainSupportDetails.formatsLength > 0) {
             SDL_free(swapchainSupportDetails.formats);
         }
@@ -4700,11 +4675,6 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
     }
 
     if (vulkanResult != VK_SUCCESS) {
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
-        windowData->surface = VK_NULL_HANDLE;
         windowData->swapchain = VK_NULL_HANDLE;
         CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkCreateSwapchainKHR, false);
     }
@@ -4720,15 +4690,10 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
         sizeof(VulkanTextureContainer) * windowData->imageCount);
 
     if (!windowData->textureContainers) { // OOM
-        renderer->vkDestroySurfaceKHR(
-            renderer->instance,
-            windowData->surface,
-            NULL);
         renderer->vkDestroySwapchainKHR(
             renderer->logicalDevice,
             windowData->swapchain,
             NULL);
-        windowData->surface = VK_NULL_HANDLE;
         windowData->swapchain = VK_NULL_HANDLE;
         return false;
     }
@@ -4786,15 +4751,10 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
             windowData->format,
             windowData->swapchainSwizzle,
             &windowData->textureContainers[i].activeTexture->subresources[0].renderTargetViews[0])) {
-            renderer->vkDestroySurfaceKHR(
-                renderer->instance,
-                windowData->surface,
-                NULL);
             renderer->vkDestroySwapchainKHR(
                 renderer->logicalDevice,
                 windowData->swapchain,
                 NULL);
-            windowData->surface = VK_NULL_HANDLE;
             windowData->swapchain = VK_NULL_HANDLE;
             return false;
         }
@@ -4814,15 +4774,10 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
             &windowData->imageAvailableSemaphore[i]);
 
         if (vulkanResult != VK_SUCCESS) {
-            renderer->vkDestroySurfaceKHR(
-                renderer->instance,
-                windowData->surface,
-                NULL);
             renderer->vkDestroySwapchainKHR(
                 renderer->logicalDevice,
                 windowData->swapchain,
                 NULL);
-            windowData->surface = VK_NULL_HANDLE;
             windowData->swapchain = VK_NULL_HANDLE;
             CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkCreateSemaphore, false);
         }
@@ -4840,15 +4795,10 @@ static Uint32 VULKAN_INTERNAL_CreateSwapchain(
             &windowData->renderFinishedSemaphore[i]);
 
         if (vulkanResult != VK_SUCCESS) {
-            renderer->vkDestroySurfaceKHR(
-                renderer->instance,
-                windowData->surface,
-                NULL);
             renderer->vkDestroySwapchainKHR(
                 renderer->logicalDevice,
                 windowData->swapchain,
                 NULL);
-            windowData->surface = VK_NULL_HANDLE;
             windowData->swapchain = VK_NULL_HANDLE;
             CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkCreateSemaphore, false);
         }
@@ -9827,6 +9777,33 @@ static bool VULKAN_ClaimWindow(
         windowData->swapchainCreateHeight = h;
 #endif
 
+        SDL_VideoDevice *videoDevice = SDL_GetVideoDevice();
+        if (!videoDevice)
+        {
+            SDL_SetError("No video device found!");
+            SDL_free(windowData);
+            return false;
+        }
+
+        if (!videoDevice->Vulkan_CreateSurface)
+        {
+            SDL_SetError("Video device does not have Vulkan_CreateSurface implemented!");
+            SDL_free(windowData);
+            return false;
+        }
+
+        // Each window must have its own surface.
+        if (!videoDevice->Vulkan_CreateSurface(
+                videoDevice,
+                windowData->window,
+                renderer->instance,
+                NULL, // FIXME: VAllocationCallbacks
+                &windowData->surface)) {
+            SDL_SetError("Failed to create Vulkan surface!");
+            SDL_free(windowData);
+            return false;
+        }
+
         Uint32 createSwapchainResult = VULKAN_INTERNAL_CreateSwapchain(renderer, windowData);
         if (createSwapchainResult == 1) {
             SDL_SetPointerProperty(SDL_GetWindowProperties(window), WINDOW_PROPERTY_DATA, windowData);
@@ -9850,6 +9827,11 @@ static bool VULKAN_ClaimWindow(
             windowData->needsSwapchainRecreate = true;
             return true;
         } else {
+            // Failed to create swapchain, destroy surface and free data
+            renderer->vkDestroySurfaceKHR(
+                renderer->instance,
+                windowData->surface,
+                NULL);
             SDL_free(windowData);
             return false;
         }
@@ -9884,6 +9866,11 @@ static void VULKAN_ReleaseWindow(
         (VulkanRenderer *)driverData,
         windowData);
 
+    renderer->vkDestroySurfaceKHR(
+        renderer->instance,
+        windowData->surface,
+        NULL);
+    windowData->surface = VK_NULL_HANDLE;
 
     SDL_LockMutex(renderer->windowLock);
     for (i = 0; i < renderer->claimedWindowCount; i += 1) {
@@ -12267,13 +12254,15 @@ static Uint8 VULKAN_INTERNAL_CreateLogicalDevice(
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions;
 
     VkPhysicalDeviceFeatures2 featureList;
-    if (features->usesCustomVulkanOptions) {
+    int minor = VK_VERSION_MINOR(features->desiredApiVersion);
+
+    if (features->usesCustomVulkanOptions && minor > 0) {
         featureList.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         featureList.features = features->desiredVulkan10DeviceFeatures;
-        featureList.pNext = &features->desiredVulkan11DeviceFeatures;
+        featureList.pNext = minor > 1 ? &features->desiredVulkan11DeviceFeatures : NULL;
         features->desiredVulkan11DeviceFeatures.pNext = &features->desiredVulkan12DeviceFeatures;
-        features->desiredVulkan12DeviceFeatures.pNext = &features->desiredVulkan13DeviceFeatures;
-        features->desiredVulkan13DeviceFeatures.pNext = (void *)deviceCreateInfo.pNext;
+        features->desiredVulkan12DeviceFeatures.pNext = minor > 2 ? &features->desiredVulkan13DeviceFeatures : NULL;
+        features->desiredVulkan13DeviceFeatures.pNext = NULL;
         deviceCreateInfo.pEnabledFeatures = NULL;
         deviceCreateInfo.pNext = &featureList;
     } else {

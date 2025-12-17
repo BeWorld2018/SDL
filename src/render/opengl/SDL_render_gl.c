@@ -1941,7 +1941,6 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);
     }
-    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA32);
 
     // Check for shader support
     data->shaders = GL_CreateShaderContext();

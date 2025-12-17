@@ -1293,7 +1293,8 @@ static void handle_registry_global(void *data, struct wl_registry *registry, uin
     } else if (SDL_strcmp(interface, "xdg_activation_v1") == 0) {
         d->activation_manager = wl_registry_bind(d->registry, id, &xdg_activation_v1_interface, 1);
     } else if (SDL_strcmp(interface, "zwp_text_input_manager_v3") == 0) {
-        Wayland_DisplayCreateTextInputManager(d, id);
+        d->text_input_manager = wl_registry_bind(d->registry, id, &zwp_text_input_manager_v3_interface, 1);
+        Wayland_DisplayInitTextInputManager(d, id);
     } else if (SDL_strcmp(interface, "wl_data_device_manager") == 0) {
         d->data_device_manager = wl_registry_bind(d->registry, id, &wl_data_device_manager_interface, SDL_min(3, version));
         Wayland_DisplayInitDataDeviceManager(d);
@@ -1330,7 +1331,7 @@ static void handle_registry_global(void *data, struct wl_registry *registry, uin
     } else if (SDL_strcmp(interface, "frog_color_management_factory_v1") == 0) {
         d->frog_color_management_factory_v1 = wl_registry_bind(d->registry, id, &frog_color_management_factory_v1_interface, 1);
     } else if (SDL_strcmp(interface, "wp_color_manager_v1") == 0) {
-        d->wp_color_manager_v1 = wl_registry_bind(d->registry, id, &wp_color_manager_v1_interface, 1);
+        d->wp_color_manager_v1 = wl_registry_bind(d->registry, id, &wp_color_manager_v1_interface, SDL_min(version, 2));
         Wayland_InitColorManager(d);
     } else if (SDL_strcmp(interface, "wp_pointer_warp_v1") == 0) {
         d->wp_pointer_warp_v1 = wl_registry_bind(d->registry, id, &wp_pointer_warp_v1_interface, 1);
