@@ -31,7 +31,7 @@ STRIP = ppc-morphos-strip
 AMIGADATE = $(shell date +"%-d.%m.%Y")
 
 DEFINES =  -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS  =  -noixemul -O2 -Wall -ffast-math -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
+CFLAGS  =  -noixemul -O3 -Wall -ffast-math -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
 
 TARGET_STATIC  = libSDL3.a
 TESTLIB_STATIC = libSDL3_test.a
