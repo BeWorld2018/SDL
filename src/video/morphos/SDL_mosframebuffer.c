@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@
 // on real hardware... WritePixelArray seem faster
 // on qemu... BltBitMapRastPort seem faster
 
-//#define OLDFB
+#define OLDFB
 #ifndef MIN
 #   define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
@@ -102,7 +102,7 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
         return SDL_SetError("No system window");
     }
 	
-    *format = SDL_PIXELFORMAT_BGRA8888;
+    *format = SDL_PIXELFORMAT_ARGB8888;
 	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
 	Uint32 depth =  GetBitMapAttr(friend_bitmap, BMA_DEPTH);
 	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES|BMF_CLEAR, friend_bitmap);

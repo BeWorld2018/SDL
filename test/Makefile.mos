@@ -1,7 +1,7 @@
 # Makefile to build the MorphOS SDL tests
 
-CC     = ppc-morphos-gcc-9
-CFLAGS = -noixemul -O1 -g -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
+CC     = ppc-morphos-gcc-11
+CFLAGS = -noixemul -O3 -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
 LIBS	= -noixemul -L.. -lSDL3_test -lSDL3 -lGL -lm -lpthread
 
 SRC_FILES = $(wildcard *.c)
