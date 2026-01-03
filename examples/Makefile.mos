@@ -1,7 +1,7 @@
 # Makefile to build the examples
 
-CC     = ppc-morphos-gcc-9
-CFLAGS = -O2 -noixemul -DHAVE_OPENGL -Wall -I../include -I../include/build_config -I../src
+CC     = ppc-morphos-gcc-11
+CFLAGS = -O3 -noixemul -DHAVE_OPENGL -Wall -I../include -I../include/build_config -I../src
 LIBS   = -noixemul -L.. -lSDL3_test -lSDL3 -lGL -lpthread -lm
 
 SRC_FILES = $(wildcard */*/*.c)

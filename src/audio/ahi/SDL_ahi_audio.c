@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -43,6 +43,7 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
 {
     if (MOS_data->deviceOpen) {
         D("Device already open");
+		return true;
     }
 
     MOS_data->deviceOpen = false;
@@ -59,20 +60,20 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
             if (!OpenDevice(AHINAME, 0, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
 
                 D("%s opened", AHINAME);
-
-                /* Create a copy */
-                MOS_data->ahiRequest[1] = AllocMem( sizeof(struct AHIRequest), MEMF_CLEAR);
-				memcpy (MOS_data->ahiRequest[1], MOS_data->ahiRequest[0], sizeof (struct AHIRequest));
 				
-                if (MOS_data->ahiRequest[1]) {
-
-                    //D("IO requests created");
-
+				MOS_data->ahiRequest[1] = (struct AHIRequest *)CreateIORequest(MOS_data->ahiReplyPort, sizeof(struct AHIRequest));
+				if (MOS_data->ahiRequest[1]) {
+					
+					MOS_data->ahiRequest[1]->ahir_Std.io_Device = MOS_data->ahiRequest[0]->ahir_Std.io_Device;
+					MOS_data->ahiRequest[1]->ahir_Std.io_Unit   = MOS_data->ahiRequest[0]->ahir_Std.io_Unit;
+					MOS_data->ahiRequest[1]->ahir_Std.io_Flags  = MOS_data->ahiRequest[0]->ahir_Std.io_Flags;
+	
                     MOS_data->deviceOpen = true;
                     MOS_data->currentBuffer = 0;
                     MOS_data->link = NULL;
+					
                 } else {
-                    D("Failed to duplicate IO request");
+                    D("Failed to create 2nd IO request");
                 }
             } else {
                 D("Failed to open %s", AHINAME);
@@ -90,6 +91,10 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
 static void
 MOS_CloseAhiDevice(MOSAudioData * MOS_data)
 {
+	 if (MOS_data->deviceOpen == false) {
+        D("Device already close");
+		return;
+    }
     if (MOS_data->ahiRequest[0]) {
         if (MOS_data->link) {
             AbortIO((struct IORequest *)MOS_data->link);
