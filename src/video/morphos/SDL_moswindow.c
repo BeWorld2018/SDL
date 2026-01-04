@@ -29,6 +29,7 @@
 #include "SDL_moswindow.h"
 #include "SDL_mosopengl.h"
 #include "SDL_mosevents.h"
+#include "SDL_mosmouse.h"
 
 #include <intuition/extensions.h>
 #include <libraries/charsets.h>
@@ -606,81 +607,105 @@ MOS_GetWindowFlags(SDL_Window * window, bool fullscreen)
     return windowFlags;
 }
 
-bool 
-MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window) 
+bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	SDL_VideoData *videodata = data->videodata;
-	D("wnd 0x%08lx, PublicScreen 0x%08lx, CustomScreen 0x%08lx", data->win, videodata->PublicScreen, videodata->CustomScreen);
+    SDL_WindowData *data = (SDL_WindowData *) window->internal;
+    SDL_VideoData *videodata = data->videodata;
 
-	if (videodata->PublicScreen == NULL && videodata->CustomScreen == NULL) {
-		//D("ALERT GENERAL !!!", data->win, videodata->PublicScreen);
-		return false;
-	}
+    if (!videodata->PublicScreen && !videodata->CustomScreen) {
+        return false;
+    }
 
-	if (data->win == NULL && (window->flags & SDL_WINDOW_MINIMIZED) == 0) {
+    if (data->win || (window->flags & SDL_WINDOW_MINIMIZED)) {
+        if (data->win) {
+            MOS_WindowToFront(data->win);
+        }
+        return true;
+    }
 
-		bool fullscreen = (window->flags & SDL_WINDOW_FULLSCREEN);
-		struct Screen *screen = videodata->CustomScreen ? videodata->CustomScreen : videodata->PublicScreen;
-		 
-		SDL_Rect box;
-		MOS_DefineWindowBox(window, screen, fullscreen, &box);
+    const bool fullscreen = (window->flags & SDL_WINDOW_FULLSCREEN) != 0;
 
-		ULONG windowFlags = MOS_GetWindowFlags(window, fullscreen);
-		ULONG IDCMPFlags = MOS_GetIDCMPFlags(window, fullscreen);
-	
-		if (data->window_title == NULL)
-			data->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+    SDL_DisplayID did = 0;
+    SDL_VideoDisplay *vdpy = NULL;
+    SDL_DisplayData *dd = NULL;
+    const char *pubname = NULL;
 
-		ULONG opacity_value = ((window->opacity) * (ULONG_MAX));
-		if (window->flags & SDL_WINDOW_HIDDEN)
-			opacity_value = ((0.0) * (ULONG_MAX));
+    if (!videodata->CustomScreen) {
+        did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
+        vdpy = SDL_GetVideoDisplay(did);
+        dd = vdpy ? (SDL_DisplayData *) vdpy->internal : NULL;
+        pubname = (dd && dd->pubscreen_name[0]) ? dd->pubscreen_name : NULL;
+    }
 
-		// D("min %ld/%ld, normal %ld/%ld, max %ld/%ld, opacity_value %ld", min_w, min_h, w, h, max_w, max_h, opacity_value);
+    SDL_Rect box;
+    SDL_zero(box);
 
-		data->win = OpenWindowTags(NULL,
-			WA_Left, box.x, 
-			WA_Top,  box.y,
-			WA_InnerWidth, box.w,
-			WA_InnerHeight, box.h,
-			WA_Flags, windowFlags,
-			videodata->CustomScreen ? WA_CustomScreen : TAG_IGNORE, videodata->CustomScreen,
-			videodata->CustomScreen ? TAG_IGNORE : WA_PubScreen, videodata->PublicScreen,
-			WA_ScreenTitle, data->window_title,
-			(window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
-			WA_UserPort, &videodata->userPort,
-			WA_Opacity, opacity_value,
-			WA_FrontWindow, (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) ? TRUE : FALSE,
-			WA_IDCMP, IDCMPFlags,
-			WA_ExtraTitlebarGadgets, ETG_ICONIFY,
-			TAG_DONE);
+    struct Screen *ref_screen = videodata->CustomScreen ? videodata->CustomScreen : videodata->PublicScreen;
+    MOS_DefineWindowBox(window, ref_screen, fullscreen, &box);
 
-		if (data->win) {
-		
-			SDL_PropertiesID props = SDL_GetWindowProperties(window);
-			SDL_SetPointerProperty(props, "SDL.window.morphos.window", data->win);
-			
-			if ((window->flags & SDL_WINDOW_RESIZABLE) && !fullscreen) {
-				MOS_SetWindowLimits(window, data->win);
-			}
-			
-			data->first_deltamove = TRUE;
-			data->win->UserData = (APTR)data;
+    if (!videodata->CustomScreen && pubname && vdpy) {
+        SDL_Rect db;
+        SDL_zero(db);
+        SDL_GetDisplayBounds(vdpy->id, &db);
+        if (db.w > 0 && db.h > 0) {
+            box.x -= db.x;
+            box.y -= db.y;
+        }
+    }
 
-			MOS_CreateAppWindow(_this, window);
-			MOS_CreateMenu(_this, window);		
-			
-			if (data->grabbed)
-				DoMethod((Object *)data->win, WM_ObtainEvents);
-				
-		}
-		
-	} else if (data->win) {
-		D("WINDOW ALWAYS CREATED");
-		MOS_WindowToFront(data->win);
-	}
-	
-	return true;
+    ULONG windowFlags = MOS_GetWindowFlags(window, fullscreen);
+    ULONG IDCMPFlags = MOS_GetIDCMPFlags(window, fullscreen);
+
+    if (!data->window_title) {
+        data->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+    }
+
+    float op = window->opacity;
+    if (op < 0.0f) op = 0.0f;
+    if (op > 1.0f) op = 1.0f;
+    ULONG opacity_value = (ULONG)(op * (float)ULONG_MAX);
+    if (window->flags & SDL_WINDOW_HIDDEN) opacity_value = 0;
+
+    data->win = OpenWindowTags(NULL,
+        WA_Left, box.x,
+        WA_Top, box.y,
+        WA_InnerWidth, box.w,
+        WA_InnerHeight, box.h,
+        WA_Flags, windowFlags,
+        videodata->CustomScreen ? WA_CustomScreen : (pubname ? WA_PubScreenName : WA_PubScreen),
+        videodata->CustomScreen ? (IPTR)videodata->CustomScreen : (pubname ? (IPTR)pubname : (IPTR)videodata->PublicScreen),
+        WA_ScreenTitle, data->window_title,
+        (window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
+        WA_UserPort, &videodata->userPort,
+        WA_Opacity, opacity_value,
+        WA_FrontWindow, (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) ? TRUE : FALSE,
+        WA_IDCMP, IDCMPFlags,
+        WA_ExtraTitlebarGadgets, ETG_ICONIFY | ETG_JUMP,
+        TAG_DONE);
+
+    if (!data->win) {
+        D("Failed to create Window (pubname=%s did=%lu)", pubname ? pubname : "<none>", (ULONG)did);
+        return false;
+    }
+
+    SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    SDL_SetPointerProperty(props, "SDL.window.morphos.window", data->win);
+
+    if ((window->flags & SDL_WINDOW_RESIZABLE) && !fullscreen) {
+        MOS_SetWindowLimits(window, data->win);
+    }
+
+    data->first_deltamove = TRUE;
+    data->win->UserData = (APTR)data;
+
+    MOS_CreateAppWindow(_this, window);
+    MOS_CreateMenu(_this, window);
+
+    if (data->grabbed) {
+        DoMethod((Object *)data->win, WM_ObtainEvents);
+    }
+
+    return true;
 }
 
 void

@@ -261,6 +261,7 @@ static SDL_VideoDevice *MOS_CreateDevice()
 			device->GetDisplayBounds = MOS_GetDisplayBounds;
 			device->GetDisplayModes = MOS_GetDisplayModes;
 			device->SetDisplayMode = MOS_SetDisplayMode;
+			device->GetDisplayForWindow = MOS_GetDisplayForWindow;
 			
 			device->SuspendScreenSaver = MOS_SuspendScreenSaver;
 			device->PumpEvents = MOS_PumpEvents;

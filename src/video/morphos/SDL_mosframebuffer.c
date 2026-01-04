@@ -155,8 +155,13 @@ MOS_UpdateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, const S
             r = &rects[i];
 			dx = r->x + windowBox.Left;
 			dy = r->y + windowBox.Top;
-		    w =  MIN(r->w, windowBox.Width);
-			h = MIN(r->h, windowBox.Height);
+
+			int max_w = windowBox.Width  - r->x;
+			int max_h = windowBox.Height - r->y;
+			if (max_w <= 0 || max_h <= 0) continue;
+
+			w = MIN(r->w, max_w);
+			h = MIN(r->h, max_h);
 			WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_ARGB);
 		}
     }

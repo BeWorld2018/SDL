@@ -209,25 +209,21 @@ MOS_ShowCursor(SDL_Cursor * cursor)
 			}
 		} else if (data->type != NULL) {		
 			// System Cursor
-			if (vdata->CurrentPointer != cursor) {
-				SDL_WindowData *wd = NULL;
-				size_t pointertags[] = { WA_PointerType, (size_t)data->type, TAG_DONE };
-
-				ForeachNode(&vdata->windowlist, wd)
-				{
-					if (wd->win) 
-						SetAttrsA(wd->win, (struct TagItem *)&pointertags);
-
+			SDL_WindowData *wd = NULL;
+			ForeachNode(&vdata->windowlist, wd) {
+				if (wd->win) {
+					SetWindowPointer(wd->win,
+						WA_PointerType, (IPTR)data->type,
+						TAG_DONE);
 				}
 			}
 		}
 	} else {
 		SDL_WindowData *wd = NULL;
-		size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
 		ForeachNode(&vdata->windowlist, wd)
 		{
 			if (wd->win) 
-				SetAttrsA(wd->win, (struct TagItem *)&pointertags);
+				SetWindowPointer(wd->win, WA_PointerType, (IPTR)POINTERTYPE_INVISIBLE, TAG_DONE);
 		}
 	}
 		
