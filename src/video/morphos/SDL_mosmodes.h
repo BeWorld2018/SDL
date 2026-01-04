@@ -24,6 +24,7 @@
 #define _SDL_mosmodes_h
 
 #include "../SDL_sysvideo.h"
+#include <intuition/intuition.h>
 
 #include <exec/types.h>
 
@@ -31,6 +32,7 @@ struct SDL_DisplayData
 {
 	struct Screen *	screen;
 	APTR 			monitor;
+	char 			pubscreen_name[MAXPUBSCREENNAME + 1];
 };
 
 struct SDL_DisplayModeData

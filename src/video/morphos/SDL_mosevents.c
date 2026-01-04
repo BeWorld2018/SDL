@@ -31,6 +31,8 @@
 #include "SDL_mosopengl.h"
 #include "SDL_mosmouse.h"
 #include "SDL_moskeyboard.h"
+#include "SDL_mosmodes.h" 
+#include "SDL_moswindow.h" 
 
 #include <devices/rawkeycodes.h>
 #include <intuition/extensions.h>
@@ -202,32 +204,94 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 		SDL_GetWindowPosition(data->window, &x, &y);
 
 		if (syswin->LeftEdge != x || syswin->TopEdge != y) {
-			//D("Move");
 			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_MOVED, syswin->LeftEdge, syswin->TopEdge);
 		}
 		int width = syswin->Width - syswin->BorderLeft - syswin->BorderRight;
 		int height = syswin->Height - syswin->BorderTop - syswin->BorderBottom;
 		if (width != data->window->w || height != data->window->h) {
-			//D("Resize");
 			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_RESIZED, width, height);
 			if (__tglContext) MOS_GL_ResizeContext(_this, data->window);
 		}
 	}
 }
 
+static const char *MOS_GetPubScreenNameForDisplayID(SDL_VideoDevice *_this, SDL_DisplayID did)
+{
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (d && d->id == did) {
+            SDL_DisplayData *dd = (SDL_DisplayData *) d->internal;
+            if (dd && dd->pubscreen_name[0]) return dd->pubscreen_name;
+            return NULL;
+        }
+    }
+    return NULL;
+}
+
+static void MOS_JumpWindowToNextDisplay(SDL_VideoDevice *_this, SDL_Window *w)
+{
+	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+    if (!wd || !wd->pending_jump) return;
+
+    wd->pending_jump = false;
+
+    SDL_DisplayID did = wd->pending_jump_display;
+    const char *pubname = MOS_GetPubScreenNameForDisplayID(_this, did);
+    if (!pubname) return;
+
+    SDL_Rect b;
+    if (!SDL_GetDisplayUsableBounds(did, &b)) return;
+
+    int ww = 0, wh = 0;
+    SDL_GetWindowSize(w, &ww, &wh);
+    w->pending_displayID = did;
+    w->pending.x = b.x + (b.w - ww) / 2;
+    w->pending.y = b.y + (b.h - wh) / 2;
+
+    MOS_RecreateWindow(_this, w);
+
+	SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
+	wd->pending_jump_display = 0;
+	
+	MOS_WindowToFront(wd->win);
+}
+
+static SDL_DisplayID MOS_GetNextDisplayID(SDL_Window *w)
+{
+    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
+    if (!cur) cur = w->pending_displayID;
+
+    int count = 0;
+    SDL_DisplayID *list = SDL_GetDisplays(&count);
+    if (!list || count <= 0) { if (list) SDL_free(list); return 0; }
+
+    int curi = 0;
+    for (int i = 0; i < count; i++) {
+        if (list[i] == cur) { curi = i; break; }
+    }
+    SDL_DisplayID next = list[(curi + 1) % count];
+    SDL_free(list);
+    return next;
+}
+
 static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m)
 {
-	D("");
-	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-	
-	switch (((struct Gadget *)m->IAddress)->GadgetID) {
-		case ETI_Iconify:
-			MOS_IconifyWindow(_this, true, data->window);
-			break;
-		case ETI_Jump:
-			// D("ETI_JUMP");
-			break;
-	}
+    SDL_WindowData *wd = (SDL_WindowData *)m->IDCMPWindow->UserData;
+
+    switch (((struct Gadget *)m->IAddress)->GadgetID) {
+        case ETI_Iconify:
+            MOS_IconifyWindow(_this, true, wd->window);
+            break;
+
+        case ETI_Jump: {
+			SDL_DisplayID next = MOS_GetNextDisplayID(wd->window);
+			if (next) {
+                wd->pending_jump_display = next;
+                wd->pending_jump = true;
+            }
+            break;
+        }
+    }
 }
 
 static void
@@ -237,7 +301,7 @@ MOS_AboutSDL(struct Window *window)
 	es.es_StructSize   = sizeof(struct EasyStruct);
 	es.es_Flags        = 0;
 	es.es_Title        = (unsigned char *)"About SDL";
-	es.es_TextFormat   = (unsigned char *)"SDL %ld.%ld.%ld -MorphOS-\nCompiled on " __AMIGADATE__ "\n\n ** BETA VERSION **\n\nPort by BeWorld\nwww.libsdl.org";
+	es.es_TextFormat   = (unsigned char *)"SDL %ld.%ld.%ld -MorphOS-\nCompiled on " __AMIGADATE__ "\n\nPort by BeWorld\nwww.libsdl.org";
 	es.es_GadgetFormat = (unsigned char *)"Ok";
 
 	EasyRequest(window, &es, NULL, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
@@ -446,12 +510,14 @@ MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 					MOS_UniconifyWindow(_this, NULL);
 					break;
 			}
+			ReplyMsg((struct Message *)snm);
 		}
 
 		if (data->PublicScreen)
 			break;
 
 		WaitPort(&data->ScreenNotifyPort);
+
 	}
 }
 
@@ -489,7 +555,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 				//D("Unknown AppMsg %d %p",  msg->am_Type, (APTR)msg->am_UserData);
 				break;
 		}
-
+		ReplyMsg((struct Message *)msg);
 	}
 }
 
@@ -508,7 +574,9 @@ MOS_PumpEvents(SDL_VideoDevice *_this)
 			MOS_DispatchEvent(_this, m);
 			ReplyMsg((struct Message *)m);
 		}
-
+		if (wdata && wdata->pending_jump) {
+			MOS_JumpWindowToNextDisplay(_this, wdata->window);
+		}
 		if (wdata && wdata->win) {
 			struct Window *w = wdata->win;
             struct Screen *s = w->WScreen;

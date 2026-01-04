@@ -80,6 +80,8 @@ struct SDL_WindowData
 	struct BitMap *bitmap;
 	
 	BOOL wasMaximized; /* Remember state when going to fullscreen mode, or back */
+	SDL_DisplayID pending_jump_display;
+	bool pending_jump;
 };
 
 /* SDL functions */
@@ -114,4 +116,6 @@ extern void MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Win
 extern void MOS_UniconifyWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect);
 extern void MOS_GetWindowSize(struct Window * window, int * width, int * height);
+extern void MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window * window);
+extern void MOS_WindowToFront(struct Window *win);
 #endif /* _SDL_moswindow_h */
