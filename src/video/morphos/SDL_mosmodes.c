@@ -195,6 +195,26 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 }
 
 bool
+SDL_DisplayID 
+MOS_GetDisplayForWindow(SDL_VideoDevice *_this, SDL_Window *window)
+{
+    SDL_WindowData *wd = (SDL_WindowData *)window->internal;
+    if (!wd || !wd->win || !wd->win->WScreen) {
+        return 0;
+    }
+
+    APTR mon = (APTR)getv(wd->win->WScreen, SA_MonitorObject);
+
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+        SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+        if (dd && dd->monitor == mon) {
+            return d->id;
+        }
+    }
+    return 0;
+}
 MOS_InitModes(SDL_VideoDevice *_this)
 {
 	D("");

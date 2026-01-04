@@ -437,8 +437,6 @@ MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 		struct ScreenNotifyMessage *snm;
 
 		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
-			//D("check ScreenNotifyMessage");
-
 			switch ((size_t)snm->snm_Value) {
 				case FALSE:
 					MOS_IconifyWindow(_this, false, NULL);

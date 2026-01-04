@@ -44,6 +44,7 @@ struct SDL_DisplayModeData
 extern bool MOS_GetDisplayModes(SDL_VideoDevice *device, SDL_VideoDisplay * sdl_display);
 extern bool MOS_SetDisplayMode(SDL_VideoDevice *device, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
 extern bool MOS_GetDisplayBounds(SDL_VideoDevice *device, SDL_VideoDisplay * display, SDL_Rect * rect);
+extern SDL_DisplayID MOS_GetDisplayForWindow(SDL_VideoDevice *_this, SDL_Window *window);
 
 /* Non-SDL functions */
 extern bool MOS_InitModes(SDL_VideoDevice *device);
