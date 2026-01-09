@@ -805,8 +805,13 @@ MOS_RaiseWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	D("wnd 0x%08lx", data->win);
 
-	if (data->win)
+	if (data->win) {
+		if (window->flags & SDL_WINDOW_FULLSCREEN) {
+			ScreenToFront(data->win->WScreen);
+		}
 		MOS_WindowToFront(data->win);
+	}
+	
 }
 
 void
