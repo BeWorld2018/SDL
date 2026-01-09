@@ -654,8 +654,12 @@ MOS_RaiseWindow(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win)
+	if (data->win) {
+		if (window->flags & SDL_WINDOW_FULLSCREEN) {
+			ScreenToFront(data->win->WScreen);
+		}
 		MOS_WindowToFront(data->win);
+	}
 }
 
 void
