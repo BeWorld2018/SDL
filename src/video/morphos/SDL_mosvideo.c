@@ -295,6 +295,10 @@ static SDL_VideoDevice *MOS_CreateDevice()
 			//device->UpdateWindowShape = MOS_UpdateWindowShape; // TODO
 			device->free = MOS_DeleteDevice;
 
+			SetSignal(0, BREAKMASK);
+			data->break_prev = 0;
+			data->break_armed = true;
+			
 			return device;
 		}
 
