@@ -217,33 +217,26 @@ MOS_FindPubScreenNameForMonitor(APTR monitor, const PubScreenInfo *list, int cou
 
 static int MOS_CollectPublicScreens(PubScreenInfo *out, int max)
 {
-    if (!out || max <= 0) {
-        return 0;
-    }
+    if (!out || max <= 0) return 0;
 
     struct List *pslist = LockPubScreenList();
-    if (!pslist) {
-        return 0;
-    }
+    if (!pslist) return 0;
 
     int n = 0;
-
-    /* Les nodes sont des PubScreenNode (cf docs LockPubScreenList) */
-    for (struct Node *node = pslist->lh_Head;
-         node && node->ln_Succ && n < max;
-         node = node->ln_Succ)
-    {
+    for (struct Node *node = pslist->lh_Head; node->ln_Succ && n < max; node = node->ln_Succ) {
         struct PubScreenNode *psn = (struct PubScreenNode *)node;
         struct Screen *s = psn->psn_Screen;
-        const char *name = node->ln_Name; /* souvent le nom du public screen */
+        const char *name = node->ln_Name;
 
-        if (!s || !name || !name[0]) {
-            continue;
-        }
+        if (!s || !name || !name[0]) continue;
 
         out[n].monitor = (APTR)getv(s, SA_MonitorObject);
         out[n].modeid  = (ULONG)getv(s, SA_DisplayID);
         SDL_strlcpy(out[n].name, name, sizeof(out[n].name));
+
+        D("PubScreen: '%s' screen=%p monitor=%p modeid=%lu",
+          out[n].name, s, out[n].monitor, out[n].modeid);
+
         n++;
     }
 

@@ -83,9 +83,12 @@ static void MOS_DeleteDevice(SDL_VideoDevice *_this)
 
 	if (data->inputReq) {
 		CloseDevice((struct IORequest *)data->inputReq);
+		DeleteIORequest((struct IORequest *)data->inputReq);
+		data->inputReq = NULL;
 	}
 	if (data->inputPort) {
 		DeleteMsgPort(data->inputPort);
+		data->inputPort = NULL;
 	}
 	
 	FreeSignal(data->ScreenNotifyPort.mp_SigBit);
@@ -95,6 +98,11 @@ static void MOS_DeleteDevice(SDL_VideoDevice *_this)
 
 	if (data->BrokerRef)
 		DeleteCxObjAll(data->BrokerRef);
+
+	if (data->FullAppName) {
+		SDL_free(data->FullAppName);
+		data->FullAppName = NULL;
+	}
 
 	if (data->AppIcon)
 		FreeDiskObject(data->AppIcon);
@@ -121,50 +129,24 @@ bool MOS_SuspendScreenSaver(SDL_VideoDevice *_this)
 	return true;
 }
 
-static CONST_STRPTR MOS_GetTaskName()
+static char *MOS_GetTaskName(void)
 {
-	struct Process *task = (struct Process *)FindTask(NULL);
-	STRPTR name = "SDL";
+    struct Task *task = FindTask(NULL);
+    if (!task) {
+        return SDL_strdup("SDL3");
+    }
 
-	if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS || task->pr_Task.tc_Node.ln_Type == NT_TASK) {
-		if (task->pr_Task.tc_Node.ln_Type == NT_PROCESS && task->pr_CLI) {
-			struct CommandLineInterface *cli = (struct CommandLineInterface *)BADDR(task->pr_CLI);
+    const char *src = (const char *)task->tc_Node.ln_Name;
+    if (!src || !src[0]) {
+        return SDL_strdup("SDL3");
+    }
 
-			if (cli->cli_Module && cli->cli_CommandName) {
-				CONST_STRPTR src = (CONST_STRPTR)BADDR(cli->cli_CommandName);
-				size_t len = *src + 1;
-
-				if (len <= 1) {
-					src = "SDL";
-					len = sizeof("SDL");
-				} else {
-					if (src[1] == '"' && src[len] == '"')
-						len -= 2;
-
-					src++;
-				}
-
-				name = SDL_malloc(len);
-				if (name)
-					stccpy(name, src, len);
-			}
-		} else {
-			size_t len = strlen(task->pr_Task.tc_Node.ln_Name) + sizeof("PROGDIR:");
-			name = SDL_malloc(len);
-			if (name) {
-				strcpy(name, "PROGDIR:");
-				strcpy(name+8, task->pr_Task.tc_Node.ln_Name);
-			}
-		}
-	}
-
-	D("'%s'", name);
-	return name;
+    return SDL_strdup(src);
 }
 
 static void MOS_InitPort(struct MsgPort *port)
 {
-	port->mp_Node.ln_Name = "SDL";
+	port->mp_Node.ln_Name = "SDL3";
 	port->mp_Flags = PA_SIGNAL;
 	port->mp_SigTask = SysBase->ThisTask;
 	NEWLIST(&port->mp_MsgList);
@@ -179,7 +161,7 @@ static void MOS_InitBroker(SDL_VideoData *data)
 	data->AppBroker.nb_Version = NB_VERSION;
 	data->AppBroker.nb_Name = name;
 	data->AppBroker.nb_Title = name;
-	data->AppBroker.nb_Descr = "SDL";
+	data->AppBroker.nb_Descr = "SDL3";
 	data->AppBroker.nb_Unique = NBU_DUPLICATE;
 	data->AppBroker.nb_Flags = COF_SHOW_HIDE;
 	data->AppBroker.nb_Pri = 0;

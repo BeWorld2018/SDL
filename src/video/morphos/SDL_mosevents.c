@@ -420,7 +420,6 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			
 		case IDCMP_REFRESHWINDOW:
 			BeginRefresh(m->IDCMPWindow);
-			//SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
 			EndRefresh(m->IDCMPWindow, TRUE);
 			break;
 

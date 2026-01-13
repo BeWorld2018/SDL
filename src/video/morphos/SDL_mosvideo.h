@@ -34,7 +34,7 @@ struct DiskObject;
 
 typedef struct SDL_VideoData
 {
-	CONST_STRPTR FullAppName;
+	STRPTR FullAppName;
 		
 	struct MsgPort appMsgPort;
 	struct MsgPort userPort;

@@ -297,25 +297,27 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 }
 
 void 
-MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window * window)
+MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window *window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D("0x%08lx", data->win);
-	
     if (window->flags & SDL_WINDOW_EXTERNAL) {
         D("Cannot modify native window '%s'", window->title);
         return;
     }
 
-    if (data->win) {
+    SDL_WindowData *data = (SDL_WindowData *)window->internal;
+    if (data && data->win) {
         D("Closing system window '%s' before re-creation", window->title);
         MOS_CloseWindow(_this, window);
     }
 
     MOS_CreateSystemWindow(_this, window);
-    if (data->win) {
-		D("window '%s' OK", window->title);
-		MOS_ShowWindow(_this, window);
+
+    data = (SDL_WindowData *)window->internal;
+
+    if (data && data->win) {
+        D("window '%s' OK", window->title);
+        MOS_ShowWindow(_this, window);
+		MOS_WindowToFront(data->win);
     } else {
         D("Failed to re-create window '%s'", window->title);
     }
