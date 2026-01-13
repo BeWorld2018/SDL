@@ -215,68 +215,69 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 	}
 }
 
-static const char *MOS_GetPubScreenNameForDisplayID(SDL_VideoDevice *_this, SDL_DisplayID did)
+static int MOS_FindDisplayIndex(SDL_VideoDevice *_this, SDL_DisplayID did)
 {
+    if (!_this || !did) return -1;
     for (int i = 0; i < _this->num_displays; i++) {
         SDL_VideoDisplay *d = _this->displays[i];
-        if (d && d->id == did) {
-            SDL_DisplayData *dd = (SDL_DisplayData *) d->internal;
-            if (dd && dd->pubscreen_name[0]) return dd->pubscreen_name;
-            return NULL;
-        }
+        if (d && d->id == did) return i;
     }
-    return NULL;
+    return -1;
 }
 
-static void MOS_JumpWindowToNextDisplay(SDL_VideoDevice *_this, SDL_Window *w)
+static bool MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
 {
-	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
-    if (!wd || !wd->pending_jump) return;
+    if (!d || !d->id) return false;
+    SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+    return (dd && dd->pubscreen_name[0]);
+}
 
-    wd->pending_jump = false;
+static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
+{
+    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
+    if (!cur) cur = w->pending_displayID;
 
-    SDL_DisplayID did = wd->pending_jump_display;
-    const char *pubname = MOS_GetPubScreenNameForDisplayID(_this, did);
-    if (!pubname) return;
+    int curi = MOS_FindDisplayIndex(_this, cur);
+    if (curi < 0 || _this->num_displays <= 0) return 0;
+
+    for (int step = 1; step <= _this->num_displays; step++) {
+        SDL_VideoDisplay *d = _this->displays[(curi + step) % _this->num_displays];
+        if (MOS_DisplayIsJumpable(d)) return d->id;
+    }
+    return 0;
+}
+
+static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
+{
+    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
+    if (!cur) cur = w->pending_displayID;
+    if (!did || did == cur) return;
 
     SDL_Rect b;
     if (!SDL_GetDisplayUsableBounds(did, &b)) return;
 
     int ww = 0, wh = 0;
     SDL_GetWindowSize(w, &ww, &wh);
+
     w->pending_displayID = did;
     w->pending.x = b.x + (b.w - ww) / 2;
     w->pending.y = b.y + (b.h - wh) / 2;
-
+    	
     MOS_RecreateWindow(_this, w);
 
-	SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
-	wd->pending_jump_display = 0;
-	
-	MOS_WindowToFront(wd->win);
-}
-
-static SDL_DisplayID MOS_GetNextDisplayID(SDL_Window *w)
-{
-    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
-    if (!cur) cur = w->pending_displayID;
-
-    int count = 0;
-    SDL_DisplayID *list = SDL_GetDisplays(&count);
-    if (!list || count <= 0) { if (list) SDL_free(list); return 0; }
-
-    int curi = 0;
-    for (int i = 0; i < count; i++) {
-        if (list[i] == cur) { curi = i; break; }
+    SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+    if (wd && wd->win) {
+        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, wd->win->LeftEdge, wd->win->TopEdge);
+        MOS_WindowToFront(wd->win); // not working ?!
+    } else {
+        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
     }
-    SDL_DisplayID next = list[(curi + 1) % count];
-    SDL_free(list);
-    return next;
 }
 
 static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m)
 {
     SDL_WindowData *wd = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    if (!wd) return;
 
     switch (((struct Gadget *)m->IAddress)->GadgetID) {
         case ETI_Iconify:
@@ -284,11 +285,8 @@ static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m
             break;
 
         case ETI_Jump: {
-			SDL_DisplayID next = MOS_GetNextDisplayID(wd->window);
-			if (next) {
-                wd->pending_jump_display = next;
-                wd->pending_jump = true;
-            }
+            SDL_DisplayID next = MOS_GetNextJumpableDisplayID(_this, wd->window);
+            if (next) MOS_JumpWindowToDisplay(_this, wd->window, next);
             break;
         }
     }
