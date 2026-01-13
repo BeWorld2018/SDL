@@ -29,12 +29,14 @@
 #include <libraries/commodities.h>
 #endif
 
+#define BREAKMASK (SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_D | SIGBREAKF_CTRL_E | SIGBREAKF_CTRL_F)
+
 /* Private display data */
 struct DiskObject;
 
 typedef struct SDL_VideoData
 {
-	CONST_STRPTR FullAppName;
+	STRPTR FullAppName;
 		
 	struct MsgPort appMsgPort;
 	struct MsgPort userPort;
@@ -66,6 +68,9 @@ typedef struct SDL_VideoData
 	
 	struct MsgPort			*inputPort;
 	struct IOStdReq			*inputReq;
+	
+	ULONG break_prev;
+	bool  break_armed;
 	
 } SDL_VideoData;
 

@@ -215,68 +215,69 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 	}
 }
 
-static const char *MOS_GetPubScreenNameForDisplayID(SDL_VideoDevice *_this, SDL_DisplayID did)
+static int MOS_FindDisplayIndex(SDL_VideoDevice *_this, SDL_DisplayID did)
 {
+    if (!_this || !did) return -1;
     for (int i = 0; i < _this->num_displays; i++) {
         SDL_VideoDisplay *d = _this->displays[i];
-        if (d && d->id == did) {
-            SDL_DisplayData *dd = (SDL_DisplayData *) d->internal;
-            if (dd && dd->pubscreen_name[0]) return dd->pubscreen_name;
-            return NULL;
-        }
+        if (d && d->id == did) return i;
     }
-    return NULL;
+    return -1;
 }
 
-static void MOS_JumpWindowToNextDisplay(SDL_VideoDevice *_this, SDL_Window *w)
+static bool MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
 {
-	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
-    if (!wd || !wd->pending_jump) return;
+    if (!d || !d->id) return false;
+    SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+    return (dd && dd->pubscreen_name[0]);
+}
 
-    wd->pending_jump = false;
+static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
+{
+    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
+    if (!cur) cur = w->pending_displayID;
 
-    SDL_DisplayID did = wd->pending_jump_display;
-    const char *pubname = MOS_GetPubScreenNameForDisplayID(_this, did);
-    if (!pubname) return;
+    int curi = MOS_FindDisplayIndex(_this, cur);
+    if (curi < 0 || _this->num_displays <= 0) return 0;
+
+    for (int step = 1; step <= _this->num_displays; step++) {
+        SDL_VideoDisplay *d = _this->displays[(curi + step) % _this->num_displays];
+        if (MOS_DisplayIsJumpable(d)) return d->id;
+    }
+    return 0;
+}
+
+static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
+{
+    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
+    if (!cur) cur = w->pending_displayID;
+    if (!did || did == cur) return;
 
     SDL_Rect b;
     if (!SDL_GetDisplayUsableBounds(did, &b)) return;
 
     int ww = 0, wh = 0;
     SDL_GetWindowSize(w, &ww, &wh);
+
     w->pending_displayID = did;
     w->pending.x = b.x + (b.w - ww) / 2;
     w->pending.y = b.y + (b.h - wh) / 2;
-
+    	
     MOS_RecreateWindow(_this, w);
 
-	SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
-	wd->pending_jump_display = 0;
-	
-	MOS_WindowToFront(wd->win);
-}
-
-static SDL_DisplayID MOS_GetNextDisplayID(SDL_Window *w)
-{
-    SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
-    if (!cur) cur = w->pending_displayID;
-
-    int count = 0;
-    SDL_DisplayID *list = SDL_GetDisplays(&count);
-    if (!list || count <= 0) { if (list) SDL_free(list); return 0; }
-
-    int curi = 0;
-    for (int i = 0; i < count; i++) {
-        if (list[i] == cur) { curi = i; break; }
+    SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+    if (wd && wd->win) {
+        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, wd->win->LeftEdge, wd->win->TopEdge);
+        MOS_WindowToFront(wd->win); // not working ?!
+    } else {
+        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
     }
-    SDL_DisplayID next = list[(curi + 1) % count];
-    SDL_free(list);
-    return next;
 }
 
 static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m)
 {
     SDL_WindowData *wd = (SDL_WindowData *)m->IDCMPWindow->UserData;
+    if (!wd) return;
 
     switch (((struct Gadget *)m->IAddress)->GadgetID) {
         case ETI_Iconify:
@@ -284,11 +285,8 @@ static void MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m
             break;
 
         case ETI_Jump: {
-			SDL_DisplayID next = MOS_GetNextDisplayID(wd->window);
-			if (next) {
-                wd->pending_jump_display = next;
-                wd->pending_jump = true;
-            }
+            SDL_DisplayID next = MOS_GetNextJumpableDisplayID(_this, wd->window);
+            if (next) MOS_JumpWindowToDisplay(_this, wd->window, next);
             break;
         }
     }
@@ -420,7 +418,6 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			
 		case IDCMP_REFRESHWINDOW:
 			BeginRefresh(m->IDCMPWindow);
-			//SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
 			EndRefresh(m->IDCMPWindow, TRUE);
 			break;
 
@@ -559,71 +556,75 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 	}
 }
 
-void
-MOS_PumpEvents(SDL_VideoDevice *_this)
+void MOS_PumpEvents(SDL_VideoDevice *_this)
 {
-	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
-	struct IntuiMessage *m;
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    struct IntuiMessage *m;
 
-	size_t sigs = SetSignal(0, data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig /*| SIGBREAKF_CTRL_C*/);
+	const ULONG pending = SetSignal(0, 0);
 
-	if (sigs & data->WinSig) {
-		SDL_WindowData *wdata = NULL;
-		while ((m = (struct IntuiMessage *)GetMsg(&data->userPort))) {
-			wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
-			MOS_DispatchEvent(_this, m);
-			ReplyMsg((struct Message *)m);
-		}
-		if (wdata && wdata->pending_jump) {
-			MOS_JumpWindowToNextDisplay(_this, wdata->window);
-		}
-		if (wdata && wdata->win) {
-			struct Window *w = wdata->win;
+    if (pending & data->WinSig) {
+        while ((m = (struct IntuiMessage *)GetMsg(&data->userPort))) {
+            MOS_DispatchEvent(_this, m);
+            ReplyMsg((struct Message *)m);
+        }
+
+        SDL_Window *focus = SDL_GetMouseFocus();
+        SDL_WindowData *wdata = focus ? (SDL_WindowData *)focus->internal : NULL;
+
+        if (wdata && wdata->win) {
+            struct Window *w = wdata->win;
             struct Screen *s = w->WScreen;
-			if (s) {
-				LONG mx = s->MouseX;
-                LONG my = s->MouseY;
-                LONG ws = w->LeftEdge + w->BorderLeft;
-                LONG wy = w->TopEdge + w->BorderTop;
-                LONG wx2 = w->LeftEdge + w->Width - w->BorderRight;
-                LONG wy2 = w->TopEdge + w->Height - w->BorderBottom;
-				if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
-					w->Flags |= WFLG_RMBTRAP;
-					if (data->CurrentPointer) {
-						SDL_Cursor *cursor = data->CurrentPointer;
-						SDL_CursorData *cursordata = cursor->internal;
-						if (cursordata->mouseptr) {
-							SetWindowPointer(w, WA_Pointer, (size_t)cursordata->mouseptr, TAG_DONE);
-						} else {
-							SetWindowPointer(w, WA_PointerType, (size_t)cursordata->type, TAG_DONE);
-						}
-					} else {
-						size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
-						SetAttrsA(w, (struct TagItem *)&pointertags);
-					}
-					
-				} else {
-					if (SDL_GetRelativeMouseMode()) {
-						size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
-						SetAttrsA(w, (struct TagItem *)&pointertags);
-					}else{
-						w->Flags &= ~WFLG_RMBTRAP;
-						ClearPointer(w);
-					}
-				}
-			}
-		}
-	}
+            if (s) {
+                LONG mx = s->MouseX, my = s->MouseY;
+                LONG ws  = w->LeftEdge + w->BorderLeft;
+                LONG wy  = w->TopEdge  + w->BorderTop;
+                LONG wx2 = w->LeftEdge + w->Width  - w->BorderRight;
+                LONG wy2 = w->TopEdge  + w->Height - w->BorderBottom;
 
-	if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)
-		MOS_CheckScreenEvent(_this);
+                const bool inside = (mx >= ws && my >= wy && mx <= wx2 && my <= wy2);
 
-	if (sigs & data->BrokerSig)
-		MOS_CheckBrokerMsg(_this);
+                if (inside) {
+                    w->Flags |= WFLG_RMBTRAP;
+                    if (data->CurrentPointer) {
+                        SDL_Cursor *cursor = data->CurrentPointer;
+                        SDL_CursorData *cd = cursor->internal;
+                        if (cd->mouseptr) {
+                            SetWindowPointer(w, WA_Pointer, (size_t)cd->mouseptr, TAG_DONE);
+                        } else {
+                            SetWindowPointer(w, WA_PointerType, (size_t)cd->type, TAG_DONE);
+                        }
+                    } else {
+                        size_t tags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
+                        SetAttrsA(w, (struct TagItem *)tags);
+                    }
+                } else {
+                    if (SDL_GetRelativeMouseMode()) {
+                        size_t tags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
+                        SetAttrsA(w, (struct TagItem *)tags);
+                    } else {
+                        w->Flags &= ~WFLG_RMBTRAP;
+                        ClearPointer(w);
+                    }
+                }
+            }
+        }
+    }
 
-	if (sigs & data->WBSig)
-		MOS_CheckWBEvents(_this);
+    if ((pending & data->ScrNotifySig) && data->ScreenNotifyHandle) MOS_CheckScreenEvent(_this);
+    if (pending & data->BrokerSig) MOS_CheckBrokerMsg(_this);
+    if (pending & data->WBSig) MOS_CheckWBEvents(_this);
 
-	//if (sigs & SIGBREAKF_CTRL_C)
-	//	SDL_SendAppEvent(SDL_EVENT_QUIT);
+    if (data->break_armed) {
+        const ULONG brk = pending & BREAKMASK;
+
+        if (brk && !data->break_prev) {
+            /* Clear break(s) et déclencher quit */
+            SetSignal(0, BREAKMASK);
+            SDL_SendAppEvent(SDL_EVENT_QUIT);
+        }
+
+        data->break_prev = brk;
+    }
+
 }
