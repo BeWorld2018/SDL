@@ -197,17 +197,17 @@ static SDL_VideoDevice *MOS_CreateDevice()
 			
 			 if (!(data->inputPort = CreateMsgPort())) {
 				SDL_SetError("Couldn't allocate input port");
-				return false;
+				return NULL;
 			}
 			
 			if (!(data->inputReq = CreateIORequest(data->inputPort, sizeof(*data->inputReq)))) {
 				SDL_SetError("Couldn't allocate input request");
-				return false;
+				return NULL;
 			}
 			
 			if (OpenDevice("input.device", 0, (struct IORequest *)data->inputReq, 0)) {
 				SDL_SetError("Couldn't open input.device");
-				return false;
+				return NULL;
 			}
 
 			MOS_InitPort(&data->ScreenNotifyPort);

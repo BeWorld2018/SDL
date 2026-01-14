@@ -43,15 +43,42 @@ typedef struct PubScreenInfo {
 	char  name[MAXPUBSCREENNAME + 1];
 } PubScreenInfo;
 
+static void MOS_SetDisplayName(SDL_VideoDisplay *d, APTR monitor)
+{
+    STRPTR sysname = NULL;
+
+    if (!d || !monitor) {
+        return;
+    }
+
+    GetAttr(MA_MonitorName, monitor, (ULONG *)&sysname);
+    if (!sysname || !sysname[0]) {
+        return;
+    }
+
+    if (d->name && SDL_strcmp(d->name, (const char *)sysname) == 0) {
+        return;
+    }
+
+    char *dup = SDL_strdup((const char *)sysname);
+    if (!dup) {
+        return;
+    }
+
+    SDL_free(d->name);
+    d->name = dup;
+}
+
+
 void MOS_CloseScreen(SDL_VideoDevice *_this)
 {
+	D("%d", __LINE__);
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
     if (data->CustomScreen && data->CustomScreen != data->PublicScreen) {
-        D("Closing screen %p", data->CustomScreen);
+        D("Trying to closing custom screen %p", data->CustomScreen);
         if (!CloseScreen(data->CustomScreen)) {
             D("Screen has open window(s), cannot close");
         } else {
-            D("Screen closed successfully");
 			data->CustomScreen = NULL;
         }
     }
@@ -294,7 +321,6 @@ MOS_InitModes(SDL_VideoDevice *_this)
         return SDL_OutOfMemory();
     }
 
-    STRPTR monitorname = NULL;
     APTR default_mon = (APTR)getv(data->PublicScreen, SA_MonitorObject);
     const ULONG default_modeid = (ULONG)getv(data->PublicScreen, SA_DisplayID);
 
@@ -324,10 +350,8 @@ MOS_InitModes(SDL_VideoDevice *_this)
             return SDL_SetError("Couldn't get display mode");
         }
 
-        GetAttr(MA_MonitorName, dd->monitor, (ULONG*)&monitorname);
-
         SDL_zero(display);
-        display.name = monitorname;
+		MOS_SetDisplayName(&display,dd->monitor);
         display.desktop_mode = mode;
         display.internal = dd;
 
@@ -393,11 +417,10 @@ MOS_InitModes(SDL_VideoDevice *_this)
                 SDL_strlcpy(dd->pubscreen_name, psname, sizeof(dd->pubscreen_name));
             }
 
-            GetAttr(MA_MonitorName, m, (ULONG*)&monitorname);
 
             SDL_VideoDisplay display;
             SDL_zero(display);
-            display.name = monitorname;
+			MOS_SetDisplayName(&display,m);
             display.desktop_mode = mode;
             display.internal = dd;
 

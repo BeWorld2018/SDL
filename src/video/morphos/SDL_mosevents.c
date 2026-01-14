@@ -619,11 +619,9 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
         const ULONG brk = pending & BREAKMASK;
 
         if (brk && !data->break_prev) {
-            /* Clear break(s) et déclencher quit */
             SetSignal(0, BREAKMASK);
             SDL_SendAppEvent(SDL_EVENT_QUIT);
         }
-
         data->break_prev = brk;
     }
 

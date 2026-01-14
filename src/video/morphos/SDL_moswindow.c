@@ -186,7 +186,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 }
 
 static void 
-MOS_CloseWindowSafely(SDL_Window *window, struct Window *win)
+MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window *win)
 {
 	D("");
 	
@@ -202,7 +202,6 @@ MOS_CloseWindowSafely(SDL_Window *window, struct Window *win)
 			SDL_WindowData *data = (SDL_WindowData *) window->internal;
 			
 			struct IntuiMessage *msg, *tmp;
-			//D("[%d]", __LINE__);
 			Forbid();
 
 			if (data->grabbed) {
@@ -239,7 +238,7 @@ MOS_CloseWindows(SDL_VideoDevice *_this)
 
 		if (win) {
 			wd->win = NULL;
-			MOS_CloseWindowSafely(wd->window, win);
+			MOS_CloseWindowSafely(_this, wd->window, win);
 		}
 	}
 	
@@ -283,7 +282,7 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 
 		if (data->win) {
 			if (!(window->flags & SDL_WINDOW_EXTERNAL)) {
-				MOS_CloseWindowSafely(window, data->win);
+				MOS_CloseWindowSafely(_this, window, data->win);
 				data->win = NULL;
 			} else {
 				D("Ignored for native window");
