@@ -489,6 +489,44 @@ MOS_CheckBrokerMsg(SDL_VideoDevice *_this)
 	}
 }
 
+void MOS_HideApp(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    if (data->in_hide_show || data->app_hidden) return;
+    data->in_hide_show = true;
+
+    MOS_CloseWindows(_this);
+    MOS_CloseDisplay(_this, true);
+
+    data->app_hidden = true;
+    data->in_hide_show = false;
+}
+
+void MOS_ShowApp(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    if (data->in_hide_show || !data->app_hidden) return;
+    data->in_hide_show = true;
+
+    if (!MOS_OpenDisplay(_this)) {
+        data->in_hide_show = false;
+        return;
+    }
+		
+    MOS_OpenWindows(_this);
+
+    if (__tglContext) MOS_GL_ResizeContext(_this, _this->current_glwin);
+
+    data->app_hidden = false;
+    data->in_hide_show = false;
+	
+	data->displays_dirty = true;
+	MOS_RefreshDisplays(_this);
+    
+}
+
 static void
 MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 {
@@ -500,11 +538,11 @@ MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
 			switch ((size_t)snm->snm_Value) {
 				case FALSE:
-					MOS_IconifyWindow(_this, false, NULL);
+					MOS_HideApp(_this);
 					break;
 
 				case TRUE:
-					MOS_UniconifyWindow(_this, NULL);
+					MOS_ShowApp(_this);
 					break;
 			}
 			ReplyMsg((struct Message *)snm);
@@ -561,7 +599,24 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
     SDL_VideoData *data = (SDL_VideoData *)_this->internal;
     struct IntuiMessage *m;
 
-	const ULONG pending = SetSignal(0, 0);
+    const ULONG mask = data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig | BREAKMASK;
+    const ULONG pending = SetSignal(0, 0) & mask;
+
+    if (data->app_hidden) {
+        if ((pending & data->ScrNotifySig) && data->ScreenNotifyHandle) MOS_CheckScreenEvent(_this);
+        if (pending & data->BrokerSig) MOS_CheckBrokerMsg(_this);
+        if (pending & data->WBSig) MOS_CheckWBEvents(_this);
+        /* break handling même caché */
+        if (data->break_armed) {
+            const ULONG brk = pending & BREAKMASK;
+            if (brk && !data->break_prev) {
+                SetSignal(0, BREAKMASK);
+                SDL_SendAppEvent(SDL_EVENT_QUIT);
+            }
+            data->break_prev = brk;
+        }
+        return;
+    }
 
     if (pending & data->WinSig) {
         while ((m = (struct IntuiMessage *)GetMsg(&data->userPort))) {

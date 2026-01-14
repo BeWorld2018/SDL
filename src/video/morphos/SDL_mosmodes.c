@@ -72,7 +72,7 @@ static void MOS_SetDisplayName(SDL_VideoDisplay *d, APTR monitor)
 
 void MOS_CloseScreen(SDL_VideoDevice *_this)
 {
-	D("%d", __LINE__);
+	D("");
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
     if (data->CustomScreen && data->CustomScreen != data->PublicScreen) {
         D("Trying to closing custom screen %p", data->CustomScreen);
@@ -84,31 +84,59 @@ void MOS_CloseScreen(SDL_VideoDevice *_this)
     }
 }
 
-void MOS_CloseDisplay(SDL_VideoDevice *_this)
+void MOS_CloseDisplay(SDL_VideoDevice *_this, bool hide)
 {
-	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
-	D("CustomScreen=0x%08lx  PublicScreen=0x%08lx", data->CustomScreen, data->PublicScreen);
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+    MOS_CloseScreen(_this);
 
-	MOS_CloseScreen(_this);
+    if (data->ScreenNotifyHandle && hide == false) {
+        int tries = 200; // ~2s avec Delay(1)
+        while (!RemWorkbenchClient(data->ScreenNotifyHandle) && --tries > 0) {
+            Delay(1);
+        }
+        if (tries == 0) {
+
+        } else {
+            data->ScreenNotifyHandle = NULL;
+        }
+    }
+
+    if (data->PublicScreen) {
+        if (data->ScreenSaverSuspendCount) {
+            for (size_t i = data->ScreenSaverSuspendCount; i > 0; i--) {
+                SetAttrs(data->PublicScreen, SA_StopBlanker, FALSE, TAG_DONE);
+            }
+            data->ScreenSaverSuspendCount = 0;
+        }
+        UnlockPubScreen(NULL, data->PublicScreen);
+        data->PublicScreen = NULL;
+    }
 	
-	if (data->PublicScreen) {
-		if (data->ScreenSaverSuspendCount) {
-			size_t i;
 
-			for (i = data->ScreenSaverSuspendCount; i > 0; i--)
-				SetAttrs(data->PublicScreen, SA_StopBlanker, FALSE, TAG_DONE);
-		}
+    struct ScreenNotifyMessage *snm;
+    while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
+        ReplyMsg((struct Message *)snm);
+    }
+}
 
-		UnlockPubScreen(NULL, data->PublicScreen);
-		data->PublicScreen = NULL;
-		
-		if (data->ScreenNotifyHandle) {
-			while (!RemWorkbenchClient(data->ScreenNotifyHandle))
-				Delay(10);
+bool MOS_OpenDisplay(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+    if (data->PublicScreen) {
+        return true;
+    }
 
-			data->ScreenNotifyHandle = NULL;
-		}
-	}
+    struct Screen *s = LockPubScreen(NULL);
+    if (!s) {
+        D("LockPubScreen failed");
+        return false;
+    }
+
+    data->PublicScreen = s;
+	
+    return true;
 }
 
 static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
@@ -297,7 +325,7 @@ MOS_GetDisplayForWindow(SDL_VideoDevice *_this, SDL_Window *window)
 bool 
 MOS_InitModes(SDL_VideoDevice *_this)
 {
-    D("begin");
+    D("");
 
     SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 
@@ -419,10 +447,142 @@ MOS_InitModes(SDL_VideoDevice *_this)
         FreeMonitorList(monitors);
     }
 
-    D("end");
     return true;
 }
 
+static SDL_VideoDisplay *
+MOS_FindDisplayByMonitor(SDL_VideoDevice *_this, APTR monitor)
+{
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+        SDL_DisplayData *dd = (SDL_DisplayData *) d->internal;
+        if (dd && dd->monitor == monitor) {
+            return d;
+        }
+    }
+    return NULL;
+}
+
+static void
+MOS_FreeDesktopModeInternal(SDL_VideoDisplay *d)
+{
+    /* MOS_GetDisplayMode() alloue mode.internal => à libérer quand on remplace/supprime */
+    if (d->desktop_mode.internal) {
+        SDL_free(d->desktop_mode.internal);
+        d->desktop_mode.internal = NULL;
+    }
+}
+
+void
+MOS_RefreshDisplays(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *vd = (SDL_VideoData *)_this->internal;
+
+    if (!vd->displays_dirty) {
+        return;
+    }
+    vd->displays_dirty = false;
+
+    PubScreenInfo pubs[32];
+    const int pubCount = MOS_CollectPublicScreens(pubs, SDL_arraysize(pubs));
+
+    /* 1) Mark all unseen */
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+        SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+        if (dd) dd->seen = false;
+    }
+
+    /* 2) Enumerate monitors and update/add */
+    Object **monitors = GetMonitorList(NULL);
+    if (!monitors) {
+        return;
+    }
+
+    for (int i = 0; monitors[i]; i++) {
+        APTR m = monitors[i];
+
+        /* Desktop mode: on essaye via PubScreenList (rapide) */
+        SDL_DisplayMode mode;
+        bool have_mode = false;
+
+		const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(m, pubs, pubCount);
+		const char *pubname = (ps && ps->name[0]) ? ps->name : NULL;
+		ULONG modeid = ps ? ps->modeid : INVALID_ID;
+		
+        if (modeid != INVALID_ID && MOS_GetDisplayMode(modeid, &mode)) {
+            have_mode = true;
+        }
+
+        if (!have_mode) {
+            continue;
+        }
+
+        SDL_VideoDisplay *d = MOS_FindDisplayByMonitor(_this, m);
+        if (d) {
+            SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+            dd->seen = true;
+
+            if (pubname) {
+                SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
+            } else {
+                dd->pubscreen_name[0] = 0;
+            }
+
+            /* Update display name (monitorname) */
+			MOS_SetDisplayName(d,m);
+
+            /* Remplace desktop_mode sans fuite */
+            MOS_FreeDesktopModeInternal(d);
+			
+            d->desktop_mode = mode;
+
+        } else {
+            /* Nouveau monitor => nouveau display SDL */
+            SDL_DisplayData *dd = (SDL_DisplayData *)SDL_calloc(1, sizeof(*dd));
+            if (!dd) {
+                if (mode.internal) {
+                    SDL_free(mode.internal);
+                    mode.internal = NULL;
+                }
+                continue;
+            }
+
+            dd->monitor = m;
+            dd->screen  = NULL;
+            dd->seen    = true;
+
+            if (pubname) {
+                SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
+            }
+
+            SDL_VideoDisplay nd;
+            SDL_zero(nd);
+            MOS_SetDisplayName(&nd, m);
+            nd.desktop_mode = mode;   /* contient internal alloué */
+            nd.internal = dd;
+
+            SDL_AddVideoDisplay(&nd, true);
+        }
+    }
+
+    FreeMonitorList(monitors);
+
+    /* 3) Remove displays non vus */
+    for (int i = _this->num_displays - 1; i >= 0; i--) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+
+        SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+        if (!dd) continue;
+        if (!dd->seen) {
+            SDL_DelVideoDisplay(d->id, true);
+        }
+    }
+}
 
 bool
 MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode)

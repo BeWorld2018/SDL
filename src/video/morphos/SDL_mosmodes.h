@@ -33,6 +33,7 @@ struct SDL_DisplayData
 	struct Screen *	screen;
 	APTR 			monitor;
 	char 			pubscreen_name[MAXPUBSCREENNAME + 1];
+	bool 			seen;
 };
 
 struct SDL_DisplayModeData
@@ -50,7 +51,8 @@ extern SDL_DisplayID MOS_GetDisplayForWindow(SDL_VideoDevice *_this, SDL_Window 
 
 /* Non-SDL functions */
 extern bool MOS_InitModes(SDL_VideoDevice *device);
-extern void MOS_CloseDisplay(SDL_VideoDevice *_this);
+extern void MOS_CloseDisplay(SDL_VideoDevice *_this, bool hide);
 extern void MOS_CloseScreen(SDL_VideoDevice *_this);
-
+extern bool MOS_OpenDisplay(SDL_VideoDevice *_this);
+extern void MOS_RefreshDisplays(SDL_VideoDevice *_this);
 #endif /* _SDL_mosmodes_h */

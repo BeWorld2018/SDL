@@ -216,7 +216,7 @@ static void MOS_VideoQuit(SDL_VideoDevice *_this)
 	D("");
 
 	MOS_CloseWindows(_this);
-	MOS_CloseDisplay(_this);
+	MOS_CloseDisplay(_this, false);
 	MOS_QuitKeyboard(_this);
 	MOS_QuitMouse(_this);
 	

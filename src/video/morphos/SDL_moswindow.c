@@ -244,6 +244,20 @@ MOS_CloseWindows(SDL_VideoDevice *_this)
 
 }
 
+void 
+MOS_OpenWindows(SDL_VideoDevice *_this)
+{
+	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+	SDL_WindowData *wd;
+	D("");
+
+	ForeachNode(&data->windowlist, wd) {
+		if ((wd->window->flags & SDL_WINDOW_EXTERNAL) == 0) {
+			MOS_RecreateWindow(_this, wd->window);
+		}
+	}
+}
+
 static void 
 MOS_CloseWindow(SDL_VideoDevice *_this, SDL_Window *window) 
 {
