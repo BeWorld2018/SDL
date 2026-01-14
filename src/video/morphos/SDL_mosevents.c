@@ -268,7 +268,10 @@ static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_D
     SDL_WindowData *wd = (SDL_WindowData *)w->internal;
     if (wd && wd->win) {
         SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, wd->win->LeftEdge, wd->win->TopEdge);
-        MOS_WindowToFront(wd->win); // not working ?!
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_SHOWN, 0, 0);
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, w->w, w->h);
+		MOS_WindowToFront(wd->win);
     } else {
         SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
     }
@@ -517,14 +520,17 @@ void MOS_ShowApp(SDL_VideoDevice *_this)
 		
     MOS_OpenWindows(_this);
 
-    if (__tglContext) MOS_GL_ResizeContext(_this, _this->current_glwin);
-
     data->app_hidden = false;
     data->in_hide_show = false;
 	
 	data->displays_dirty = true;
 	MOS_RefreshDisplays(_this);
-    
+		
+	if (__tglContext)  {
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_SHOWN, 0, 0);
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_RESIZED, _this->current_glwin->w, _this->current_glwin->h);
+    }
 }
 
 static void
