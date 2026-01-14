@@ -241,8 +241,7 @@ MOS_CloseWindows(SDL_VideoDevice *_this)
 			MOS_CloseWindowSafely(_this, wd->window, win);
 		}
 	}
-	
-	MOS_CloseScreen(_this);
+
 }
 
 static void 
