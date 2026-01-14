@@ -76,39 +76,61 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	return true;
 }
 
+static void MOS_FreePortSignal(struct MsgPort *port)
+{
+    if (port && port->mp_SigBit != -1) {
+        FreeSignal(port->mp_SigBit);
+        port->mp_SigBit = -1;
+    }
+}
+
 static void MOS_DeleteDevice(SDL_VideoDevice *_this)
 {
-	D("");
-	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+    D("");
+    if (!_this) return;
 
-	if (data->inputReq) {
-		CloseDevice((struct IORequest *)data->inputReq);
-		DeleteIORequest((struct IORequest *)data->inputReq);
-		data->inputReq = NULL;
-	}
-	if (data->inputPort) {
-		DeleteMsgPort(data->inputPort);
-		data->inputPort = NULL;
-	}
-	
-	FreeSignal(data->ScreenNotifyPort.mp_SigBit);
-	FreeSignal(data->BrokerPort.mp_SigBit);
-	FreeSignal(data->appMsgPort.mp_SigBit);
-	FreeSignal(data->userPort.mp_SigBit);
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    if (data) {
 
-	if (data->BrokerRef)
-		DeleteCxObjAll(data->BrokerRef);
+        /* 1) Stop Commodities FIRST (it uses BrokerPort) */
+        if (data->BrokerRef) {
+            DeleteCxObjAll(data->BrokerRef);
+            data->BrokerRef = NULL;
+        }
 
-	if (data->FullAppName) {
-		SDL_free(data->FullAppName);
-		data->FullAppName = NULL;
-	}
+        /* 2) input.device */
+        if (data->inputReq) {
+            CloseDevice((struct IORequest *)data->inputReq);
+            DeleteIORequest((struct IORequest *)data->inputReq);
+            data->inputReq = NULL;
+        }
+        if (data->inputPort) {
+            DeleteMsgPort(data->inputPort);
+            data->inputPort = NULL;
+        }
 
-	if (data->AppIcon)
-		FreeDiskObject(data->AppIcon);
+        /* 3) Free signals only if allocated */
+        MOS_FreePortSignal(&data->ScreenNotifyPort);
+        MOS_FreePortSignal(&data->BrokerPort);
+        MOS_FreePortSignal(&data->appMsgPort);
+        MOS_FreePortSignal(&data->userPort);
 
-	SDL_free(data);
-	SDL_free(_this);
+        /* 4) Icon + name */
+        if (data->AppIcon) {
+            FreeDiskObject(data->AppIcon);
+            data->AppIcon = NULL;
+        }
+
+        if (data->FullAppName) {
+            SDL_free(data->FullAppName);
+            data->FullAppName = NULL;
+        }
+
+        SDL_free(data);
+        _this->internal = NULL;
+    }
+
+    SDL_free(_this);
 }
 
 bool MOS_SuspendScreenSaver(SDL_VideoDevice *_this)
@@ -144,32 +166,49 @@ static char *MOS_GetTaskName(void)
     return SDL_strdup(src);
 }
 
-static void MOS_InitPort(struct MsgPort *port)
+static bool MOS_InitPort(struct MsgPort *port)
 {
-	port->mp_Node.ln_Name = "SDL3";
-	port->mp_Flags = PA_SIGNAL;
-	port->mp_SigTask = SysBase->ThisTask;
-	NEWLIST(&port->mp_MsgList);
-	port->mp_SigBit = AllocSignal(-1);
+    port->mp_Node.ln_Name = (STRPTR)"SDL3";
+    port->mp_Node.ln_Type = NT_MSGPORT;
+    port->mp_Flags = PA_SIGNAL;
+    port->mp_SigTask = FindTask(NULL);    /* or SysBase->ThisTask */
+    NEWLIST(&port->mp_MsgList);
+
+    const LONG bit = AllocSignal(-1);
+    if (bit == -1) {
+        port->mp_SigBit = -1;
+        return false;
+    }
+
+    port->mp_SigBit = (BYTE)bit;
+    return true;
 }
+
 
 static void MOS_InitBroker(SDL_VideoData *data)
 {
-	D("");
-	
-	STRPTR name = FilePart(data->FullAppName);
-	data->AppBroker.nb_Version = NB_VERSION;
-	data->AppBroker.nb_Name = name;
-	data->AppBroker.nb_Title = name;
-	data->AppBroker.nb_Descr = "SDL3";
-	data->AppBroker.nb_Unique = NBU_DUPLICATE;
-	data->AppBroker.nb_Flags = COF_SHOW_HIDE;
-	data->AppBroker.nb_Pri = 0;
-	data->AppBroker.nb_Port = &data->BrokerPort;
-	data->AppBroker.nb_ReservedChannel = 0;
-	data->BrokerRef = CxBroker(&data->AppBroker, NULL);
-	if (data->BrokerRef)
-		ActivateCxObj(data->BrokerRef, 1);
+    D("");
+
+    STRPTR name = (STRPTR)"SDL3";
+    if (data->FullAppName) {
+        STRPTR fp = FilePart((STRPTR)data->FullAppName);
+        if (fp && fp[0]) name = fp;
+    }
+
+    data->AppBroker.nb_Version = NB_VERSION;
+    data->AppBroker.nb_Name = name;
+    data->AppBroker.nb_Title = name;
+    data->AppBroker.nb_Descr = (STRPTR)"SDL3";
+    data->AppBroker.nb_Unique = NBU_DUPLICATE;
+    data->AppBroker.nb_Flags = COF_SHOW_HIDE;
+    data->AppBroker.nb_Pri = 0;
+    data->AppBroker.nb_Port = &data->BrokerPort;
+    data->AppBroker.nb_ReservedChannel = 0;
+
+    data->BrokerRef = CxBroker(&data->AppBroker, NULL);
+    if (data->BrokerRef) {
+        ActivateCxObj(data->BrokerRef, 1);
+    }
 }
 
 static void MOS_VideoQuit(SDL_VideoDevice *_this)
@@ -183,130 +222,169 @@ static void MOS_VideoQuit(SDL_VideoDevice *_this)
 	
 }
 
-static SDL_VideoDevice *MOS_CreateDevice()
+static SDL_VideoDevice *MOS_CreateDevice(void)
 {
-	D("");
-	SDL_VideoDevice *device = (SDL_VideoDevice *) SDL_calloc(1, sizeof(SDL_VideoDevice));
+    D("");
 
-	if (device) {
-		SDL_VideoData *data = (struct SDL_VideoData *) SDL_calloc(1, sizeof(SDL_VideoData));
+    SDL_VideoDevice *device = (SDL_VideoDevice *)SDL_calloc(1, sizeof(*device));
+    if (!device) {
+        SDL_OutOfMemory();
+        return NULL;
+    }
 
-		device->internal = data;
+    SDL_VideoData *data = (SDL_VideoData *)SDL_calloc(1, sizeof(*data));
+    if (!data) {
+        SDL_free(device);
+        SDL_OutOfMemory();
+        return NULL;
+    }
 
-		if (data) {
-			
-			 if (!(data->inputPort = CreateMsgPort())) {
-				SDL_SetError("Couldn't allocate input port");
-				return NULL;
-			}
-			
-			if (!(data->inputReq = CreateIORequest(data->inputPort, sizeof(*data->inputReq)))) {
-				SDL_SetError("Couldn't allocate input request");
-				return NULL;
-			}
-			
-			if (OpenDevice("input.device", 0, (struct IORequest *)data->inputReq, 0)) {
-				SDL_SetError("Couldn't open input.device");
-				return NULL;
-			}
+    device->internal = data;
 
-			MOS_InitPort(&data->ScreenNotifyPort);
-			MOS_InitPort(&data->BrokerPort);
-			MOS_InitPort(&data->appMsgPort);
-			MOS_InitPort(&data->userPort);
+    /* calloc => 0, mais 0 est un sigbit valide : on force -1 */
+    data->ScreenNotifyPort.mp_SigBit = -1;
+    data->BrokerPort.mp_SigBit       = -1;
+    data->appMsgPort.mp_SigBit       = -1;
+    data->userPort.mp_SigBit         = -1;
 
-			data->ScrNotifySig = 1 << data->ScreenNotifyPort.mp_SigBit;
-			data->BrokerSig = 1 << data->BrokerPort.mp_SigBit;
-			data->WBSig = 1 << data->appMsgPort.mp_SigBit;
-			data->WinSig = 1 << data->userPort.mp_SigBit;
+    data->inputPort = NULL;
+    data->inputReq  = NULL;
+    data->BrokerRef = NULL;
+    data->AppIcon   = NULL;
+    data->FullAppName = NULL;
 
-			NEWLIST(&data->windowlist);
+    /* input.device */
+    data->inputPort = CreateMsgPort();
+    if (!data->inputPort) {
+        SDL_SetError("Couldn't allocate input port");
+        goto fail;
+    }
 
-			data->FullAppName = MOS_GetTaskName();
-			data->AppIcon = GetDiskObject((STRPTR)data->FullAppName);
+    data->inputReq = (struct IOStdReq *)CreateIORequest(data->inputPort, sizeof(*data->inputReq));
+    if (!data->inputReq) {
+        SDL_SetError("Couldn't allocate input request");
+        goto fail;
+    }
 
-			if (data->AppIcon == NULL)
-				data->AppIcon = GetDiskObject((STRPTR)"ENVARC:Sys/def_SDL");
+    if (OpenDevice("input.device", 0, (struct IORequest *)data->inputReq, 0) != 0) {
+        SDL_SetError("Couldn't open input.device");
 
-			if (data->AppIcon) {
-				data->AppIcon->do_CurrentX = NO_ICON_POSITION;
-				data->AppIcon->do_CurrentY = NO_ICON_POSITION;
-				data->AppIcon->do_Type = 0;
-			}
+        /* IMPORTANT: make Delete safe without a flag */
+        DeleteIORequest((struct IORequest *)data->inputReq);
+        data->inputReq = NULL;
 
-			MOS_InitBroker(data);
+        goto fail;
+    }
 
-			/* Set the function pointers */
-			device->VideoInit = MOS_VideoInit;
-			device->VideoQuit = MOS_VideoQuit;
-			
-			device->GetDisplayBounds = MOS_GetDisplayBounds;
-			device->GetDisplayModes = MOS_GetDisplayModes;
-			device->SetDisplayMode = MOS_SetDisplayMode;
-			device->GetDisplayForWindow = MOS_GetDisplayForWindow;
-			
-			device->SuspendScreenSaver = MOS_SuspendScreenSaver;
-			device->PumpEvents = MOS_PumpEvents;
+    /* Ports */
+    if (!MOS_InitPort(&data->ScreenNotifyPort)) {
+        SDL_SetError("Couldn't create ScreenNotifyPort");
+        goto fail;
+    }
+    if (!MOS_InitPort(&data->BrokerPort)) {
+        SDL_SetError("Couldn't create BrokerPort");
+        goto fail;
+    }
+    if (!MOS_InitPort(&data->appMsgPort)) {
+        SDL_SetError("Couldn't create appMsgPort");
+        goto fail;
+    }
+    if (!MOS_InitPort(&data->userPort)) {
+        SDL_SetError("Couldn't create userPort");
+        goto fail;
+    }
 
-			device->CreateSDLWindow = MOS_CreateWindow;
-			device->SetWindowTitle = MOS_SetWindowTitle;
-			device->SetWindowIcon = MOS_SetWindowIcon;
-			device->SetWindowPosition = MOS_SetWindowPosition;
-			device->SetWindowSize = MOS_SetWindowSize;
-			device->SetWindowMinimumSize = MOS_SetWindowMinMaxSize;
-			device->SetWindowMaximumSize = MOS_SetWindowMinMaxSize;
-			device->ShowWindow = MOS_ShowWindow;
-			device->HideWindow = MOS_HideWindow;
-			device->RaiseWindow = MOS_RaiseWindow;
-			device->MaximizeWindow = MOS_MaximizeWindow;
-			device->MinimizeWindow = MOS_MinimizeWindow;
-			device->RestoreWindow = MOS_RestoreWindow;
-			device->SetWindowBordered = MOS_SetWindowBordered;
-			device->SetWindowAlwaysOnTop = MOS_SetWindowAlwaysOnTop;
-			device->SetWindowFullscreen = MOS_SetWindowFullscreen;
-			device->SetWindowMouseGrab = MOS_SetWindowGrab;
-			//device->SetWindowKeyboardGrab = MOS_SetWindowGrab;
-			
-			device->DestroyWindow = MOS_DestroyWindow;
-			device->CreateWindowFramebuffer = MOS_CreateWindowFramebuffer;
-			device->UpdateWindowFramebuffer = MOS_UpdateWindowFramebuffer;
-			device->DestroyWindowFramebuffer = MOS_DestroyWindowFramebuffer;
+    data->ScrNotifySig = (ULONG)1u << (ULONG)data->ScreenNotifyPort.mp_SigBit;
+    data->BrokerSig    = (ULONG)1u << (ULONG)data->BrokerPort.mp_SigBit;
+    data->WBSig        = (ULONG)1u << (ULONG)data->appMsgPort.mp_SigBit;
+    data->WinSig       = (ULONG)1u << (ULONG)data->userPort.mp_SigBit;
 
-			device->GL_LoadLibrary = MOS_GL_LoadLibrary;
-			device->GL_GetProcAddress = MOS_GL_GetProcAddress;
-			device->GL_UnloadLibrary = MOS_GL_UnloadLibrary;
-			device->GL_CreateContext = MOS_GL_CreateContext;
-			device->GL_MakeCurrent = MOS_GL_MakeCurrent;
-			device->GL_SetSwapInterval = MOS_GL_SetSwapInterval;
-			device->GL_GetSwapInterval = MOS_GL_GetSwapInterval;
-			device->GL_SwapWindow = MOS_GL_SwapWindow;
-			device->GL_DestroyContext = MOS_GL_DestroyContext;
+    NEWLIST(&data->windowlist);
 
-			device->SetClipboardText = MOS_SetClipboardText;
-			device->GetClipboardText = MOS_GetClipboardText;
-			device->HasClipboardText = MOS_HasClipboardText;
+    data->FullAppName = MOS_GetTaskName();
 
-			device->SetWindowResizable = MOS_SetWindowResizable;
-			device->GetWindowBordersSize = MOS_GetWindowBordersSize;
-			device->SetWindowOpacity = MOS_SetWindowOpacity;
-			device->FlashWindow = MOS_FlashWindow;
-			
-			device->SetWindowHitTest = MOS_SetWindowHitTest;
-			//device->UpdateWindowShape = MOS_UpdateWindowShape; // TODO
-			device->free = MOS_DeleteDevice;
+    data->AppIcon = GetDiskObject((STRPTR)data->FullAppName);
+    if (!data->AppIcon) {
+        data->AppIcon = GetDiskObject((STRPTR)"ENVARC:Sys/def_SDL");
+    }
+    if (data->AppIcon) {
+        data->AppIcon->do_CurrentX = NO_ICON_POSITION;
+        data->AppIcon->do_CurrentY = NO_ICON_POSITION;
+        data->AppIcon->do_Type = 0;
+    }
 
-			SetSignal(0, BREAKMASK);
-			data->break_prev = 0;
-			data->break_armed = true;
-			
-			return device;
-		}
+    /* Broker AFTER BrokerPort ok */
+    MOS_InitBroker(data);
 
-		SDL_free(device);
-	}
+    /* Set function pointers */
+    device->VideoInit = MOS_VideoInit;
+    device->VideoQuit = MOS_VideoQuit;
 
-	SDL_OutOfMemory();
-	return NULL;
+    device->GetDisplayBounds = MOS_GetDisplayBounds;
+    device->GetDisplayModes = MOS_GetDisplayModes;
+    device->SetDisplayMode = MOS_SetDisplayMode;
+    device->GetDisplayForWindow = MOS_GetDisplayForWindow;
+
+    device->SuspendScreenSaver = MOS_SuspendScreenSaver;
+    device->PumpEvents = MOS_PumpEvents;
+
+    device->CreateSDLWindow = MOS_CreateWindow;
+    device->SetWindowTitle = MOS_SetWindowTitle;
+    device->SetWindowIcon = MOS_SetWindowIcon;
+    device->SetWindowPosition = MOS_SetWindowPosition;
+    device->SetWindowSize = MOS_SetWindowSize;
+    device->SetWindowMinimumSize = MOS_SetWindowMinMaxSize;
+    device->SetWindowMaximumSize = MOS_SetWindowMinMaxSize;
+    device->ShowWindow = MOS_ShowWindow;
+    device->HideWindow = MOS_HideWindow;
+    device->RaiseWindow = MOS_RaiseWindow;
+    device->MaximizeWindow = MOS_MaximizeWindow;
+    device->MinimizeWindow = MOS_MinimizeWindow;
+    device->RestoreWindow = MOS_RestoreWindow;
+    device->SetWindowBordered = MOS_SetWindowBordered;
+    device->SetWindowAlwaysOnTop = MOS_SetWindowAlwaysOnTop;
+    device->SetWindowFullscreen = MOS_SetWindowFullscreen;
+    device->SetWindowMouseGrab = MOS_SetWindowGrab;
+
+    device->DestroyWindow = MOS_DestroyWindow;
+    device->CreateWindowFramebuffer = MOS_CreateWindowFramebuffer;
+    device->UpdateWindowFramebuffer = MOS_UpdateWindowFramebuffer;
+    device->DestroyWindowFramebuffer = MOS_DestroyWindowFramebuffer;
+
+    device->GL_LoadLibrary = MOS_GL_LoadLibrary;
+    device->GL_GetProcAddress = MOS_GL_GetProcAddress;
+    device->GL_UnloadLibrary = MOS_GL_UnloadLibrary;
+    device->GL_CreateContext = MOS_GL_CreateContext;
+    device->GL_MakeCurrent = MOS_GL_MakeCurrent;
+    device->GL_SetSwapInterval = MOS_GL_SetSwapInterval;
+    device->GL_GetSwapInterval = MOS_GL_GetSwapInterval;
+    device->GL_SwapWindow = MOS_GL_SwapWindow;
+    device->GL_DestroyContext = MOS_GL_DestroyContext;
+
+    device->SetClipboardText = MOS_SetClipboardText;
+    device->GetClipboardText = MOS_GetClipboardText;
+    device->HasClipboardText = MOS_HasClipboardText;
+
+    device->SetWindowResizable = MOS_SetWindowResizable;
+    device->GetWindowBordersSize = MOS_GetWindowBordersSize;
+    device->SetWindowOpacity = MOS_SetWindowOpacity;
+    device->FlashWindow = MOS_FlashWindow;
+
+    device->SetWindowHitTest = MOS_SetWindowHitTest;
+
+    device->free = MOS_DeleteDevice;
+
+    SetSignal(0, BREAKMASK);
+    data->break_prev = 0;
+    data->break_armed = true;
+    data->displays_dirty = false;
+
+    return device;
+
+fail:
+    /* cleanup local (ne dépend pas de device->free) */
+    MOS_DeleteDevice(device);
+    return NULL;
 }
 
 VideoBootStrap MORPHOS_bootstrap = {
