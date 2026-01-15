@@ -270,34 +270,38 @@ MOS_CollectPublicScreens(PubScreenInfo *out, int max)
 {
     if (!out || max <= 0) return 0;
 
+    char names[64][MAXPUBSCREENNAME + 1];
+    int count = 0;
+
     struct List *pslist = LockPubScreenList();
     if (!pslist) return 0;
 
-    int n = 0;
-
     for (struct Node *node = pslist->lh_Head;
-         node && node->ln_Succ && n < max;
+         node && node->ln_Succ && count < (int)SDL_arraysize(names) && count < max;
          node = node->ln_Succ)
     {
         const char *name = node->ln_Name;
-        if (!name || !name[0]) {
-            continue;
-        }
+        if (!name || !name[0]) continue;
 
-        struct PubScreenNode *psn = (struct PubScreenNode *)node;
-        struct Screen *s = psn->psn_Screen;
-        if (!s) {
-            continue;
-        }
-
-        SDL_strlcpy(out[n].name, name, sizeof(out[n].name));
-
-        out[n].monitor = (APTR)getv(s, SA_MonitorObject);
-        out[n].modeid  = (ULONG)getv(s, SA_DisplayID);
-        n++;
+        SDL_strlcpy(names[count], name, sizeof(names[count]));
+        count++;
     }
 
     UnlockPubScreenList();
+
+    int n = 0;
+    for (int i = 0; i < count && n < max; i++) {
+        struct Screen *s = LockPubScreen((CONST_STRPTR)names[i]);
+        if (!s) continue;
+
+        SDL_strlcpy(out[n].name, names[i], sizeof(out[n].name));
+        out[n].monitor = (APTR)getv(s, SA_MonitorObject);
+        out[n].modeid  = (ULONG)getv(s, SA_DisplayID);
+
+        UnlockPubScreen(NULL, s);
+        n++;
+    }
+
     return n;
 }
 

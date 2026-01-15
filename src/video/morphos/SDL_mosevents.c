@@ -225,14 +225,16 @@ static int MOS_FindDisplayIndex(SDL_VideoDevice *_this, SDL_DisplayID did)
     return -1;
 }
 
-static bool MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
+static bool 
+MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
 {
     if (!d || !d->id) return false;
     SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
     return (dd && dd->pubscreen_name[0]);
 }
 
-static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
+static SDL_DisplayID 
+MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
 {
     SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
     if (!cur) cur = w->pending_displayID;
@@ -247,7 +249,8 @@ static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Wi
     return 0;
 }
 
-static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
+static void 
+MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
 {
     SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
     if (!cur) cur = w->pending_displayID;
@@ -273,7 +276,7 @@ static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_D
 		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, w->w, w->h);
 		MOS_WindowToFront(wd->win);
     } else {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
+		D("Failed to open window display %d (Not possible with fallback...", (ULONG)did);
     }
 }
 
