@@ -263,14 +263,18 @@ MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did
     SDL_GetWindowSize(w, &ww, &wh);
 
     w->pending_displayID = did;
+	w->requested_fullscreen_mode.displayID = did;
     w->pending.x = b.x + (b.w - ww) / 2;
     w->pending.y = b.y + (b.h - wh) / 2;
     	
+	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+	if (wd) {
+		wd->pending_jump_display = did;   // AVANT recreate
+	}
     MOS_RecreateWindow(_this, w);
 
-    SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+    wd = (SDL_WindowData *)w->internal;
     if (wd && wd->win) {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, wd->win->LeftEdge, wd->win->TopEdge);
 		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_SHOWN, 0, 0);
 		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
 		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, w->w, w->h);

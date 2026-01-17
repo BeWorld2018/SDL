@@ -679,12 +679,17 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 
         if (!videodata->CustomScreen) {
 
-            if (attempt == 0) {
-                did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
-            } else {
-                did = MOS_GetFallbackDisplay(_this, videodata, window, failed_did);
-                window->pending_displayID = 0;
-            }
+			if (attempt == 0) {
+				SDL_WindowData *wd = (SDL_WindowData *) window->internal;
+				if (wd && wd->pending_jump_display) {
+					did = wd->pending_jump_display;
+				} else {
+					did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
+				}
+			} else {
+				did = MOS_GetFallbackDisplay(_this, videodata, window, failed_did);
+				window->pending_displayID = 0;
+			}
 
             if (did) {
                 vdpy = SDL_GetVideoDisplay(did);
@@ -696,21 +701,27 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
         SDL_Rect box;
         SDL_zero(box);
 
-        struct Screen *ref_screen = videodata->CustomScreen
-            ? videodata->CustomScreen
-            : videodata->PublicScreen;
+		struct Screen *ref_screen = NULL;
+		struct Screen *locked = NULL;
 
-        MOS_DefineWindowBox(window, ref_screen, fullscreen, &box);
+		if (videodata->CustomScreen) {
+			ref_screen = videodata->CustomScreen;
+		} else if (pubname) {
+			locked = LockPubScreen((CONST_STRPTR)pubname);
+			if (locked) {
+				ref_screen = locked;
+			}
+		}
 
-        if (!videodata->CustomScreen && pubname && vdpy) {
-            SDL_Rect db;
-            SDL_zero(db);
-            SDL_GetDisplayBounds(vdpy->id, &db);
-            if (db.w > 0 && db.h > 0) {
-                box.x -= db.x;
-                box.y -= db.y;
-            }
-        }
+		if (!ref_screen) {
+			ref_screen = videodata->PublicScreen;
+		}
+
+		MOS_DefineWindowBox(window, ref_screen, fullscreen, &box);
+
+		if (locked) {
+			UnlockPubScreen(NULL, locked);
+		}
 
         data->win = OpenWindowTags(NULL,
             WA_Left, box.x,
@@ -839,8 +850,8 @@ MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Window * window
 
 	if (window->flags & SDL_WINDOW_MINIMIZED) {
 		D("Window '%s' is already iconified", window->title);
-	} else if ((window->flags & SDL_WINDOW_FULLSCREEN) && &videodata->CustomScreen) {
-		D("Window '%s' is into fullscreen exclusive mode", window->title);
+	} else if ((window->flags & SDL_WINDOW_FULLSCREEN)) {
+		D("Window '%s' is into fullscreen", window->title);
 	} else {
 		if (videodata->AppIcon) {
 			data->appIcon = AddAppIconA(0, (ULONG)window, (UBYTE*)FilePart(videodata->FullAppName), &videodata->appMsgPort, 0, videodata->AppIcon, NULL);	
@@ -1003,6 +1014,27 @@ MOS_DecodeFullscreenOp(SDL_FullscreenOp fullscreen)
 }
 #endif
 
+static SDL_VideoDisplay *
+MOS_ChooseFullscreenDisplay(SDL_Window *window, SDL_VideoDisplay *fallback)
+{
+    SDL_DisplayID want = 0;
+
+    if (window->requested_fullscreen_mode.displayID) {
+        want = window->requested_fullscreen_mode.displayID;
+    } else if (window->current_fullscreen_mode.displayID) {
+        want = window->current_fullscreen_mode.displayID;
+    }
+
+    if (want) {
+        SDL_VideoDisplay *d = SDL_GetVideoDisplay(want);
+        if (d) {
+            return d;
+        }
+    }
+    return fallback;
+}
+
+
 SDL_FullscreenResult
 MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDisplay * display, SDL_FullscreenOp fullscreen)
 {
@@ -1013,8 +1045,16 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 	}
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	
-	D("'%s': %s (%d), display %p", window->title, MOS_DecodeFullscreenOp(fullscreen), fullscreen, display);
+	SDL_VideoDisplay *orig = display;
+	display = MOS_ChooseFullscreenDisplay(window, display);
+
+	D("FS: op=%s, orig_display=%d forced_display=%d (req=%d cur=%d pending=%d)",
+	  MOS_DecodeFullscreenOp(fullscreen),
+	  orig ? (int)orig->id : 0,
+	  display ? (int)display->id : 0,
+	  (int)window->requested_fullscreen_mode.displayID,
+	  (int)window->current_fullscreen_mode.displayID,
+	  (int)window->pending_displayID);
 	
 	if (window->flags & SDL_WINDOW_EXTERNAL) {
 		D("Native window '%s' (%p), mode change ignored", window->title, data->win);
@@ -1028,15 +1068,14 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 	
 	if (display) {
 		SDL_DisplayData *displayData = display->internal;
-		if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
-			if (displayData->screen && data->win) {
-				D("WScreen %p, screen %p", data->win->WScreen, displayData->screen);
-				if (data->win->WScreen == displayData->screen) {
-					D("Same screen, useless mode change ignored");
-					return SDL_FULLSCREEN_SUCCEEDED;
-				}
-			}
-		}	
+		if ((fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) &&
+			(window->flags & SDL_WINDOW_FULLSCREEN) &&
+			displayData && displayData->screen && data->win &&
+			(data->win->WScreen == displayData->screen)) {
+
+			D("Already fullscreen on same screen, ignoring");
+			return SDL_FULLSCREEN_SUCCEEDED;
+		}
 	}
 	
 	int oldWidth = 0, oldHeight = 0;
@@ -1089,6 +1128,10 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 		MOS_CloseScreen(_this);
 	}
 	
+	if (fullscreen == SDL_FULLSCREEN_OP_ENTER && display) {
+		window->pending_displayID = display->id;
+	}
+
 	MOS_RecreateWindow(_this, window);
 	
 	if (data->win) {
