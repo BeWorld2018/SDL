@@ -376,7 +376,7 @@ static struct {
 "    gl_FragColor = SamplePaletteLinear(GetPixelArtUV(v_texCoord)) * v_color;\n"
 "}",
         // fragment version
-        "#version 130\n"
+        NULL
     },
 
     // SHADER_RGB
@@ -411,7 +411,7 @@ static struct {
 "    gl_FragColor *= v_color;\n"
 "}",
         // fragment version
-        "#version 130\n"
+        NULL
     },
 
     // SHADER_RGBA
@@ -443,7 +443,7 @@ static struct {
 "    gl_FragColor *= v_color;\n"
 "}",
         // fragment version
-        "#version 130\n"
+        NULL
     },
 
 #ifdef SDL_HAVE_YUV
