@@ -150,7 +150,6 @@ MOS_MouseMove(SDL_VideoDevice *_this, struct IntuiMessage *m, SDL_WindowData *da
 		globalMouseState.y = m->IDCMPWindow->WScreen->MouseY;
 		
 		if (SDL_GetRelativeMouseMode()) {
-			//D("SDL_GetRelativeMouseMode first_deltamove=%d", data->first_deltamove);
 			if (data->first_deltamove) {
 				data->first_deltamove = FALSE;
 				return;
@@ -225,14 +224,16 @@ static int MOS_FindDisplayIndex(SDL_VideoDevice *_this, SDL_DisplayID did)
     return -1;
 }
 
-static bool MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
+static bool 
+MOS_DisplayIsJumpable(SDL_VideoDisplay *d)
 {
     if (!d || !d->id) return false;
     SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
     return (dd && dd->pubscreen_name[0]);
 }
 
-static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
+static SDL_DisplayID 
+MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Window *w)
 {
     SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
     if (!cur) cur = w->pending_displayID;
@@ -247,7 +248,8 @@ static SDL_DisplayID MOS_GetNextJumpableDisplayID(SDL_VideoDevice *_this, SDL_Wi
     return 0;
 }
 
-static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
+static void 
+MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did)
 {
     SDL_DisplayID cur = SDL_GetDisplayForWindow(w);
     if (!cur) cur = w->pending_displayID;
@@ -260,17 +262,24 @@ static void MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_D
     SDL_GetWindowSize(w, &ww, &wh);
 
     w->pending_displayID = did;
+	w->requested_fullscreen_mode.displayID = did;
     w->pending.x = b.x + (b.w - ww) / 2;
     w->pending.y = b.y + (b.h - wh) / 2;
     	
+	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+	if (wd) {
+		wd->pending_jump_display = did;
+	}
     MOS_RecreateWindow(_this, w);
 
-    SDL_WindowData *wd = (SDL_WindowData *)w->internal;
+    wd = (SDL_WindowData *)w->internal;
     if (wd && wd->win) {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, wd->win->LeftEdge, wd->win->TopEdge);
-        MOS_WindowToFront(wd->win); // not working ?!
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_SHOWN, 0, 0);
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+		SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, w->w, w->h);
+		MOS_WindowToFront(wd->win);
     } else {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, w->pending.x, w->pending.y);
+		D("Failed to open window display %d (Not possible with fallback...", (ULONG)did);
     }
 }
 
@@ -489,6 +498,47 @@ MOS_CheckBrokerMsg(SDL_VideoDevice *_this)
 	}
 }
 
+void MOS_HideApp(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    if (data->in_hide_show || data->app_hidden) return;
+    data->in_hide_show = true;
+
+    MOS_CloseWindows(_this);
+    MOS_CloseDisplay(_this, true);
+
+    data->app_hidden = true;
+    data->in_hide_show = false;
+}
+
+void MOS_ShowApp(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    if (data->in_hide_show || !data->app_hidden) return;
+    data->in_hide_show = true;
+
+    if (!MOS_OpenDisplay(_this)) {
+        data->in_hide_show = false;
+        return;
+    }
+		
+    MOS_OpenWindows(_this);
+
+    data->app_hidden = false;
+    data->in_hide_show = false;
+	
+	data->displays_dirty = true;
+	MOS_RefreshDisplays(_this);
+		
+	if (__tglContext)  {
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_SHOWN, 0, 0);
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_RESIZED, _this->current_glwin->w, _this->current_glwin->h);
+    }
+}
+
 static void
 MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 {
@@ -500,11 +550,11 @@ MOS_CheckScreenEvent(SDL_VideoDevice *_this)
 		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
 			switch ((size_t)snm->snm_Value) {
 				case FALSE:
-					MOS_IconifyWindow(_this, false, NULL);
+					MOS_HideApp(_this);
 					break;
 
 				case TRUE:
-					MOS_UniconifyWindow(_this, NULL);
+					MOS_ShowApp(_this);
 					break;
 			}
 			ReplyMsg((struct Message *)snm);
@@ -549,7 +599,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 				MOS_UniconifyWindow(_this, window);
 				break;
 			default:
-				//D("Unknown AppMsg %d %p",  msg->am_Type, (APTR)msg->am_UserData);
+				D("Unknown AppMsg %d %p",  msg->am_Type, (APTR)msg->am_UserData);
 				break;
 		}
 		ReplyMsg((struct Message *)msg);
@@ -561,7 +611,24 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
     SDL_VideoData *data = (SDL_VideoData *)_this->internal;
     struct IntuiMessage *m;
 
-	const ULONG pending = SetSignal(0, 0);
+    const ULONG mask = data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig | BREAKMASK;
+    const ULONG pending = SetSignal(0, 0) & mask;
+
+    if (data->app_hidden) {
+        if ((pending & data->ScrNotifySig) && data->ScreenNotifyHandle) MOS_CheckScreenEvent(_this);
+        if (pending & data->BrokerSig) MOS_CheckBrokerMsg(_this);
+        if (pending & data->WBSig) MOS_CheckWBEvents(_this);
+        /* break handling même caché */
+        if (data->break_armed) {
+            const ULONG brk = pending & BREAKMASK;
+            if (brk && !data->break_prev) {
+                SetSignal(0, BREAKMASK);
+                SDL_SendAppEvent(SDL_EVENT_QUIT);
+            }
+            data->break_prev = brk;
+        }
+        return;
+    }
 
     if (pending & data->WinSig) {
         while ((m = (struct IntuiMessage *)GetMsg(&data->userPort))) {
@@ -583,7 +650,6 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
                 LONG wy2 = w->TopEdge  + w->Height - w->BorderBottom;
 
                 const bool inside = (mx >= ws && my >= wy && mx <= wx2 && my <= wy2);
-
                 if (inside) {
                     w->Flags |= WFLG_RMBTRAP;
                     if (data->CurrentPointer) {
@@ -619,11 +685,9 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
         const ULONG brk = pending & BREAKMASK;
 
         if (brk && !data->break_prev) {
-            /* Clear break(s) et déclencher quit */
             SetSignal(0, BREAKMASK);
             SDL_SendAppEvent(SDL_EVENT_QUIT);
         }
-
         data->break_prev = brk;
     }
 

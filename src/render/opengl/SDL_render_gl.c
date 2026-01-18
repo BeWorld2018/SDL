@@ -1214,8 +1214,19 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
     switch (shader) {
     case SHADER_PALETTE_NEAREST:
         if (cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_LINEAR) {
+#ifdef __MORPHOS__
+			// put failback !
+			if (GL_SupportsShader(data->shaders, SHADER_PALETTE_LINEAR)) {
+				shader = SHADER_PALETTE_LINEAR;
+				shader_params = texturedata->texel_size;
+			} else {
+				shader = SHADER_PALETTE_NEAREST;
+				shader_params = NULL;
+			}
+#else
             shader = SHADER_PALETTE_LINEAR;
             shader_params = texturedata->texel_size;
+#endif
         } else if (cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_PIXELART &&
                    data->pixelart_supported) {
             shader = SHADER_PALETTE_PIXELART;
@@ -1935,9 +1946,9 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     }
 
     // RGBA32 is always supported with OpenGL
-    #ifndef __MORPHOS__ // MorphOS support that but dont have this extension
+#ifndef __MORPHOS__ // MorphOS support that but dont have this extension before futur TinyGL 53.11++
     if (bgra_supported)
-    #endif
+#endif
     {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);
     }
@@ -1952,6 +1963,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         }
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBX32);
     } else {
+		D("OpenGL RGB shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL RGB shaders not supported");
     }
     // We support PIXELART mode using a shader
@@ -1959,6 +1971,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         GL_SupportsShader(data->shaders, SHADER_RGBA_PIXELART)) {
         data->pixelart_supported = true;
     } else {
+		D("OpenGL PIXELART shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL PIXELART shaders not supported");
     }
     // We support INDEX8 textures using 2 textures and a shader
@@ -1968,6 +1981,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         data->num_texture_units >= 2) {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
     } else {
+		D("OpenGL palette shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL palette shaders not supported");
     }
 #ifdef SDL_HAVE_YUV
@@ -1977,6 +1991,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_YV12);
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_IYUV);
     } else {
+		D("penGL YUV not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL YUV not supported");
     }
 

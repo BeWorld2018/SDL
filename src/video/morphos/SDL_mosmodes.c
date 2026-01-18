@@ -43,45 +43,100 @@ typedef struct PubScreenInfo {
 	char  name[MAXPUBSCREENNAME + 1];
 } PubScreenInfo;
 
+static void MOS_SetDisplayName(SDL_VideoDisplay *d, APTR monitor)
+{
+    STRPTR sysname = NULL;
+
+    if (!d || !monitor) {
+        return;
+    }
+
+    GetAttr(MA_MonitorName, monitor, (ULONG *)&sysname);
+    if (!sysname || !sysname[0]) {
+        return;
+    }
+
+    if (d->name && SDL_strcmp(d->name, (const char *)sysname) == 0) {
+        return;
+    }
+
+    char *dup = SDL_strdup((const char *)sysname);
+    if (!dup) {
+        return;
+    }
+
+    SDL_free(d->name);
+    d->name = dup;
+}
+
+
 void MOS_CloseScreen(SDL_VideoDevice *_this)
 {
+	D("");
 	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
     if (data->CustomScreen && data->CustomScreen != data->PublicScreen) {
-        D("Closing screen %p", data->CustomScreen);
+        D("Trying to closing custom screen %p", data->CustomScreen);
         if (!CloseScreen(data->CustomScreen)) {
             D("Screen has open window(s), cannot close");
         } else {
-            D("Screen closed successfully");
 			data->CustomScreen = NULL;
         }
     }
 }
 
-void MOS_CloseDisplay(SDL_VideoDevice *_this)
+void MOS_CloseDisplay(SDL_VideoDevice *_this, bool hide)
 {
-	SDL_VideoData *data = (SDL_VideoData *) _this->internal;
-	D("CustomScreen=0x%08lx  PublicScreen=0x%08lx", data->CustomScreen, data->PublicScreen);
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+    MOS_CloseScreen(_this);
 
-	MOS_CloseScreen(_this);
+    if (data->ScreenNotifyHandle && hide == false) {
+        int tries = 200; // ~2s avec Delay(1)
+        while (!RemWorkbenchClient(data->ScreenNotifyHandle) && --tries > 0) {
+            Delay(1);
+        }
+        if (tries == 0) {
+
+        } else {
+            data->ScreenNotifyHandle = NULL;
+        }
+    }
+
+    if (data->PublicScreen) {
+        if (data->ScreenSaverSuspendCount) {
+            for (size_t i = data->ScreenSaverSuspendCount; i > 0; i--) {
+                SetAttrs(data->PublicScreen, SA_StopBlanker, FALSE, TAG_DONE);
+            }
+            data->ScreenSaverSuspendCount = 0;
+        }
+        UnlockPubScreen(NULL, data->PublicScreen);
+        data->PublicScreen = NULL;
+    }
 	
-	if (data->PublicScreen) {
-		if (data->ScreenSaverSuspendCount) {
-			size_t i;
 
-			for (i = data->ScreenSaverSuspendCount; i > 0; i--)
-				SetAttrs(data->PublicScreen, SA_StopBlanker, FALSE, TAG_DONE);
-		}
+    struct ScreenNotifyMessage *snm;
+    while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
+        ReplyMsg((struct Message *)snm);
+    }
+}
 
-		UnlockPubScreen(NULL, data->PublicScreen);
-		data->PublicScreen = NULL;
-		
-		if (data->ScreenNotifyHandle) {
-			while (!RemWorkbenchClient(data->ScreenNotifyHandle))
-				Delay(10);
+bool MOS_OpenDisplay(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *data = (SDL_VideoData *) _this->internal;
+    if (data->PublicScreen) {
+        return true;
+    }
 
-			data->ScreenNotifyHandle = NULL;
-		}
-	}
+    struct Screen *s = LockPubScreen(NULL);
+    if (!s) {
+        D("LockPubScreen failed");
+        return false;
+    }
+
+    data->PublicScreen = s;
+	
+    return true;
 }
 
 static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
@@ -89,7 +144,6 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
     SDL_DisplayModeData *data;
     APTR handle;
     struct DimensionInfo diminfo;
-    struct DisplayInfo dispinfo;
 	struct MonitorInfo moninfo;
 
     handle = FindDisplayInfo(id);
@@ -99,11 +153,6 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
 
     if (!GetDisplayInfoData(handle, (UBYTE *)&diminfo, sizeof(diminfo), DTAG_DIMS, 0)) {
         D("Failed to get dim info");
-        return false;
-    }
-
-    if (!GetDisplayInfoData(handle, (UBYTE *)&dispinfo, sizeof(dispinfo), DTAG_DISP, 0)) {
-        D("Failed to get disp info");
         return false;
     }
 
@@ -133,9 +182,7 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
         }
     }
     mode->format = SDL_PIXELFORMAT_UNKNOWN;
-	
-	//D("RTG mode %lu: w=%d, h=%d, bits=%d\n", id, mode->w, mode->h, diminfo.MaxDepth);
-	
+		
 	switch (diminfo.MaxDepth) {
 	case 32:
 		mode->format = SDL_PIXELFORMAT_ARGB8888;
@@ -203,44 +250,58 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
     return true;
 }
 
-static const char *
-MOS_FindPubScreenNameForMonitor(APTR monitor, const PubScreenInfo *list, int count)
+static const PubScreenInfo *
+MOS_FindPubScreenForMonitor(APTR monitor, const PubScreenInfo *list, int count)
 {
-	D("");
+    if (!monitor || !list || count <= 0) {
+        return NULL;
+    }
+
     for (int i = 0; i < count; i++) {
         if (list[i].monitor == monitor) {
-            return list[i].name[0] ? list[i].name : NULL;
+            return &list[i];
         }
     }
     return NULL;
 }
 
-static int MOS_CollectPublicScreens(PubScreenInfo *out, int max)
+static int
+MOS_CollectPublicScreens(PubScreenInfo *out, int max)
 {
     if (!out || max <= 0) return 0;
+
+    char names[64][MAXPUBSCREENNAME + 1];
+    int count = 0;
 
     struct List *pslist = LockPubScreenList();
     if (!pslist) return 0;
 
-    int n = 0;
-    for (struct Node *node = pslist->lh_Head; node->ln_Succ && n < max; node = node->ln_Succ) {
-        struct PubScreenNode *psn = (struct PubScreenNode *)node;
-        struct Screen *s = psn->psn_Screen;
+    for (struct Node *node = pslist->lh_Head;
+         node && node->ln_Succ && count < (int)SDL_arraysize(names) && count < max;
+         node = node->ln_Succ)
+    {
         const char *name = node->ln_Name;
+        if (!name || !name[0]) continue;
 
-        if (!s || !name || !name[0]) continue;
-
-        out[n].monitor = (APTR)getv(s, SA_MonitorObject);
-        out[n].modeid  = (ULONG)getv(s, SA_DisplayID);
-        SDL_strlcpy(out[n].name, name, sizeof(out[n].name));
-
-        D("PubScreen: '%s' screen=%p monitor=%p modeid=%lu",
-          out[n].name, s, out[n].monitor, out[n].modeid);
-
-        n++;
+        SDL_strlcpy(names[count], name, sizeof(names[count]));
+        count++;
     }
 
     UnlockPubScreenList();
+
+    int n = 0;
+    for (int i = 0; i < count && n < max; i++) {
+        struct Screen *s = LockPubScreen((CONST_STRPTR)names[i]);
+        if (!s) continue;
+
+        SDL_strlcpy(out[n].name, names[i], sizeof(out[n].name));
+        out[n].monitor = (APTR)getv(s, SA_MonitorObject);
+        out[n].modeid  = (ULONG)getv(s, SA_DisplayID);
+
+        UnlockPubScreen(NULL, s);
+        n++;
+    }
+
     return n;
 }
 
@@ -265,22 +326,10 @@ MOS_GetDisplayForWindow(SDL_VideoDevice *_this, SDL_Window *window)
     return 0;
 }
 
-static bool 
-MOS_FindModeIdForMonitor(APTR monitor, const PubScreenInfo *list, int count, ULONG *outModeId)
-{
-    for (int i = 0; i < count; i++) {
-        if (list[i].monitor == monitor) {
-            *outModeId = list[i].modeid;
-            return true;
-        }
-    }
-    return false;
-}
-
 bool 
 MOS_InitModes(SDL_VideoDevice *_this)
 {
-    D("begin");
+    D("");
 
     SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 
@@ -294,7 +343,6 @@ MOS_InitModes(SDL_VideoDevice *_this)
         return SDL_OutOfMemory();
     }
 
-    STRPTR monitorname = NULL;
     APTR default_mon = (APTR)getv(data->PublicScreen, SA_MonitorObject);
     const ULONG default_modeid = (ULONG)getv(data->PublicScreen, SA_DisplayID);
 
@@ -310,10 +358,11 @@ MOS_InitModes(SDL_VideoDevice *_this)
 
         dd->monitor = default_mon;
         dd->screen = NULL;
-
-        const char *psname = MOS_FindPubScreenNameForMonitor(default_mon, pubs, pubCount);
-        if (psname) {
-            SDL_strlcpy(dd->pubscreen_name, psname, sizeof(dd->pubscreen_name));
+	
+        const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(default_mon, pubs, pubCount);
+        const char *pubname = (ps && ps->name[0]) ? ps->name : NULL;
+        if (pubname) {
+            SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
         }
 
         if (!MOS_GetDisplayMode(default_modeid, &mode)) {
@@ -324,10 +373,8 @@ MOS_InitModes(SDL_VideoDevice *_this)
             return SDL_SetError("Couldn't get display mode");
         }
 
-        GetAttr(MA_MonitorName, dd->monitor, (ULONG*)&monitorname);
-
         SDL_zero(display);
-        display.name = monitorname;
+		MOS_SetDisplayName(&display,dd->monitor);
         display.desktop_mode = mode;
         display.internal = dd;
 
@@ -344,14 +391,14 @@ MOS_InitModes(SDL_VideoDevice *_this)
                 continue;
             }
 
+            const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(m, pubs, pubCount);
+            const char *pubname = (ps && ps->name[0]) ? ps->name : NULL;
+
             SDL_DisplayMode mode;
             bool have_mode = false;
 
-            ULONG mid = INVALID_ID;
-            if (MOS_FindModeIdForMonitor(m, pubs, pubCount, &mid) && mid != INVALID_ID) {
-                if (MOS_GetDisplayMode(mid, &mode)) {
-                    have_mode = true;
-                }
+            if (ps && ps->modeid != INVALID_ID && MOS_GetDisplayMode(ps->modeid, &mode)) {
+                have_mode = true;
             }
 
             if (!have_mode) {
@@ -388,16 +435,13 @@ MOS_InitModes(SDL_VideoDevice *_this)
             dd->monitor = m;
             dd->screen = NULL;
 
-            const char *psname = MOS_FindPubScreenNameForMonitor(m, pubs, pubCount);
-            if (psname) {
-                SDL_strlcpy(dd->pubscreen_name, psname, sizeof(dd->pubscreen_name));
+            if (pubname) {
+                SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
             }
-
-            GetAttr(MA_MonitorName, m, (ULONG*)&monitorname);
 
             SDL_VideoDisplay display;
             SDL_zero(display);
-            display.name = monitorname;
+			MOS_SetDisplayName(&display,m);
             display.desktop_mode = mode;
             display.internal = dd;
 
@@ -407,10 +451,142 @@ MOS_InitModes(SDL_VideoDevice *_this)
         FreeMonitorList(monitors);
     }
 
-    D("end");
     return true;
 }
 
+static SDL_VideoDisplay *
+MOS_FindDisplayByMonitor(SDL_VideoDevice *_this, APTR monitor)
+{
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+        SDL_DisplayData *dd = (SDL_DisplayData *) d->internal;
+        if (dd && dd->monitor == monitor) {
+            return d;
+        }
+    }
+    return NULL;
+}
+
+static void
+MOS_FreeDesktopModeInternal(SDL_VideoDisplay *d)
+{
+    /* MOS_GetDisplayMode() alloue mode.internal => à libérer quand on remplace/supprime */
+    if (d->desktop_mode.internal) {
+        SDL_free(d->desktop_mode.internal);
+        d->desktop_mode.internal = NULL;
+    }
+}
+
+void
+MOS_RefreshDisplays(SDL_VideoDevice *_this)
+{
+	D("");
+    SDL_VideoData *vd = (SDL_VideoData *)_this->internal;
+
+    if (!vd->displays_dirty) {
+        return;
+    }
+    vd->displays_dirty = false;
+
+    PubScreenInfo pubs[32];
+    const int pubCount = MOS_CollectPublicScreens(pubs, SDL_arraysize(pubs));
+
+    /* 1) Mark all unseen */
+    for (int i = 0; i < _this->num_displays; i++) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+        SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+        if (dd) dd->seen = false;
+    }
+
+    /* 2) Enumerate monitors and update/add */
+    Object **monitors = GetMonitorList(NULL);
+    if (!monitors) {
+        return;
+    }
+
+    for (int i = 0; monitors[i]; i++) {
+        APTR m = monitors[i];
+
+        /* Desktop mode: on essaye via PubScreenList (rapide) */
+        SDL_DisplayMode mode;
+        bool have_mode = false;
+
+		const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(m, pubs, pubCount);
+		const char *pubname = (ps && ps->name[0]) ? ps->name : NULL;
+		ULONG modeid = ps ? ps->modeid : INVALID_ID;
+		
+        if (modeid != INVALID_ID && MOS_GetDisplayMode(modeid, &mode)) {
+            have_mode = true;
+        }
+
+        if (!have_mode) {
+            continue;
+        }
+
+        SDL_VideoDisplay *d = MOS_FindDisplayByMonitor(_this, m);
+        if (d) {
+            SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+            dd->seen = true;
+
+            if (pubname) {
+                SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
+            } else {
+                dd->pubscreen_name[0] = 0;
+            }
+
+            /* Update display name (monitorname) */
+			MOS_SetDisplayName(d,m);
+
+            /* Remplace desktop_mode sans fuite */
+            MOS_FreeDesktopModeInternal(d);
+			
+            d->desktop_mode = mode;
+
+        } else {
+            /* Nouveau monitor => nouveau display SDL */
+            SDL_DisplayData *dd = (SDL_DisplayData *)SDL_calloc(1, sizeof(*dd));
+            if (!dd) {
+                if (mode.internal) {
+                    SDL_free(mode.internal);
+                    mode.internal = NULL;
+                }
+                continue;
+            }
+
+            dd->monitor = m;
+            dd->screen  = NULL;
+            dd->seen    = true;
+
+            if (pubname) {
+                SDL_strlcpy(dd->pubscreen_name, pubname, sizeof(dd->pubscreen_name));
+            }
+
+            SDL_VideoDisplay nd;
+            SDL_zero(nd);
+            MOS_SetDisplayName(&nd, m);
+            nd.desktop_mode = mode;   /* contient internal alloué */
+            nd.internal = dd;
+
+            SDL_AddVideoDisplay(&nd, true);
+        }
+    }
+
+    FreeMonitorList(monitors);
+
+    /* 3) Remove displays non vus */
+    for (int i = _this->num_displays - 1; i >= 0; i--) {
+        SDL_VideoDisplay *d = _this->displays[i];
+        if (!d) continue;
+
+        SDL_DisplayData *dd = (SDL_DisplayData *)d->internal;
+        if (!dd) continue;
+        if (!dd->seen) {
+            SDL_DelVideoDisplay(d->id, true);
+        }
+    }
+}
 
 bool
 MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
@@ -445,7 +621,7 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         SA_Quiet,      (IPTR)TRUE,
         SA_ShowTitle,  (IPTR)FALSE,
         SA_Title,      (IPTR)FilePart(driverdata->FullAppName),
-		//SA_AdaptSize, TRUE,
+		SA_AdaptSize,  TRUE,
         SA_ErrorCode,  (IPTR)&openError,
         TAG_DONE);
 		

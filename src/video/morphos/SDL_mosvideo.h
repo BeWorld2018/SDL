@@ -69,8 +69,14 @@ typedef struct SDL_VideoData
 	struct MsgPort			*inputPort;
 	struct IOStdReq			*inputReq;
 	
-	ULONG break_prev;
-	bool  break_armed;
+	/* Break app */
+	ULONG 					break_prev;
+	bool  					break_armed;
+	
+	/* ScreenNotify */
+	bool 					app_hidden;
+	bool 					in_hide_show;
+	bool					displays_dirty;
 	
 } SDL_VideoData;
 

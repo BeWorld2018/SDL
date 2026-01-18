@@ -110,6 +110,7 @@ extern bool MOS_SetWindowOpacity(SDL_VideoDevice *_this, SDL_Window * window, fl
 
 /* Non-SDL functions */
 extern void MOS_CloseWindows(SDL_VideoDevice *_this);
+extern void MOS_OpenWindows(SDL_VideoDevice *_this);
 extern bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern bool MOS_SetWindowOpacityPrivate(SDL_VideoDevice *_this, SDL_Window * window, ULONG value);
 extern void MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Window * window);

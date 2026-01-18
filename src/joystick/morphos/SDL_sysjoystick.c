@@ -513,7 +513,6 @@ static bool MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 			joystick->nbuttons = buttons;
 			hwdata->numSticks = nsticks;
 			joystick->hwdata = hwdata;
-			joystick->name = SDL_strdup(g_joy[device_index].name);
 			return true;
 		}
 	}

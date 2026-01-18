@@ -2159,6 +2159,10 @@ bool SDL_SetWindowFullscreenMode(SDL_Window *window, const SDL_DisplayMode *mode
         // Save the mode so we can look up the closest match later
         SDL_copyp(&window->requested_fullscreen_mode, mode);
     } else {
+#ifdef SDL_PLATFORM_MORPHOS
+		//dont break mode
+		return true;
+#endif
         SDL_zero(window->requested_fullscreen_mode);
     }
 
