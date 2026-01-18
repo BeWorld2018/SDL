@@ -194,42 +194,55 @@ MOS_CreateSystemCursor(SDL_SystemCursor id)
 }
 
 static bool
-MOS_ShowCursor(SDL_Cursor * cursor)
+MOS_ShowCursor(SDL_Cursor *cursor)
 {
-	SDL_VideoDevice *video = SDL_GetVideoDevice();
-	SDL_VideoData *vdata = (SDL_VideoData *)video->internal;
-	if (cursor) {
-		SDL_CursorData *data = cursor->internal;
-		if (data->mouseptr != NULL) {
-			// Custom cursor
-			SDL_WindowData *wd = NULL;
-			ForeachNode(&vdata->windowlist, wd) {
-				if (wd->win)
-					SetWindowPointer(wd->win,WA_Pointer,(size_t)data->mouseptr, TAG_DONE);
-			}
-		} else if (data->type != NULL) {		
-			// System Cursor
-			SDL_WindowData *wd = NULL;
-			ForeachNode(&vdata->windowlist, wd) {
-				if (wd->win) {
-					SetWindowPointer(wd->win,
-						WA_PointerType, (IPTR)data->type,
-						TAG_DONE);
-				}
-			}
-		}
-	} else {
-		SDL_WindowData *wd = NULL;
-		ForeachNode(&vdata->windowlist, wd)
-		{
-			if (wd->win) 
-				SetWindowPointer(wd->win, WA_PointerType, (IPTR)POINTERTYPE_INVISIBLE, TAG_DONE);
-		}
-	}
-		
-	vdata->CurrentPointer = cursor;
-	return true;
+    SDL_VideoDevice *video = SDL_GetVideoDevice();
+    if (!video) {
+        return false;
+    }
+
+    SDL_VideoData *vdata = (SDL_VideoData *) video->internal;
+
+    if (vdata->CurrentPointer == cursor) {
+        return true;
+    }
+
+    struct TagItem tags[3];
+    int t = 0;
+
+    if (cursor) {
+        SDL_CursorData *cdata = (SDL_CursorData *) cursor->internal;
+
+        if (cdata && cdata->mouseptr) {
+            tags[t].ti_Tag  = WA_Pointer;
+            tags[t].ti_Data = (IPTR) (size_t) cdata->mouseptr;
+            t++;
+        } else {
+            IPTR type = cdata ? (IPTR) cdata->type : (IPTR) POINTERTYPE_NORMAL;
+            tags[t].ti_Tag  = WA_PointerType;
+            tags[t].ti_Data = type;
+            t++;
+        }
+    } else {
+        tags[t].ti_Tag  = WA_PointerType;
+        tags[t].ti_Data = (IPTR) POINTERTYPE_INVISIBLE;
+        t++;
+    }
+
+    tags[t].ti_Tag  = TAG_DONE;
+    tags[t].ti_Data = 0;
+
+    SDL_WindowData *wd = NULL;
+    ForeachNode(&vdata->windowlist, wd) {
+        if (wd->win) {
+            SetWindowPointerA(wd->win, tags);
+        }
+    }
+
+    vdata->CurrentPointer = cursor;
+    return true;
 }
+
 
 static void
 MOS_FreeCursor(SDL_Cursor *cursor)
