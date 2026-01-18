@@ -150,7 +150,6 @@ MOS_MouseMove(SDL_VideoDevice *_this, struct IntuiMessage *m, SDL_WindowData *da
 		globalMouseState.y = m->IDCMPWindow->WScreen->MouseY;
 		
 		if (SDL_GetRelativeMouseMode()) {
-			//D("SDL_GetRelativeMouseMode first_deltamove=%d", data->first_deltamove);
 			if (data->first_deltamove) {
 				data->first_deltamove = FALSE;
 				return;
@@ -269,7 +268,7 @@ MOS_JumpWindowToDisplay(SDL_VideoDevice *_this, SDL_Window *w, SDL_DisplayID did
     	
 	SDL_WindowData *wd = (SDL_WindowData *)w->internal;
 	if (wd) {
-		wd->pending_jump_display = did;   // AVANT recreate
+		wd->pending_jump_display = did;
 	}
     MOS_RecreateWindow(_this, w);
 

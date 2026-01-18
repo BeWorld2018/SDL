@@ -621,7 +621,7 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         SA_Quiet,      (IPTR)TRUE,
         SA_ShowTitle,  (IPTR)FALSE,
         SA_Title,      (IPTR)FilePart(driverdata->FullAppName),
-		//SA_AdaptSize, TRUE,
+		SA_AdaptSize,  TRUE,
         SA_ErrorCode,  (IPTR)&openError,
         TAG_DONE);
 		
