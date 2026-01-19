@@ -382,7 +382,6 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
     return device;
 
 fail:
-    /* cleanup local (ne dépend pas de device->free) */
     MOS_DeleteDevice(device);
     return NULL;
 }
