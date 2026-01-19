@@ -1284,7 +1284,22 @@ int SDL_GetSystemPageSize(void)
             SDL_SystemPageSize = (int) sysinfo.dwPageSize;
         }
 #endif
-        if (SDL_SystemPageSize < 0) {  // in case we got a weird result somewhere, or no better information, force it to 0.
+#if defined(SDL_PLATFORM_MORPHOS)
+        if (SDL_SystemPageSize <= 0) {
+            ULONG pageSize = 0;
+            if (NewGetSystemAttrsA((APTR)&pageSize, (ULONG)sizeof(pageSize),
+                                   (ULONG)SYSTEMINFOTYPE_PAGESIZE, NULL) != 0) {
+                if (pageSize) {
+                    SDL_SystemPageSize = (int)pageSize;
+                }
+            }
+            if (SDL_SystemPageSize <= 0) {
+                SDL_SystemPageSize = 4096;
+            }
+        }
+#endif
+
+	   if (SDL_SystemPageSize < 0) {  // in case we got a weird result somewhere, or no better information, force it to 0.
             SDL_SystemPageSize = 0;  // unknown page size, sorry.
         }
     }
