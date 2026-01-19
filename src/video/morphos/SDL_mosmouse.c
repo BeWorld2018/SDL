@@ -34,6 +34,8 @@
 #include <proto/graphics.h>
 #include <proto/dos.h>
 
+#include "SDL_mosevents.h"
+
 MOS_GlobalMouseState globalMouseState;
 
 static Uint32
@@ -193,56 +195,24 @@ MOS_CreateSystemCursor(SDL_SystemCursor id)
 	return cursor;
 }
 
-static bool
-MOS_ShowCursor(SDL_Cursor *cursor)
+static bool MOS_ShowCursor(SDL_Cursor *cursor)
 {
     SDL_VideoDevice *video = SDL_GetVideoDevice();
-    if (!video) {
-        return false;
-    }
+    if (!video) return false;
 
-    SDL_VideoData *vdata = (SDL_VideoData *) video->internal;
+    SDL_VideoData *vd = (SDL_VideoData *)video->internal;
 
-    if (vdata->CurrentPointer == cursor) {
-        return true;
-    }
+    if (vd->CurrentPointer == cursor) return true;
 
-    struct TagItem tags[3];
-    int t = 0;
+    vd->CurrentPointer = cursor;
+	MOS_ClearPointerIfApplied();
 
-    if (cursor) {
-        SDL_CursorData *cdata = (SDL_CursorData *) cursor->internal;
+	SDL_Window *focus = SDL_GetMouseFocus();
+	SDL_WindowData *wdata = focus ? (SDL_WindowData *)focus->internal : NULL;
+	MOS_UpdatePointerIfNeeded(vd, wdata);
 
-        if (cdata && cdata->mouseptr) {
-            tags[t].ti_Tag  = WA_Pointer;
-            tags[t].ti_Data = (IPTR) (size_t) cdata->mouseptr;
-            t++;
-        } else {
-            IPTR type = cdata ? (IPTR) cdata->type : (IPTR) POINTERTYPE_NORMAL;
-            tags[t].ti_Tag  = WA_PointerType;
-            tags[t].ti_Data = type;
-            t++;
-        }
-    } else {
-        tags[t].ti_Tag  = WA_PointerType;
-        tags[t].ti_Data = (IPTR) POINTERTYPE_INVISIBLE;
-        t++;
-    }
-
-    tags[t].ti_Tag  = TAG_DONE;
-    tags[t].ti_Data = 0;
-
-    SDL_WindowData *wd = NULL;
-    ForeachNode(&vdata->windowlist, wd) {
-        if (wd->win) {
-            SetWindowPointerA(wd->win, tags);
-        }
-    }
-
-    vdata->CurrentPointer = cursor;
     return true;
 }
-
 
 static void
 MOS_FreeCursor(SDL_Cursor *cursor)
@@ -268,7 +238,6 @@ MOS_WarpMouseInternal(struct Screen *screen, float x, float y)
     bool result = false;
 
 	if (vd->inputReq != NULL) {
-		//D("%f, %f",x, y);
 		struct InputEvent ie = { 0 };
 		struct IEPointerPixel newpos = { 0 };
 
@@ -298,8 +267,7 @@ MOS_WarpMouseInternal(struct Screen *screen, float x, float y)
 static bool
 MOS_WarpMouseGlobal(float x, float y)
 {
-    D("Warping mouse to %f, %f", x, y);
-
+    //D("Warping mouse to %f, %f", x, y);
     return MOS_WarpMouseInternal(NULL, x, y);
 }
 
@@ -309,7 +277,7 @@ MOS_WarpMouse(SDL_Window * window, float x, float y)
 	SDL_WindowData *data = (SDL_WindowData *)window->internal;
 	struct Window *syswin = data->win;
 	
-	D("Warping mouse to %f, %f", x, y);
+	//D("Warping mouse to %f, %f", x, y);
 	
 	bool relativeMouseMode = SDL_GetRelativeMouseMode();
 	
