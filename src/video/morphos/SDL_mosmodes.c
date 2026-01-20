@@ -661,7 +661,7 @@ MOS_GetDisplayBounds(SDL_VideoDevice *device, SDL_VideoDisplay * display, SDL_Re
 {
 	SDL_DisplayModeData *data = (SDL_DisplayModeData *) display->current_mode->internal;
 
-    rect->x = data->x;
+    rect->x = data->x; // TODO: store if possible monitor positions
     rect->y = data->y;
 	rect->w = display->current_mode->w;
     rect->h = display->current_mode->h;
