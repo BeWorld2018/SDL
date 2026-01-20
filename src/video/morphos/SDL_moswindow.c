@@ -1034,7 +1034,6 @@ MOS_ChooseFullscreenDisplay(SDL_Window *window, SDL_VideoDisplay *fallback)
     return fallback;
 }
 
-
 SDL_FullscreenResult
 MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDisplay * display, SDL_FullscreenOp fullscreen)
 {
@@ -1128,7 +1127,7 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDi
 		MOS_CloseScreen(_this);
 	}
 	
-	if (fullscreen == SDL_FULLSCREEN_OP_ENTER && display) {
+	if ((fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) && display) {
 		window->pending_displayID = display->id;
 	}
 

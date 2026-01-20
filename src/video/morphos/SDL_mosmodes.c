@@ -91,7 +91,7 @@ void MOS_CloseDisplay(SDL_VideoDevice *_this, bool hide)
     MOS_CloseScreen(_this);
 
     if (data->ScreenNotifyHandle && hide == false) {
-        int tries = 200; // ~2s avec Delay(1)
+        int tries = 200;
         while (!RemWorkbenchClient(data->ScreenNotifyHandle) && --tries > 0) {
             Delay(1);
         }
@@ -471,7 +471,6 @@ MOS_FindDisplayByMonitor(SDL_VideoDevice *_this, APTR monitor)
 static void
 MOS_FreeDesktopModeInternal(SDL_VideoDisplay *d)
 {
-    /* MOS_GetDisplayMode() alloue mode.internal => à libérer quand on remplace/supprime */
     if (d->desktop_mode.internal) {
         SDL_free(d->desktop_mode.internal);
         d->desktop_mode.internal = NULL;
@@ -492,7 +491,6 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
     PubScreenInfo pubs[32];
     const int pubCount = MOS_CollectPublicScreens(pubs, SDL_arraysize(pubs));
 
-    /* 1) Mark all unseen */
     for (int i = 0; i < _this->num_displays; i++) {
         SDL_VideoDisplay *d = _this->displays[i];
         if (!d) continue;
@@ -500,7 +498,6 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
         if (dd) dd->seen = false;
     }
 
-    /* 2) Enumerate monitors and update/add */
     Object **monitors = GetMonitorList(NULL);
     if (!monitors) {
         return;
@@ -509,7 +506,6 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
     for (int i = 0; monitors[i]; i++) {
         APTR m = monitors[i];
 
-        /* Desktop mode: on essaye via PubScreenList (rapide) */
         SDL_DisplayMode mode;
         bool have_mode = false;
 
@@ -536,16 +532,12 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
                 dd->pubscreen_name[0] = 0;
             }
 
-            /* Update display name (monitorname) */
 			MOS_SetDisplayName(d,m);
-
-            /* Remplace desktop_mode sans fuite */
             MOS_FreeDesktopModeInternal(d);
 			
             d->desktop_mode = mode;
 
         } else {
-            /* Nouveau monitor => nouveau display SDL */
             SDL_DisplayData *dd = (SDL_DisplayData *)SDL_calloc(1, sizeof(*dd));
             if (!dd) {
                 if (mode.internal) {
@@ -566,7 +558,7 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
             SDL_VideoDisplay nd;
             SDL_zero(nd);
             MOS_SetDisplayName(&nd, m);
-            nd.desktop_mode = mode;   /* contient internal alloué */
+            nd.desktop_mode = mode;
             nd.internal = dd;
 
             SDL_AddVideoDisplay(&nd, true);
@@ -575,7 +567,6 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
 
     FreeMonitorList(monitors);
 
-    /* 3) Remove displays non vus */
     for (int i = _this->num_displays - 1; i >= 0; i--) {
         SDL_VideoDisplay *d = _this->displays[i];
         if (!d) continue;
@@ -670,7 +661,7 @@ MOS_GetDisplayBounds(SDL_VideoDevice *device, SDL_VideoDisplay * display, SDL_Re
 {
 	SDL_DisplayModeData *data = (SDL_DisplayModeData *) display->current_mode->internal;
 
-    rect->x = data->x;
+    rect->x = data->x; // TODO: store if possible monitor positions
     rect->y = data->y;
 	rect->w = display->current_mode->w;
     rect->h = display->current_mode->h;
