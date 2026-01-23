@@ -30,7 +30,12 @@
 #define MAX_BUTTONS     16
 #define MAX_HATS        8
 #define MAX_STICKS      8
-#define MAX_RUMBLE		2
+#define MAX_RUMBLE		4
+
+/* Filtrage léger pour éviter le jitter/spam d'événements */
+#ifndef AXIS_EPS
+#define AXIS_EPS 64 /* à ajuster: 16 plus sensible, 64 réduit bien le jitter */
+#endif
 
 struct joystick_hwdata
 {
@@ -46,9 +51,20 @@ struct joystick_hwdata
 	int numSticks;
 	int numRumbles;
 
+	Uint8 last_hat[MAX_HATS];
+	SDL_bool hat_inited;
+	Sint16 last_axis[MAX_STICKS * 4];
+	SDL_bool axis_inited;
+
+	Uint32 last_battery_ts;
+	int last_battery_level;
+	SDL_bool battery_inited;
+
 	// hot plug support
 	struct MsgPort *notifyPort;
 	APTR sensorsNotify;
 };
+
+
 
 #endif

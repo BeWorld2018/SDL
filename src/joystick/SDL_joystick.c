@@ -101,7 +101,7 @@ static SDL_JoystickDriver *SDL_joystick_drivers[] = {
     &SDL_VIRTUAL_JoystickDriver,
 #endif
 #ifdef SDL_JOYSTICK_MORPHOS
-    &SDL_MORPHOS_JoystickDriver,
+    &SDL_MOS_JoystickDriver,
 #endif
 #ifdef SDL_JOYSTICK_VITA
     &SDL_VITA_JoystickDriver,
@@ -1416,11 +1416,7 @@ int SDL_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint
             /* Just update the expiration */
             retval = 0;
         } else {
-#ifdef __MORPHOS__
-            retval = joystick->driver->Rumble(joystick, low_frequency_rumble, high_frequency_rumble, duration_ms);
-#else
             retval = joystick->driver->Rumble(joystick, low_frequency_rumble, high_frequency_rumble);
-#endif
             if (retval == 0) {
                 joystick->rumble_resend = SDL_GetTicks() + SDL_RUMBLE_RESEND_MS;
                 if (joystick->rumble_resend == 0) {
@@ -2209,11 +2205,7 @@ void SDL_JoystickUpdate(void)
 
         if (joystick->rumble_resend &&
             SDL_TICKS_PASSED(now, joystick->rumble_resend)) {
-#ifdef __MORPHOS__
-			joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble, 100/*duration_ms*/);
-#else
             joystick->driver->Rumble(joystick, joystick->low_frequency_rumble, joystick->high_frequency_rumble);
-#endif
             joystick->rumble_resend = now + SDL_RUMBLE_RESEND_MS;
             if (joystick->rumble_resend == 0) {
                 joystick->rumble_resend = 1;
