@@ -63,7 +63,6 @@ struct Library       *ThreadPoolBase = NULL;
 struct Library       *DynLoadBase = NULL;
 struct Library       *OpenURLBase = NULL;
 struct Library       *GadToolsBase = NULL;
-// struct Library		*LowLevelBase = NULL;
 
 struct timerequest   GlobalTimeReq;
 
