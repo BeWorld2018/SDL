@@ -92,7 +92,6 @@ MOS_GL_FreeBitMap(SDL_VideoDevice *_this, SDL_Window *window)
 
 bool MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	MOS_GL_FreeBitMap(_this, window);
@@ -136,17 +135,18 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 	}
 		
 	// Initialize new context
-	int success = GLAInitializeContext(__tglContext, tgltags);
+	GLContext *ctx = data->__tglContext ? data->__tglContext : __tglContext;
+	int success = GLAInitializeContext(ctx, tgltags);
 	if (success) {
 		D("GLAInitializeContext Success");	
-		data->__tglContext = __tglContext;
+		data->__tglContext = __tglContext = ctx;
 		
 		// Clean Screen
-		if (!window->flags & SDL_WINDOW_FULLSCREEN) {
+		if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
 			GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
-			GLClear(__tglContext, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+			GLClear(__tglContext, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
-			
+		
 	} else
 		D("GLAInitializeContext Failed");	
 

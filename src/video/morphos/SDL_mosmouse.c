@@ -230,7 +230,7 @@ MOS_FreeCursor(SDL_Cursor *cursor)
 	}
 }
 
-static bool
+bool
 MOS_WarpMouseInternal(struct Screen *screen, float x, float y)
 {
 	SDL_VideoDevice *device = SDL_GetVideoDevice();

@@ -81,7 +81,7 @@ struct SDL_WindowData
 	
 	BOOL wasMaximized; /* Remember state when going to fullscreen mode, or back */
 	SDL_DisplayID pending_jump_display;
-	bool pending_jump;
+	bool warp_pending;
 };
 
 /* SDL functions */
