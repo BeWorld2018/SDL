@@ -216,10 +216,9 @@ static int MORPHOS_JoystickGetCount(void)
 
 static void MORPHOS_JoystickDetect(void)
 {
-
+	bool got_any = false;
 	if (g_hidNotifyPort) {
 		struct SensorsNotificationMessage *msg;
-		bool got_any = false;
 
 		while ((msg = (struct SensorsNotificationMessage *)GetMsg(g_hidNotifyPort)) != NULL) {
 			got_any = true;
@@ -231,9 +230,6 @@ static void MORPHOS_JoystickDetect(void)
 		}
 	}
 
-	if (!g_hidListDirty) {
-		return;
-	}
 	g_hidListDirty = false;
 
     APTR new_list = ObtainSensorsListTags(SENSORS_Class, SensorClass_HID, TAG_DONE);
