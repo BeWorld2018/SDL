@@ -1,26 +1,24 @@
-# Makefile to build the SDL3 for MorphOS 
+# Makefile for building SDL3 (MorphOS)
 #
-# FEATURES:
-# *********
-# PTHREADS
-# USE TIMER UNIX
-# AHI AUDIO
-# OPENGL support !
-# OPENGL RENDERER supported
-# GAMEPAD
-# DIALOG
-# ALTIVEC
+# Features enabled in this build:
+#   - Pthreads
+#   - Unix timer backend
+#   - AHI audio backend
+#   - OpenGL video + OpenGL renderer
+#   - Gamepad support: sensors library / hotplug supported
+#   - Dialog support (MorphOS backend)
+#   - AltiVec optimizations (selected files)
+#	- Multi-monitor supported
+#	- Software and OpenGL renderers supported
 #
-# TODO FEATURES:
-# **************
-# PROCESS
-# testcolorspace = wront read color (opengl renderer)
+# Notes:
+#   - "debug" adds -D__SDL_DEBUG
+#   - "install" copies headers and static libs to /gg/usr/local
 #
-# KNOWN BUGS:
-# ***********
-# MESSAGEBOX: dont support window parent
-
-# make -f makefile.mos debug = build with debug kprintf 
+# Known issues:
+#   - MessageBox: no window parent support
+#   - testcolorspace: incorrect color readback with OpenGL renderer
+#   - SDL_
 
 AR = ppc-morphos-ar
 RANLIB = ppc-morphos-ranlib
@@ -31,74 +29,73 @@ STRIP = ppc-morphos-strip
 AMIGADATE = $(shell date +"%-d.%m.%Y")
 
 DEFINES =  -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS  =  -noixemul -O3 -Wall -ffast-math -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
+CFLAGS  =  -noixemul -O2 -Wall -ffast-math -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
 
 TARGET_STATIC  = libSDL3.a
 TESTLIB_STATIC = libSDL3_test.a
 
 SOURCES = \
-	./src/*.c \
-	./src/atomic/*.c \
-	./src/audio/*.c \
-	./src/audio/ahi/*.c \
-	./src/audio/dummy/*.c \
-	./src/camera/*.c \
-	./src/cpuinfo/*.c \
-	./src/dialog/*.c \
-	./src/dialog/morphos/*.c \
-	./src/events/*.c \
+	$(wildcard ./src/*.c) \
+	$(wildcard ./src/atomic/*.c) \
+	$(wildcard ./src/audio/*.c) \
+	$(wildcard ./src/audio/ahi/*.c) \
+	$(wildcard ./src/audio/dummy/*.c) \
+	$(wildcard ./src/camera/*.c) \
+	$(wildcard ./src/cpuinfo/*.c) \
+	$(wildcard ./src/dialog/*.c) \
+	$(wildcard ./src/dialog/morphos/*.c) \
+	$(wildcard ./src/events/*.c) \
 	./src/filesystem/SDL_filesystem.c \
-	./src/filesystem/posix/*.c \
-	./src/filesystem/morphos/*.c \
+	$(wildcard ./src/filesystem/posix/*.c) \
+	$(wildcard ./src/filesystem/morphos/*.c) \
 	./src/gpu/SDL_gpu.c \
-	./src/haptic/*.c \
-	./src/haptic/dummy/*.c \
-	./src/io/*.c \
+	$(wildcard ./src/haptic/*.c) \
+	$(wildcard ./src/haptic/dummy/*.c) \
+	$(wildcard ./src/io/*.c) \
 	./src/io/generic/SDL_asyncio_generic.c \
-	./src/joystick/*.c \
-	./src/joystick/dummy/*.c \
-	./src/joystick/morphos/*.c \
-	./src/joystick/virtual/*.c \
-	./src/libm/*.c \
-	./src/loadso/morphos/*.c \
-	./src/loadso/morphos/libdll/*.c \
-	./src/locale/*.c \
-	./src/locale/morphos/*.c \
+	$(wildcard ./src/joystick/*.c) \
+	$(wildcard ./src/joystick/dummy/*.c) \
+	$(wildcard ./src/joystick/morphos/*.c) \
+	$(wildcard ./src/joystick/virtual/*.c) \
+	$(wildcard ./src/libm/*.c) \
+	$(wildcard ./src/loadso/morphos/*.c) \
+	$(wildcard ./src/loadso/morphos/libdll/*.c) \
+	$(wildcard ./src/locale/*.c) \
+	$(wildcard ./src/locale/morphos/*.c) \
 	./src/main/generic/SDL_sysmain_callbacks.c \
 	./src/main/SDL_main_callbacks.c \
 	./src/main/SDL_runapp.c \
-	./src/misc/*.c \
-	./src/misc/morphos/*.c \
-	./src/power/*.c \
-	./src/power/morphos/*.c \
-	./src/process/*.c \
-	./src/process/dummy/*.c \
-	./src/render/*.c \
-	./src/render/software/*.c \
-	./src/render/opengl/*.c \
-	./src/sensor/*.c \
-	./src/sensor/dummy/*.c \
-	./src/stdlib/*.c \
+	$(wildcard ./src/misc/*.c) \
+	$(wildcard ./src/misc/morphos/*.c) \
+	$(wildcard ./src/power/*.c) \
+	$(wildcard ./src/power/morphos/*.c) \
+	$(wildcard ./src/process/*.c) \
+	$(wildcard ./src/process/dummy/*.c) \
+	$(wildcard ./src/render/*.c) \
+	$(wildcard ./src/render/software/*.c) \
+	$(wildcard ./src/render/opengl/*.c) \
+	$(wildcard ./src/sensor/*.c) \
+	$(wildcard ./src/sensor/dummy/*.c) \
+	$(wildcard ./src/stdlib/*.c) \
 	./src/storage/SDL_storage.c \
 	./src/storage/generic/SDL_genericstorage.c \
-	./src/thread/*.c \
-	./src/thread/pthread/*.c \
+	$(wildcard ./src/thread/*.c) \
+	$(wildcard ./src/thread/pthread/*.c) \
 	./src/time/SDL_time.c \
 	./src/time/unix/SDL_systime.c \
-	./src/timer/*.c \
-	./src/timer/unix/*.c \
+	$(wildcard ./src/timer/*.c) \
+	$(wildcard ./src/timer/unix/*.c) \
 	./src/tray/SDL_tray_utils.c \
 	./src/tray/dummy/SDL_tray.c \
-	./src/video/*.c \
-	./src/video/morphos/*.c \
-	./src/video/dummy/*.c \
-	./src/video/yuv2rgb/*.c \
+	$(wildcard ./src/video/*.c) \
+	$(wildcard ./src/video/morphos/*.c) \
+	$(wildcard ./src/video/dummy/*.c) \
+	$(wildcard ./src/video/yuv2rgb/*.c)
 
-TESTLIB_SOURCES =./src/test/*.c
+TESTLIB_SOURCES = $(wildcard ./src/test/*.c)
 
-OBJECTS = $(shell echo $(SOURCES) | sed -e 's,\.c,\.o,g')
-TESTLIB_OBJECTS = $(shell echo $(TESTLIB_SOURCES) | sed -e 's,\.c,\.o,g')
-
+OBJECTS = $(SOURCES:.c=.o)
+TESTLIB_OBJECTS = $(TESTLIB_SOURCES:.c=.o)
 ALL_OBJECTS = $(OBJECTS) $(TESTLIB_OBJECTS)
 
 all: $(TARGET_STATIC) $(TESTLIB_STATIC)

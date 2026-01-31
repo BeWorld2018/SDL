@@ -44,4 +44,7 @@ typedef struct MOS_GlobalMouseState
 extern bool MOS_InitMouse(SDL_VideoDevice *_this);
 extern void MOS_QuitMouse(SDL_VideoDevice *_this);
 
+/* Internal */
+extern bool MOS_WarpMouseInternal(struct Screen *screen, float x, float y);
+
 #endif /* _SDL_mosmouse_h */

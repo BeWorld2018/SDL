@@ -27,4 +27,7 @@ extern void MOS_PumpEvents(SDL_VideoDevice *_this);
 extern void MOS_GlobalMenu(struct Menu *mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check);
 extern void MOS_UpdatePointerIfNeeded(SDL_VideoData *vd, SDL_WindowData *wdata);
 extern void MOS_ClearPointerIfApplied(void);
+
+extern void MOS_FocusAndWarpIfNeeded(SDL_VideoDevice *_this, SDL_WindowData *data);
+extern void MOS_InvalidatePointerCacheForWindow(struct Window *win);
 #endif /* _SDL_mosevents_h */

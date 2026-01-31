@@ -125,7 +125,6 @@ MOS_CreateAppWindow(SDL_VideoDevice *_this, SDL_Window * window)
         return;
     }
 
-    // Pass SDL window as user data
     data->appWin = AddAppWindow(0, (ULONG)window, data->win, &videodata->appMsgPort, TAG_DONE);
 
     if (!data->appWin) {
@@ -400,7 +399,6 @@ MOS_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_PropertiesID c
 
 		if (win->Flags & WFLG_WINDOWACTIVE) {
 			flags |= SDL_WINDOW_INPUT_FOCUS;
-			//SDL_SetKeyboardFocus(window); // TO TEST
 		}
 
 		window->flags = flags;
@@ -439,19 +437,62 @@ bool
 MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D("0x%08lx position %d, %d", data->win, window->pending.x, window->pending.y);
+	D("0x%08lx position %d, %d (pending_displayID=%d)", data->win, window->pending.x, window->pending.y, (int)window->pending_displayID);
 
 	if (data->win) {
+		SDL_DisplayID target_did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
+		SDL_DisplayID current_did = SDL_GetDisplayForWindow(window);
+		SDL_Rect bounds;
+		SDL_zero(bounds);
+
+		if (target_did) {
+			SDL_GetDisplayBounds(target_did, &bounds);
+		}
+
+		const int local_x = window->pending.x - bounds.x;
+		const int local_y = window->pending.y - bounds.y;
+
+		if (target_did && current_did && (target_did != current_did) &&
+		    !(window->flags & SDL_WINDOW_FULLSCREEN) &&
+		    !(window->flags & SDL_WINDOW_EXTERNAL) &&
+		    !data->videodata->CustomScreen) {
+
+			window->pending_displayID = target_did;
+
+			window->windowed.x = local_x;
+			window->windowed.y = local_y;
+			window->x = window->pending.x;
+			window->y = window->pending.y;
+
+			MOS_RecreateWindow(_this, window);
+
+			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_MOVED, window->pending.x, window->pending.y);
+			
+			// grab mouse !
+			data = (SDL_WindowData *)window->internal;
+			data->warp_pending = true;
+			MOS_FocusAndWarpIfNeeded(_this, data);
+			return true;
+		}
 
 		SDL_Rect r;
-		r.x = window->pending.x;
-		r.y = window->pending.y;
+		r.x = local_x;
+		r.y = local_y;
 		r.w = window->w;
 		r.h = window->h;
-		
+
 		MOS_SetWindowBox(_this, window, &r);
-		
+		if (target_did && current_did && (target_did != current_did)) {
+			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_DISPLAY_CHANGED, (Sint32)target_did, 0);
+		}
 		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_MOVED, window->pending.x, window->pending.y);
+		const bool cross_display = (target_did && current_did && (target_did != current_did));
+		const bool should_warp = cross_display || (window == SDL_GetMouseFocus());
+		if ( !(window->flags & SDL_WINDOW_FULLSCREEN) && should_warp) {
+			data->warp_pending = true;
+			MOS_FocusAndWarpIfNeeded(_this, data);
+		}
+		
 	}
 	return true;
 }
@@ -484,6 +525,14 @@ bool
 MOS_GetWindowBordersSize(SDL_VideoDevice *_this, SDL_Window * window, int *top, int *left, int *bottom, int *right)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
+	
+	if (!data || !data->win) {
+		if (top) *top = 0;
+		if (left) *left = 0;
+		if (bottom) *bottom = 0;
+		if (right) *right = 0;
+		return true;
+	}
 	
 	if (top)
 		*top = data->win->BorderTop;
@@ -623,6 +672,13 @@ MOS_GetWindowFlags(SDL_Window * window, bool fullscreen)
 
 static SDL_DisplayID MOS_GetFallbackDisplay(SDL_VideoDevice *_this, SDL_VideoData *vd, SDL_Window *window, SDL_DisplayID failed_did)
 {
+	
+	static int g_recreate_serial = 0;
+	D("Recreate #%d title='%s' flags=0x%08x pending_displayID=%d pending=(%d,%d %dx%d)",
+		  ++g_recreate_serial, window->title, (unsigned)window->flags,
+		  (int)window->pending_displayID,
+		  window->pending.x, window->pending.y, window->pending.w, window->pending.h);
+	
     SDL_Window *focus = SDL_GetKeyboardFocus();
     if (focus) {
         SDL_DisplayID did = SDL_GetDisplayForWindow(focus);
@@ -638,24 +694,24 @@ static SDL_DisplayID MOS_GetFallbackDisplay(SDL_VideoDevice *_this, SDL_VideoDat
 
 bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 {
-    SDL_WindowData *data = (SDL_WindowData *)window->internal;
-    SDL_VideoData *videodata = data->videodata;
+    SDL_WindowData *wd = (SDL_WindowData *)window->internal;
+    SDL_VideoData *videodata = wd->videodata;
 
     if (!videodata->PublicScreen && !videodata->CustomScreen) {
         return false;
     }
 
-    if (data->win || (window->flags & SDL_WINDOW_MINIMIZED)) {
-        if (data->win) {
-            MOS_WindowToFront(data->win);
+    if (wd->win || (window->flags & SDL_WINDOW_MINIMIZED)) {
+        if (wd->win) {
+            MOS_WindowToFront(wd->win);
         }
         return true;
     }
 
     const bool fullscreen = (window->flags & SDL_WINDOW_FULLSCREEN) != 0;
 
-    if (!data->window_title) {
-        data->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+    if (!wd->window_title) {
+        wd->window_title = MOS_ConvertText(window->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
     }
 
     float op = window->opacity;
@@ -680,12 +736,7 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
         if (!videodata->CustomScreen) {
 
 			if (attempt == 0) {
-				SDL_WindowData *wd = (SDL_WindowData *) window->internal;
-				if (wd && wd->pending_jump_display) {
-					did = wd->pending_jump_display;
-				} else {
-					did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
-				}
+				did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
 			} else {
 				did = MOS_GetFallbackDisplay(_this, videodata, window, failed_did);
 				window->pending_displayID = 0;
@@ -722,8 +773,17 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 		if (locked) {
 			UnlockPubScreen(NULL, locked);
 		}
-
-        data->win = OpenWindowTags(NULL,
+		
+		// count Display available
+		int numDisplay = 0;
+		SDL_DisplayID *displays = SDL_GetDisplays(&numDisplay);
+		if (displays) SDL_free(displays);
+		ULONG extragadget = ETG_ICONIFY;
+		if (numDisplay > 1) {
+			extragadget |= ETG_JUMP;
+		}
+		
+        wd->win = OpenWindowTags(NULL,
             WA_Left, box.x,
             WA_Top, box.y,
             WA_InnerWidth, box.w,
@@ -733,32 +793,34 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
             videodata->CustomScreen ? WA_CustomScreen : (pubname ? WA_PubScreenName : WA_PubScreen),
             videodata->CustomScreen ? (IPTR)videodata->CustomScreen : (pubname ? (IPTR)pubname : (IPTR)videodata->PublicScreen),
 
-            WA_ScreenTitle, data->window_title,
-            (window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
+            WA_ScreenTitle, wd->window_title,
+            (window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, wd->window_title,
 
             WA_UserPort, &videodata->userPort,
             WA_Opacity, opacity_value,
             WA_FrontWindow, (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) ? TRUE : FALSE,
             WA_IDCMP, IDCMPFlags,
-            WA_ExtraTitlebarGadgets, ETG_ICONIFY | ETG_JUMP,
+            WA_ExtraTitlebarGadgets, extragadget,
             TAG_DONE);
 
-        if (data->win) {
+        if (wd->win) {
             SDL_PropertiesID props = SDL_GetWindowProperties(window);
-            SDL_SetPointerProperty(props, "SDL.window.morphos.window", data->win);
+            SDL_SetPointerProperty(props, "SDL.window.morphos.window", wd->win);
 
             if ((window->flags & SDL_WINDOW_RESIZABLE) && !fullscreen) {
-                MOS_SetWindowLimits(window, data->win);
+                MOS_SetWindowLimits(window, wd->win);
             }
 
-            data->first_deltamove = TRUE;
-            data->win->UserData = (APTR)data;
-
+            wd->first_deltamove = TRUE;
+            wd->win->UserData = (APTR)wd;
+			
+			window->pending_displayID = 0;
+			
             MOS_CreateAppWindow(_this, window);
             MOS_CreateMenu(_this, window);
 
-            if (data->grabbed) {
-                DoMethod((Object *)data->win, WM_ObtainEvents);
+            if (wd->grabbed) {
+                DoMethod((Object *)wd->win, WM_ObtainEvents);
             }
 
             return true;
@@ -834,9 +896,8 @@ MOS_HideWindow(SDL_VideoDevice *_this, SDL_Window * window)
     }
 	if (data->win) {
 		ULONG value = ((0.0) * (ULONG_MAX));
-		//D("set window opaqueness to %lu", value);
 		if (MOS_SetWindowOpacityPrivate(_this, window, value)) {
-			
+		
 		}
 	}
 	
@@ -909,13 +970,13 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
 		D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
 
         SetAttrs(data->win,
-            rect->x == 0 && rect->y == 0 ? TAG_IGNORE : WA_Left, rect->x,
-            rect->x == 0 && rect->y == 0 ? TAG_IGNORE : WA_Top, rect->y,
+			WA_Left, rect->x,
+			WA_Top, rect->y,
 			rect->w == 0 ? TAG_IGNORE : WA_InnerWidth, rect->w,
 			rect->h == 0 ? TAG_IGNORE : WA_InnerHeight, rect->h,
-            TAG_DONE);
+			TAG_DONE);
 			
-		if (data->__tglContext && (rect->h > 0 && rect->h > 0)) {
+		if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
 			MOS_GL_ResizeContext(_this, window);
 		}
 
@@ -1014,150 +1075,197 @@ MOS_DecodeFullscreenOp(SDL_FullscreenOp fullscreen)
 }
 #endif
 
-static SDL_VideoDisplay *
-MOS_ChooseFullscreenDisplay(SDL_Window *window, SDL_VideoDisplay *fallback)
-{
-    SDL_DisplayID want = 0;
-
-    if (window->requested_fullscreen_mode.displayID) {
-        want = window->requested_fullscreen_mode.displayID;
-    } else if (window->current_fullscreen_mode.displayID) {
-        want = window->current_fullscreen_mode.displayID;
-    }
-
-    if (want) {
-        SDL_VideoDisplay *d = SDL_GetVideoDisplay(want);
-        if (d) {
-            return d;
-        }
-    }
-    return fallback;
-}
-
 SDL_FullscreenResult
-MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDisplay * display, SDL_FullscreenOp fullscreen)
+MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window *window,
+                        SDL_VideoDisplay *display, SDL_FullscreenOp fullscreen)
 {
-	
-	if (window->is_destroying) {	
-		D("Window '%s' is being destroyed, mode change ignored", window->title);
-		return SDL_FULLSCREEN_SUCCEEDED;
-	}
-	
-	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	SDL_VideoDisplay *orig = display;
-	display = MOS_ChooseFullscreenDisplay(window, display);
+    if (window->is_destroying) {
+        D("Window '%s' is being destroyed, mode change ignored", window->title);
+        return SDL_FULLSCREEN_SUCCEEDED;
+    }
 
-	D("FS: op=%s, orig_display=%d forced_display=%d (req=%d cur=%d pending=%d)",
-	  MOS_DecodeFullscreenOp(fullscreen),
-	  orig ? (int)orig->id : 0,
-	  display ? (int)display->id : 0,
-	  (int)window->requested_fullscreen_mode.displayID,
-	  (int)window->current_fullscreen_mode.displayID,
-	  (int)window->pending_displayID);
+    SDL_WindowData *data = (SDL_WindowData *)window->internal;
 	
-	if (window->flags & SDL_WINDOW_EXTERNAL) {
-		D("Native window '%s' (%p), mode change ignored", window->title, data->win);
-		return SDL_FULLSCREEN_SUCCEEDED;
-	}
+    if (window->flags & SDL_WINDOW_EXTERNAL) {
+        D("Native window '%s' (%p), mode change ignored", window->title, data->win);
+        return SDL_FULLSCREEN_SUCCEEDED;
+    }
 
-	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE && (window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
-			D("leave fullscreen ! why here (fullscreen=%d) ?", (window->flags & SDL_WINDOW_FULLSCREEN));
-			return SDL_FULLSCREEN_SUCCEEDED;
-	}
-	
-	if (display) {
-		SDL_DisplayData *displayData = display->internal;
-		if ((fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) &&
-			(window->flags & SDL_WINDOW_FULLSCREEN) &&
-			displayData && displayData->screen && data->win &&
-			(data->win->WScreen == displayData->screen)) {
+    /* If LEAVE requested but we are already windowed, ignore */
+    if (fullscreen == SDL_FULLSCREEN_OP_LEAVE && (window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
+        return SDL_FULLSCREEN_SUCCEEDED;
+    }
+		
+    SDL_VideoDisplay *orig = display;
+    SDL_VideoDisplay *target_display = display;
+    SDL_DisplayID target_did = 0;
 
-			D("Already fullscreen on same screen, ignoring");
-			return SDL_FULLSCREEN_SUCCEEDED;
+    if (fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) {
+        /* Honor pending_displayID first (classic: move/center then fullscreen) */
+		if (window->pending_displayID) {
+			target_did = window->pending_displayID;
+		} else {
+			SDL_DisplayID where = SDL_GetDisplayForWindow(window);
+			if (where) {
+				target_did = where;
+			} else if (window->requested_fullscreen_mode.displayID) {
+				target_did = window->requested_fullscreen_mode.displayID;
+			} else if (window->current_fullscreen_mode.displayID) {
+				target_did = window->current_fullscreen_mode.displayID;
+			} else if (display) {
+				target_did = display->id;
+			}
 		}
-	}
-	
-	int oldWidth = 0, oldHeight = 0;
-	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
-		if ((data->old_w && data->old_h) && (data->old_w != data->win->Width && data->old_h != data->win->Height)) {
-			D("Change position %d,%d and size %d,%d", data->old_x, data->old_y, data->old_w, data->old_h);
+
+        if (target_did) {
+            SDL_VideoDisplay *d = SDL_GetVideoDisplay(target_did);
+            if (d) {
+                target_display = d;
+            }
+        }
+    } else {
+        /* LEAVE: keep whatever SDL/core passes, we will restore windowed geom below */
+        if (window->current_fullscreen_mode.displayID) {
+			target_did = window->current_fullscreen_mode.displayID;
+		} else if (window->requested_fullscreen_mode.displayID) {
+			target_did = window->requested_fullscreen_mode.displayID;
+		} else if (display) {
+			target_did = display->id;
+		}
+
+		if (target_did) {
+			SDL_VideoDisplay *d = SDL_GetVideoDisplay(target_did);
+			if (d) {
+				target_display = d;
+			}
+		} else {
+			target_display = display;
+		}
+    }
+
+    if (target_display) {
+        target_did = target_display->id;
+    }
+
+    D("FS: op=%s, orig_display=%d forced_display=%d (req=%d cur=%d pending=%d target=%d)",
+      MOS_DecodeFullscreenOp(fullscreen),
+      orig ? (int)orig->id : 0,
+      target_display ? (int)target_display->id : 0,
+      (int)window->requested_fullscreen_mode.displayID,
+      (int)window->current_fullscreen_mode.displayID,
+      (int)window->pending_displayID,
+      (int)target_did);
+	  
+    /* Save/restore windowed geometry (and keep window->windowed in sync for MOS_DefineWindowBox) */
+    if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
+        if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0 && data->win) {
+            int ww = 0, hh = 0;
+            MOS_GetWindowSize(data->win, &ww, &hh);
+
+			data->old_x = window->x;   // global SDL !
+			data->old_y = window->y;
+			data->old_w = window->w;
+			data->old_h = window->h;
+
+            D("Save windowed position %d,%d and size %d,%d",
+              data->old_x, data->old_y, data->old_w, data->old_h);
+        }
+    } else if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
+        if (data->old_w && data->old_h) {
+			SDL_DisplayID did = window->current_fullscreen_mode.displayID;
+			if (!did) did = window->requested_fullscreen_mode.displayID;
+			if (!did && target_did) did = target_did;
+
+			SDL_Rect bounds;
+			SDL_zero(bounds);
+			if (did) SDL_GetDisplayBounds(did, &bounds);
+
 			window->x = data->old_x;
 			window->y = data->old_y;
 			window->w = data->old_w;
 			window->h = data->old_h;
-			data->old_w = 0;
-			data->old_h = 0;
-			data->old_x = 0;
-			data->old_y = 0;		
-		}
+
+			window->windowed.x = data->old_x - bounds.x;
+			window->windowed.y = data->old_y - bounds.y;
+			window->windowed.w = data->old_w;
+			window->windowed.h = data->old_h;
+
+			window->pending.x = data->old_x;
+			window->pending.y = data->old_y;
+			window->pending.w = data->old_w;
+			window->pending.h = data->old_h;
+
+			data->old_w = data->old_h = data->old_x = data->old_y = 0;
+        }
+    }
+
+    if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
+        SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_LEAVE_FULLSCREEN, 0, 0);
+    } else if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
+        SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_ENTER_FULLSCREEN, 0, 0);
+    }
+
+    if ((fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) && target_did) {
+        window->pending_displayID = target_did;
+        window->requested_fullscreen_mode.displayID = target_did;
+        window->current_fullscreen_mode.displayID   = target_did;
+        D("ENTER/UPDATE: forcing pending_displayID=%d", (int)window->pending_displayID);
+    }
+
+    if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
+        SDL_DisplayID did = 0;
+
+        /* prefer the fullscreen display (current/req), then orig/target display */
+        if (window->current_fullscreen_mode.displayID) did = window->current_fullscreen_mode.displayID;
+        if (!did && window->requested_fullscreen_mode.displayID) did = window->requested_fullscreen_mode.displayID;
+        if (!did && target_did) did = target_did;
+        if (!did && orig) did = orig->id;
+
+        if (did) {
+            window->pending_displayID = did;
+        }
+
+        D("LEAVE: forcing pending_displayID=%d", (int)window->pending_displayID);
 		
-	} else if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
 		if (data->win) {
-			int ww = 0, hh = 0;
-			MOS_GetWindowSize(data->win, &ww, &hh);
-			data->old_x = data->win->LeftEdge;
-			data->old_y = data->win->TopEdge;
-			data->old_w = ww;
-			data->old_h = hh;
-			D("Save actual position %d,%d and size %d,%d", data->old_x, data->old_y, data->old_w, data->old_h);
+			MOS_CloseWindow(_this, window);
 		}
-	}
 
-	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
-		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_LEAVE_FULLSCREEN, 0, 0);
-	
-	} else if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
-		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_ENTER_FULLSCREEN, 0, 0);
-	}
-	
-	if (data->win) {
-		
-		D("Reopening window '%s' (%p) due to mode change", window->title, data->win);
-			
-		MOS_GetWindowSize(data->win, &oldWidth, &oldHeight);	
-		
-		MOS_CloseWindow(_this, window);
+        MOS_CloseScreen(_this);
+    }
 
-	} else {
-		D("System window doesn't exist yet, let's open it");
-	}
-	
-	if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
-		// Leave fullscreen....
-		MOS_CloseScreen(_this);
-	}
-	
-	if ((fullscreen == SDL_FULLSCREEN_OP_ENTER || fullscreen == SDL_FULLSCREEN_OP_UPDATE) && display) {
-		window->pending_displayID = display->id;
-	}
+    MOS_RecreateWindow(_this, window);
 
-	MOS_RecreateWindow(_this, window);
-	
-	if (data->win) {
-		MOS_ShowWindow(_this, window);
-		int width = 0, height = 0;
-		MOS_GetWindowSize(data->win, &width, &height);
-		D("Force to inform SDL about window size %d x %d", width, height);
-		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
+    if (data->win) {
+        //MOS_ShowWindow(_this, window);
 
-		if (data->__tglContext) MOS_GL_ResizeContext(_this, window);
-		
-		if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
-			if (window->flags & SDL_WINDOW_MAXIMIZED) {
-				data->wasMaximized = TRUE;
-				window->flags &= ~SDL_WINDOW_MAXIMIZED;
-			}
-			SDL_SetMouseFocus(window);
+        int width = 0, height = 0;
+        MOS_GetWindowSize(data->win, &width, &height);
+        D("Force to inform SDL about window size %d x %d", width, height);
+        SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
+				
+        if (data->__tglContext) {
+            MOS_GL_ResizeContext(_this, window);
+        }
 
-		} else if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
-			if (data->wasMaximized) {
-				window->flags |= SDL_WINDOW_MAXIMIZED;
-				data->wasMaximized = FALSE;
-			}
-		}
-	}
+        if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
+            if (window->flags & SDL_WINDOW_MAXIMIZED) {
+                data->wasMaximized = TRUE;
+                window->flags &= ~SDL_WINDOW_MAXIMIZED;
+            }
+            SDL_SetMouseFocus(window);
+        } else if (fullscreen == SDL_FULLSCREEN_OP_LEAVE) {
+            if (data->wasMaximized) {
+                window->flags |= SDL_WINDOW_MAXIMIZED;
+                data->wasMaximized = FALSE;
+            }
+			SDL_zero(window->requested_fullscreen_mode);
+			SDL_zero(window->current_fullscreen_mode);
+        }
+    }
+
 	
-	return SDL_FULLSCREEN_SUCCEEDED;
+    return SDL_FULLSCREEN_SUCCEEDED;
 }
 
 bool

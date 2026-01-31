@@ -42,6 +42,9 @@ typedef struct
     void* userdata;
 } MOS_DialogArgs;
 
+static const char *MOS_DefaultAccept(void) { return "Ok"; }
+static const char *MOS_DefaultCancel(void) { return "Cancel"; }
+
 static void MOS_FreeDialogArgs(MOS_DialogArgs* args)
 {
 
@@ -212,6 +215,52 @@ static int MOS_DialogThread(void* ptr)
     return 0;
 }
 
+static void MOS_SplitLocation(const char *loc, char **out_dir, char **out_file)
+{
+    *out_dir = SDL_strdup("");
+    *out_file = SDL_strdup("");
+
+    if (!loc || !loc[0]) {
+        return;
+    }
+
+    const size_t len = SDL_strlen(loc);
+
+    /* If it ends with ':' or '/', treat as drawer-only */
+    if (loc[len - 1] == ':' || loc[len - 1] == '/') {
+        SDL_free(*out_dir);
+        *out_dir = SDL_strdup(loc);
+        /* file stays "" */
+        return;
+    }
+
+    /* Split at last '/' or ':' */
+    const char *last_slash = SDL_strrchr(loc, '/');
+    const char *last_colon = SDL_strrchr(loc, ':');
+    const char *sep = last_slash;
+
+    if (!sep || (last_colon && last_colon > sep)) {
+        sep = last_colon;
+    }
+
+    if (sep) {
+        const size_t dirlen = (size_t)(sep - loc) + 1; /* include separator */
+        char *dir = SDL_calloc(dirlen + 1, 1);
+        if (dir) {
+            SDL_memcpy(dir, loc, dirlen);
+            dir[dirlen] = '\0';
+            SDL_free(*out_dir);
+            *out_dir = dir;
+        }
+        SDL_free(*out_file);
+        *out_file = SDL_strdup(sep + 1);
+    } else {
+        /* No separator: treat as file only */
+        SDL_free(*out_file);
+        *out_file = SDL_strdup(loc);
+    }
+}
+
 static void MOS_ShowFileDialog(SDL_DialogFileCallback callback, void* userdata, struct Window* window,
                                const SDL_DialogFileFilter *filters, int nfilters, const char* default_location, bool allow_many, bool is_save,
                                const char* title, const char* accept, const char* cancel)
@@ -224,12 +273,13 @@ static void MOS_ShowFileDialog(SDL_DialogFileCallback callback, void* userdata, 
         return;
     }
 
-    args->title = title ? title : is_save ? SDL_strdup("Save file...") : SDL_strdup("Open file...");
-    args->accept = accept;
-    args->cancel = cancel;
+	args->title  = SDL_strdup(title ? title : (is_save ? "Save file..." : "Open file..."));
+	args->accept = SDL_strdup(accept ? accept : MOS_DefaultAccept());
+	args->cancel = SDL_strdup(cancel ? cancel : MOS_DefaultCancel());
     args->filters = filters;
-    args->default_file = default_location;
-    args->default_dir = SDL_strdup("");
+	
+	MOS_SplitLocation(default_location, (char **)&args->default_dir, (char **)&args->default_file);
+
     args->window = window;
     args->allow_many = allow_many;
     args->save = is_save;
@@ -261,12 +311,14 @@ static void MOS_ShowFolderDialog(SDL_DialogFileCallback callback, void* userdata
         return;
     }
 
-    args->title = title ? title : SDL_strdup("Open folder...");
-    args->accept = accept;
-    args->cancel = cancel;
+	args->title  = SDL_strdup(title ? title : "Open folder...");
+	args->accept = SDL_strdup(accept ? accept : MOS_DefaultAccept());
+	args->cancel = SDL_strdup(cancel ? cancel : MOS_DefaultCancel());
     args->filters = NULL;
+	
     args->default_file = SDL_strdup("");
-    args->default_dir = default_location;
+    args->default_dir  = SDL_strdup(default_location ? default_location : "");
+
     args->window = window;
     args->allow_many = allow_many;
     args->save = false;

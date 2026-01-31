@@ -6,12 +6,42 @@
 unsigned long __stack = 1024 * 1024 * 2;
 
 bool isFullscreen = false;
+static int vsync_on = 1;
 
 static void ToggleFullscreen(SDL_Window* w)
 {
     isFullscreen = !isFullscreen;
 	SDL_SetWindowFullscreenMode(w, NULL);
     SDL_SetWindowFullscreen(w, isFullscreen ? true : false);
+}
+
+static void MoveWindowToDisplayIndex(SDL_Window *w, int display_index)
+{
+    int num = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&num);
+    if (!displays || num <= 0) {
+        SDL_Log("SDL_GetDisplays failed: %s", SDL_GetError());
+        return;
+    }
+
+    if (display_index < 0 || display_index >= num) {
+        SDL_Log("Display index %d invalide (num=%d)", display_index, num);
+        SDL_free(displays);
+        return;
+    }
+
+    SDL_DisplayID did = displays[display_index];
+
+    /* Centre la fenêtre sur le display choisi */
+    const int pos = SDL_WINDOWPOS_CENTERED_DISPLAY(did);
+    SDL_SetWindowPosition(w, pos, pos);
+
+    /* Optionnel mais souvent utile selon backend */
+    SDL_SyncWindow(w);
+
+    SDL_Log("Fenetre envoyee sur display[%d] id=%u", display_index, (unsigned)did);
+
+    SDL_free(displays);
 }
 
 /* ---- helpers drawing ---- */
@@ -88,7 +118,11 @@ int main(int argc, char *argv[])
     }
 
     SDL_Log("Renderer utilisé : %s\n", SDL_GetRendererName(gRenderer));
-    SDL_SetRenderVSync(gRenderer, 1);
+    if (!SDL_SetRenderVSync(gRenderer, 1)) {
+		SDL_Log("Impossible d'activer le VSync: %s\n", SDL_GetError());
+	} else {
+		SDL_Log("VSync activé");
+	}
 
     bool quit = false;
     SDL_Event e;
@@ -140,7 +174,22 @@ int main(int argc, char *argv[])
                         border = !border;
                         SDL_SetWindowBordered(gWindow, border);
                     }
-                    break;
+					
+					if (e.key.key == SDLK_O) {
+                        MoveWindowToDisplayIndex(gWindow, 0); /* display 1 */
+                    }
+                    if (e.key.key == SDLK_P) {
+                        MoveWindowToDisplayIndex(gWindow, 1); /* display 2 */
+                    }
+					if (e.key.key == SDLK_V) {
+						vsync_on = !vsync_on;
+						if (!SDL_SetRenderVSync(gRenderer, vsync_on ? 1 : 0)) {
+							SDL_Log("VSync toggle failed: %s", SDL_GetError());
+						} else {
+							SDL_Log("VSync = %s", vsync_on ? "ON" : "OFF");
+						}
+					}
+				break;
             }
         }
 
