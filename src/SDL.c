@@ -689,7 +689,7 @@ void SDL_Quit(void)
     SDL_DBus_Quit();
 #endif
 
-#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID) && !defined(SDL_PLATFORM_EMSCRIPTEN)
+#if defined(SDL_PLATFORM_UNIX) && !defined(SDL_PLATFORM_ANDROID) && !defined(SDL_PLATFORM_EMSCRIPTEN) && !defined(SDL_PLATFORM_PRIVATE)
     SDL_Gtk_Quit();
 #endif
 
@@ -706,7 +706,7 @@ void SDL_Quit(void)
     /* Now that every subsystem has been quit, we reset the subsystem refcount
      * and the list of initialized subsystems.
      */
-    SDL_memset(SDL_SubsystemRefCount, 0x0, sizeof(SDL_SubsystemRefCount));
+    SDL_zeroa(SDL_SubsystemRefCount);
 
     SDL_QuitLog();
     SDL_QuitHints();

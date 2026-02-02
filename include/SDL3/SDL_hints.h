@@ -1146,6 +1146,21 @@ extern "C" {
 #define SDL_HINT_GPU_DRIVER "SDL_GPU_DRIVER"
 
 /**
+ * A variable that specifies the library name to use when loading the OpenXR
+ * loader.
+ *
+ * By default, SDL will try the system default name, but on some platforms
+ * like Windows, debug builds of the OpenXR loader have a different name, and
+ * are not always directly compatible with release applications. Setting this
+ * hint allows you to compensate for this difference in your app when
+ * applicable.
+ *
+ * This hint should be set before the OpenXR loader is loaded. For example,
+ * creating an OpenXR GPU device will load the OpenXR loader.
+ */
+#define SDL_HINT_OPENXR_LIBRARY "SDL_OPENXR_LIBRARY"
+
+/**
  * A variable to control whether SDL_hid_enumerate() enumerates all HID
  * devices or only controllers.
  *
@@ -2649,8 +2664,8 @@ extern "C" {
  *
  * The variable can be set to the following values:
  *
- * - "0": Holding a key will open the accents menu for that key.
- * - "1": Holding a key will repeat the pressed key. (default)
+ * - "0": Holding a key will repeat the pressed key.
+ * - "1": Holding a key will open the accents menu for that key. (default)
  *
  * This hint needs to be set before SDL_Init().
  *

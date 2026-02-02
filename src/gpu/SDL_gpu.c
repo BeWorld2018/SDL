@@ -21,7 +21,12 @@
 #include "SDL_internal.h"
 #include "SDL_sysgpu.h"
 
-// FIXME: This could probably use SDL_ObjectValid
+/* Normally this macro would use something like SDL_IsObjectValid, but in GPU's
+ * case we can prioritize performance and be more trusting of application
+ * behavior than, say, SDL_Render, so trust that applications will be careful
+ * about disposing the device and its resources.
+ * -flibit
+ */
 #define CHECK_DEVICE_MAGIC(device, retval)  \
     CHECK_PARAM(device == NULL) {           \
         SDL_SetError("Invalid GPU device"); \
@@ -607,6 +612,13 @@ static const SDL_GPUBootstrap * SDL_GPUSelectBackend(SDL_PropertiesID props)
         return NULL;
     }
 
+#ifndef HAVE_GPU_OPENXR
+    if (SDL_GetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_XR_ENABLE_BOOLEAN, false)) {
+        SDL_SetError("OpenXR is not enabled in this build of SDL");
+        return NULL;
+    }
+#endif
+
     gpudriver = SDL_GetHint(SDL_HINT_GPU_DRIVER);
     if (gpudriver == NULL) {
         gpudriver = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, NULL);
@@ -750,6 +762,13 @@ void SDL_DestroyGPUDevice(SDL_GPUDevice *device)
 {
     CHECK_DEVICE_MAGIC(device, );
     device->DestroyDevice(device);
+}
+
+XrResult SDL_DestroyGPUXRSwapchain(SDL_GPUDevice *device, XrSwapchain swapchain, SDL_GPUTexture **swapchainImages)
+{
+    CHECK_DEVICE_MAGIC(device, XR_ERROR_HANDLE_INVALID);
+
+    return device->DestroyXRSwapchain(device->driverData, swapchain, swapchainImages);
 }
 
 int SDL_GetNumGPUDrivers(void)
@@ -3508,11 +3527,11 @@ SDL_PixelFormat SDL_GetPixelFormatFromGPUTextureFormat(SDL_GPUTextureFormat form
 {
     switch (format) {
     case SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM:
-        return SDL_PIXELFORMAT_BGRA4444;
+        return SDL_PIXELFORMAT_ARGB4444;
     case SDL_GPU_TEXTUREFORMAT_B5G6R5_UNORM:
-        return SDL_PIXELFORMAT_BGR565;
+        return SDL_PIXELFORMAT_RGB565;
     case SDL_GPU_TEXTUREFORMAT_B5G5R5A1_UNORM:
-        return SDL_PIXELFORMAT_BGRA5551;
+        return SDL_PIXELFORMAT_ARGB1555;
     case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UINT:
         return SDL_PIXELFORMAT_RGBA32;
     case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_SNORM:
@@ -3543,11 +3562,11 @@ SDL_PixelFormat SDL_GetPixelFormatFromGPUTextureFormat(SDL_GPUTextureFormat form
 SDL_GPUTextureFormat SDL_GetGPUTextureFormatFromPixelFormat(SDL_PixelFormat format)
 {
     switch (format) {
-    case SDL_PIXELFORMAT_BGRA4444:
+    case SDL_PIXELFORMAT_ARGB4444:
         return SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM;
-    case SDL_PIXELFORMAT_BGR565:
+    case SDL_PIXELFORMAT_RGB565:
         return SDL_GPU_TEXTUREFORMAT_B5G6R5_UNORM;
-    case SDL_PIXELFORMAT_BGRA5551:
+    case SDL_PIXELFORMAT_ARGB1555:
         return SDL_GPU_TEXTUREFORMAT_B5G5R5A1_UNORM;
     case SDL_PIXELFORMAT_BGRA32:
     case SDL_PIXELFORMAT_BGRX32:
@@ -3566,4 +3585,37 @@ SDL_GPUTextureFormat SDL_GetGPUTextureFormatFromPixelFormat(SDL_PixelFormat form
     default:
         return SDL_GPU_TEXTUREFORMAT_INVALID;
     }
+}
+
+XrResult SDL_CreateGPUXRSession(
+    SDL_GPUDevice *device,
+    const XrSessionCreateInfo *createinfo,
+    XrSession *session)
+{
+    CHECK_DEVICE_MAGIC(device, XR_ERROR_HANDLE_INVALID);
+
+    return device->CreateXRSession(device->driverData, createinfo, session);
+}
+
+SDL_GPUTextureFormat* SDL_GetGPUXRSwapchainFormats(
+    SDL_GPUDevice *device,
+    XrSession session,
+    int *num_formats)
+{
+    CHECK_DEVICE_MAGIC(device, NULL);
+
+    return device->GetXRSwapchainFormats(device->driverData, session, num_formats);
+}
+
+XrResult SDL_CreateGPUXRSwapchain(
+    SDL_GPUDevice *device,
+    XrSession session,
+    const XrSwapchainCreateInfo *createinfo,
+    SDL_GPUTextureFormat format,
+    XrSwapchain *swapchain,
+    SDL_GPUTexture ***textures)
+{
+    CHECK_DEVICE_MAGIC(device, XR_ERROR_HANDLE_INVALID);
+
+    return device->CreateXRSwapchain(device->driverData, session, createinfo, format, swapchain, textures);
 }
