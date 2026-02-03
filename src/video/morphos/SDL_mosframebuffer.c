@@ -19,188 +19,126 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 #include "../../SDL_internal.h"
-
 #include "SDL_mosvideo.h"
+#include "SDL_mosmodes.h"
 
 #include <cybergraphx/cybergraphics.h>
 #include <intuition/intuition.h>
 #include <proto/cybergraphics.h>
 #include <graphics/rpattr.h>
 #include <proto/graphics.h>
-//#define OLDFB
 
 #ifndef MIN
 #   define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
 
-
-void
-MOS_DestroyWindowFramebuffer(_THIS, SDL_Window * window)
+static inline void 
+MOS_FreeBitmap(SDL_WindowData *data)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-#ifdef OLDFB
-	if (data) {
-		if (data->fb) {
-			SDL_free(data->fb);
-			data->fb = NULL;
-		}
-	}
-#else
-	if (data->bitmap) {
+    if (data && data->bitmap) {
         FreeBitMap(data->bitmap);
         data->bitmap = NULL;
     }
-#endif
 }
 
-int
-MOS_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format,
-                            void ** pixels, int *pitch)
+static inline struct BitMap *
+MOS_GetFriendBitMap(_THIS, SDL_WindowData *data)
 {
-	D("[%s]\n", __FUNCTION__);
-#ifdef OLDFB
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	SDL_VideoData *vd = data->videodata;
-	SDL_Framebuffer *fb;
-	Uint32 fmt;
-	int bpr;
 
-	/* Free the old framebuffer surface */
-	MOS_DestroyWindowFramebuffer(_this, window);
-
-	switch (vd->sdlpixfmt) {
-		case SDL_PIXELFORMAT_INDEX8:
-			fmt = SDL_PIXELFORMAT_INDEX8;
-			bpr = (window->w + 15) & ~15;
-			break;
-
-		default:
-			fmt = SDL_PIXELFORMAT_ARGB8888;
-			bpr = ((window->w * 4) + 15) & ~15;
-			break;
-	}
-
-	*format = fmt;
-	*pitch = bpr;
-
-	data->fb = fb = SDL_malloc(sizeof(SDL_Framebuffer) + bpr * window->h);
-
-	if (fb) {
-		fb->bpr = bpr;
-		fb->pixfmt = fmt;
-
-		*pixels = fb->buffer;
-	} else {
-		return SDL_OutOfMemory();
-	}
-#else
-	APTR lock;
-    APTR base_address;
-    Uint32 bytes_per_row;
-
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-    if (data->bitmap) {
-        FreeBitMap(data->bitmap);
-    }
-
-	if (!data->win) {
-        return SDL_SetError("No system window");
+    if (data && data->win && data->win->RPort) {
+        return data->win->RPort->BitMap;
     }
 	
-    *format = SDL_PIXELFORMAT_BGRA8888;
-	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
-	Uint32 depth =  GetBitMapAttr(friend_bitmap, BMA_DEPTH);
-	data->bitmap = AllocBitMap(window->w, window->h, depth, BMF_MINPLANES|BMF_CLEAR, friend_bitmap);
-	if (!data->bitmap) {
-		return SDL_SetError("Failed to allocate bitmap for framebuffer");
-	} 
-		
-	D("[%s] Allocate bitmap %d x %d x %d for framebuffer\n", __FUNCTION__, window->w, window->h, depth);
-	lock = LockBitMapTags(
-        data->bitmap,
-        LBMI_BASEADDRESS, &base_address,
-        LBMI_BYTESPERROW, &bytes_per_row,
-        TAG_DONE);
-
-    if (lock) {
-        *pixels = base_address;
-        *pitch = bytes_per_row;
-
-        UnLockBitMap(lock);
-    } else {
-        FreeBitMap(data->bitmap);
-        data->bitmap = NULL;
-        return SDL_SetError("Failed to lock framebuffer bitmap");
+	// No window -> fallback, use WBScreen friend bitmap
+	MOS_GetScreen(_this, 0, SDL_TRUE);
+	
+    if (data && data->videodata && data->videodata->WScreen) {
+        return data->videodata->WScreen->RastPort.BitMap;
     }
-
-#endif
-	return 0;
+	
+    return NULL;
 }
 
-int
-MOS_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
+void 
+MOS_DestroyWindowFramebuffer(_THIS, SDL_Window *window)
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-#ifdef OLDFB 
-	if (!data || !data->win || !data->fb) {
+    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+    if (!data) {
+        return;
+    }
+    MOS_FreeBitmap(data);
+}
+
+int 
+MOS_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *format, void **pixels, int *pitch)
+{
+    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+    if (!data) {
+        return SDL_SetError("No window driverdata");
+    }
+
+    MOS_FreeBitmap(data);
+
+    struct BitMap *friend_bitmap = MOS_GetFriendBitMap(_this, data);
+    if (!friend_bitmap) {
+        return SDL_SetError("No friend bitmap (no window and no WScreen)");
+    }
+
+    APTR lock;
+    APTR base_address = NULL;
+    Uint32 bytes_per_row = 0;
+
+    const Uint32 depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+
+    *format = SDL_PIXELFORMAT_BGRA8888;
+
+    data->bitmap = AllocBitMap(window->w, window->h, depth,
+                               BMF_MINPLANES | BMF_CLEAR,
+                               friend_bitmap);
+    if (!data->bitmap) {
+        return SDL_SetError("AllocBitMap failed");
+    }
+
+    lock = LockBitMapTags(data->bitmap,
+                          LBMI_BASEADDRESS, &base_address,
+                          LBMI_BYTESPERROW, &bytes_per_row,
+                          TAG_DONE);
+    if (!lock) {
+        MOS_FreeBitmap(data);
+        return SDL_SetError("LockBitMapTags failed");
+    }
+
+    *pixels = base_address;
+    *pitch  = (int)bytes_per_row;
+
+    UnLockBitMap(lock);
+
+    return 0;
+}
+
+int 
+MOS_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects)
+{
+    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+    if (!data || !data->win || !data->bitmap) {
         return 0;
     }
 
-    SDL_Framebuffer *fb = data->fb;
-	struct RastPort *rp = data->win->RPort;
     struct Window *win = data->win;
+    struct RastPort *rp = win->RPort;
 
-	const struct IBox windowBox = {
-            win->BorderLeft,
-            win->BorderTop,
-            win->Width - win->BorderLeft - win->BorderRight,
-            win->Height - win->BorderTop - win->BorderBottom
-    };
-    int dx, dy, w, h;
-	const SDL_Rect * r;
+    const int left   = win->BorderLeft;
+    const int top    = win->BorderTop;
+    const int width  = win->Width  - win->BorderLeft - win->BorderRight;
+    const int height = win->Height - win->BorderTop  - win->BorderBottom;
 
     for (int i = 0; i < numrects; ++i) {
-        r = &rects[i];
+        const SDL_Rect *r = &rects[i];
+        const int w = MIN(r->w, width);
+        const int h = MIN(r->h, height);
+        BltBitMapRastPort(data->bitmap, r->x, r->y, rp,
+                          r->x + left, r->y + top, w, h, 0xc0);
+    }
 
-		dx = r->x + windowBox.Left;
-		dy = r->y + windowBox.Top;
-		w = MIN(r->w, windowBox.Width);
-		h = MIN(r->h, windowBox.Height);
-
-		switch (fb->pixfmt) {
-            case SDL_PIXELFORMAT_INDEX8:
-                if (data->videodata->CustomScreen) {
-
-                    WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_RAW);
-                } else {
-                    WriteLUTPixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, data->videodata->coltab, dx, dy, w, h, CTABFMT_XRGB8);
-                }
-			break;
-
-			default:
-			case SDL_PIXELFORMAT_ARGB8888:
-				WritePixelArray(fb->buffer, r->x, r->y, fb->bpr, rp, dx, dy, w, h, RECTFMT_ARGB);
-				break; 
-		}
-	}
- #else	
-	if (data->bitmap && data->win) {
-		
-		const struct IBox windowBox = {
-                data->win->BorderLeft,
-                data->win->BorderTop,
-                data->win->Width - data->win->BorderLeft - data->win->BorderRight,
-                data->win->Height - data->win->BorderTop - data->win->BorderBottom };
-		
-		for (int i = 0; i < numrects; ++i) {
-            const SDL_Rect * r = &rects[i];
-			int dx = r->x + windowBox.Left;
-			int dy = r->y + windowBox.Top;
-		    int w =  MIN(r->w, windowBox.Width);
-			int h = MIN(r->h, windowBox.Height);
-			BltBitMapRastPort(data->bitmap,  r->x, r->y, data->win->RPort, dx, dy, w, h, 0xc0);
-		}
-	}
-#endif  
-	return 0;
+    return 0;
 }

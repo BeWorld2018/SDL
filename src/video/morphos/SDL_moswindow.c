@@ -500,6 +500,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			data->region ? WA_TransparentRegion : TAG_IGNORE, data->region,
 			(window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_ScreenTitle, data->window_title,
 			(window->flags & SDL_WINDOW_BORDERLESS || fullscreen) ? TAG_IGNORE : WA_Title, data->window_title,
+			WA_BackFill, (ULONG)LAYERS_NOBACKFILL,
 			WA_UserPort, &vd->WinPort,
 			WA_AutoAdjust, TRUE,
 			WA_Opacity, opacity_value,

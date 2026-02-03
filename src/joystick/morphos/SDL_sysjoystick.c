@@ -41,7 +41,6 @@
 #define SENSORS_HIDInput_Rumble_Type (SENSORS_Dummy + 2403)
 #endif
 
-/* SDL2 deadzone is around 409, we need 1638 */
 #define DEADZONE_MIN (-0.05)
 #define DEADZONE_MAX (0.05)
 
@@ -52,7 +51,6 @@
     ((((val) <= (DEADZONE_MAX) && (val) >= (DEADZONE_MIN)) ? (0) : \
      ((val) > (JOYSTICK_MAX)) ? (JOYSTICK_MAX) : (((val) < (JOYSTICK_MIN)) ? (JOYSTICK_MIN) : (val))))
 
-/* ---- Tunables ---- */
 #ifndef MAX_JOYSTICKS
 #define MAX_JOYSTICKS 4
 #endif
@@ -71,10 +69,9 @@
 #endif
 
 #ifndef AXIS_EPS
-#define AXIS_EPS 64 /* 16 = plus sensible, 64 réduit bien le jitter */
+#define AXIS_EPS 64
 #endif
 
-/* ---- Globals inventory ---- */
 APTR sensorlist;
 APTR JoySensor[MAX_JOYSTICKS];
 int joystick_count;
@@ -273,7 +270,6 @@ static void MOS_JoystickDetect(void)
     SDL_zero(next);
     int next_count = 0;
 
-    /* 1) Survivors en gardant l'ordre OLD */
     for (int j = 0; j < joystick_count && next_count < MAX_JOYSTICKS; j++) {
         for (int i = 0; i < now_count; i++) {
             if (now_used[i]) continue;
@@ -281,14 +277,13 @@ static void MOS_JoystickDetect(void)
                 now_used[i] = SDL_TRUE;
                 old_present[j] = SDL_TRUE;
 
-                now[i].instance_id = g_joy[j].instance_id; /* reste stable tant que c'est le "même" device */
+                now[i].instance_id = g_joy[j].instance_id;
                 next[next_count++] = now[i];
                 break;
             }
         }
     }
 
-    /* 2) Tout ce qui reste est "nouveau/replug" => nouvel instance_id, et on note le *device_index* futur */
     for (int i = 0; i < now_count && next_count < MAX_JOYSTICKS; i++) {
         if (now_used[i]) continue;
 
@@ -297,7 +292,7 @@ static void MOS_JoystickDetect(void)
         next[next_count++] = now[i];
 
         if (added_count < MAX_JOYSTICKS) {
-            added_instances[added_count++] = now[i].instance_id; 
+            added_instances[added_count++] = now[i].instance_id;
         }
     }
 
@@ -307,22 +302,22 @@ static void MOS_JoystickDetect(void)
         }
     }
 
+    SDL_LockJoysticks();
+
     if (sensorlist) {
         ReleaseSensorsList(sensorlist, NULL);
     }
     sensorlist = new_list;
-	
-	SDL_LockJoysticks();
-		
+    new_list = NULL;
+
     joystick_count = next_count;
     for (int i = 0; i < next_count; i++) {
         g_joy[i] = next[i];
         JoySensor[i] = next[i].sensor;
     }
-	
     for (int i = next_count; i < MAX_JOYSTICKS; i++) {
-       SDL_zero(g_joy[i]);
-   	   JoySensor[i] = NULL;
+        SDL_zero(g_joy[i]);
+        JoySensor[i] = NULL;
     }
 
     for (int k = 0; k < removed_count; k++) {
@@ -330,14 +325,18 @@ static void MOS_JoystickDetect(void)
         D("[%s] Removed inst=%d\n", __FUNCTION__, (int)inst);
         SDL_PrivateJoystickRemoved(inst);
     }
-	
-	for (int k = 0; k < added_count; k++) {
-		SDL_JoystickID inst = added_instances[k];
-		D("[%s] Added inst=%d\n", __FUNCTION__, (int)inst);
-		SDL_PrivateJoystickAdded(inst);
-	}
-	
-	SDL_UnlockJoysticks();
+
+    for (int k = 0; k < added_count; k++) {
+        SDL_JoystickID inst = added_instances[k];
+        D("[%s] Added inst=%d\n", __FUNCTION__, (int)inst);
+        SDL_PrivateJoystickAdded(inst);
+    }
+
+    SDL_UnlockJoysticks();
+
+    if (new_list) {
+        ReleaseSensorsList(new_list, NULL);
+    }
 }
 
 static const char *MOS_JoystickGetDeviceName(int device_index)
