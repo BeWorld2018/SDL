@@ -486,12 +486,14 @@ MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_DISPLAY_CHANGED, (Sint32)target_did, 0);
 		}
 		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_MOVED, window->pending.x, window->pending.y);
+		/*
 		const bool cross_display = (target_did && current_did && (target_did != current_did));
 		const bool should_warp = cross_display || (window == SDL_GetMouseFocus());
 		if ( !(window->flags & SDL_WINDOW_FULLSCREEN) && should_warp) {
 			data->warp_pending = true;
 			MOS_FocusAndWarpIfNeeded(_this, data);
 		}
+		*/
 		
 	}
 	return true;
@@ -568,8 +570,20 @@ MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window)
 		int width = 0, height = 0;
 		MOS_GetWindowSize(data->win, &width, &height);
 		if (width != window->pending.w || height != window->pending.h) {
-			MOS_SetWindowBox(_this, window, &window->pending);			
-			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, window->pending.w, window->pending.h);
+			SDL_DisplayID current_did = SDL_GetDisplayForWindow(window);
+			SDL_Rect bounds;
+			SDL_zero(bounds);
+			SDL_GetDisplayBounds(current_did, &bounds);
+			const int local_x = window->pending.x - bounds.x;
+			const int local_y = window->pending.y - bounds.y;
+			
+			SDL_Rect r;
+			r.x = (window->pending.x != 0 ? local_x :  window->windowed.x);
+			r.y = (window->pending.y != 0 ? local_y :  window->windowed.y);
+			r.w = window->pending.w;
+			r.h = window->pending.h;
+
+			MOS_SetWindowBox(_this, window, &r);			
 		}
 	}
 }
