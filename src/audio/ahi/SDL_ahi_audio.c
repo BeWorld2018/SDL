@@ -27,10 +27,51 @@
 #include "SDL_timer.h"
 #include "../SDL_audio_c.h"
 
-#include <proto/exec.h>
-#define AHI_AUDIO_BUFFER_SIZE 4096
+static bool MOS_QueryAHICaps(MOS_AHICaps *caps)
+{
+    ULONG freq = 44100;
+    ULONG maxch = 2;
+    ULONG bits = 16;
 
-static Fixed AHI_Volume = 0x10000;
+    if (!AHI_GetAudioAttrs(
+            AHI_DEFAULT_ID,
+            NULL,
+            AHIDB_Frequency,    (ULONG)&freq,
+            AHIDB_MaxChannels,  (ULONG)&maxch,
+            AHIDB_Bits,         (ULONG)&bits,
+            TAG_DONE))
+    {
+        return false;
+    }
+
+    caps->freq = (int)freq;
+
+    /* Clamp channels to SDL expectations */
+    if (maxch >= 8) {
+        caps->channels = 8;
+    } else if (maxch >= 2) {
+        caps->channels = 2;
+    } else {
+        caps->channels = 1;
+    }
+
+    switch (bits) {
+        case 32:
+            caps->format = SDL_AUDIO_S32BE;
+            break;
+        case 16:
+            caps->format = SDL_AUDIO_S16BE;
+            break;
+        case 8:
+            caps->format = SDL_AUDIO_S8;
+            break;
+        default:
+            caps->format = SDL_AUDIO_S16BE;
+            break;
+    }
+
+    return true;
+}
 
 void
 AHIAUD_Mute(ULONG mute)
@@ -187,22 +228,41 @@ MOS_CloseDevice(SDL_AudioDevice *_this)
 }
 
 static void
-MOS_DetectDevices(SDL_AudioDevice **default_output, SDL_AudioDevice **default_capture)
+MOS_DetectDevices(SDL_AudioDevice **default_output,
+                  SDL_AudioDevice **default_capture)
 {
     SDL_AudioSpec output, capture;
+    MOS_AHICaps fallback;
+	fallback.freq = 44100;
+	fallback.channels = 2;
+	fallback.format = SDL_AUDIO_S16BE;
 
-    output.freq = 44100;
-    output.format = SDL_AUDIO_S16BE;
-    output.channels = 2;
+    SDL_zero(output);
+    SDL_zero(capture);
 
-    capture.freq = output.freq;
-    capture.format = output.format;
+	const MOS_AHICaps *caps = g_ahi_caps_valid ? &g_ahi_caps : &fallback;
+
+    output.freq     = caps->freq;
+    output.channels = caps->channels;
+	output.format = caps->format;
+
+    capture.freq     = caps->freq;
     capture.channels = 1;
+    capture.format   = caps->format;
 
-    *default_output = SDL_AddAudioDevice(/*iscapture=*/false, "AHI default output device", &output, SDL_strdup("default"));
-    *default_capture = SDL_AddAudioDevice(/*iscapture=*/true, "AHI default capture device", &capture, SDL_strdup("default"));
+    *default_output = SDL_AddAudioDevice(
+        false,
+        "AHI default output device",
+        &output,
+        SDL_strdup("default")
+    );
 
-    //D("Default_output device %p, default_capture device %p", *default_output, *default_capture);
+    *default_capture = SDL_AddAudioDevice(
+        true,
+        "AHI default capture device",
+        &capture,
+        SDL_strdup("default")
+    );
 }
 
 static bool
@@ -226,9 +286,6 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
         case 8:
             _this->spec.format = SDL_AUDIO_S8;
             break;
-        case 16:
-            _this->spec.format = SDL_AUDIO_S16BE;
-            break;
         case 32:
             _this->spec.format = SDL_AUDIO_S32BE;
             break;
@@ -238,16 +295,27 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
     }
 
     /* AHI supports 1, 2 or 8 channels sound: 3-7 channels may be converted to 7.1 format */
-    if (_this->spec.channels < 1 || _this->spec.channels > 8) {
-        _this->spec.channels = 2;
-    } else if (_this->spec.channels > 2) {
-        _this->spec.channels = 8;
-        _this->spec.format = SDL_AUDIO_S32BE;
-    }
+	if (_this->spec.channels == 1) {
+		/* mono is supported */
+	} else if (_this->spec.channels == 2) {
+		/* stereo is supported */
+	} else if (_this->spec.channels > 2 && _this->spec.channels <= 8) {
+		/* force 7.1 */
+		_this->spec.channels = 8;
+		_this->spec.format = SDL_AUDIO_S32BE;
+	} else {
+		/* fallback */
+		_this->spec.channels = 2;
+	}
 
     SDL_UpdatedAudioDeviceFormat(_this);
 
-    MOS_data->audioBufferSize = AHI_AUDIO_BUFFER_SIZE;
+	MOS_data->audioBufferSize =
+		SDL_AUDIO_FRAMESIZE(_this->spec) * 1024;
+
+	MOS_data->audioBufferSize =
+		SDL_max(MOS_data->audioBufferSize, AHI_AUDIO_BUFFER_SIZE);
+
     MOS_data->audioBuffer[0] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
     MOS_data->audioBuffer[1] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
 
@@ -377,8 +445,12 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
     ahiRequest = MOS_data->ahiRequest[current];
 
     ahiRequest->ahir_Std.io_Message.mn_Node.ln_Pri = 60;
-    ahiRequest->ahir_Std.io_Data    = MOS_data->audioBuffer[current];
-    ahiRequest->ahir_Std.io_Length  = MOS_data->audioBufferSize;
+	int len = SDL_min(buflen, MOS_data->audioBufferSize);
+	
+	SDL_memcpy(MOS_data->audioBuffer[current], buffer, len);
+
+	ahiRequest->ahir_Std.io_Data   = MOS_data->audioBuffer[current];
+	ahiRequest->ahir_Std.io_Length = len;
     ahiRequest->ahir_Std.io_Offset  = 0;
     ahiRequest->ahir_Std.io_Command = CMD_WRITE;
     ahiRequest->ahir_Volume         = AHI_Volume;
@@ -427,11 +499,7 @@ MOS_WaitRecordingDevice(SDL_AudioDevice *device)
     return true;
 }
 
-#ifndef MIN
-#define MIN(a, b) (a) < (b) ? (a) : (b)
-#endif
-
-#define RESTART_CAPTURE_THRESHOLD 500
+#define RESTART_CAPTURE_THRESHOLD 100
 
 static int
 MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
@@ -495,7 +563,7 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
 
     current = MOS_SwapBuffer(current);
     completedBuffer = MOS_data->audioBuffer[current];
-    copyLen = MIN(buflen, MOS_data->audioBufferSize);
+    copyLen = SDL_min(buflen, MOS_data->audioBufferSize);
     SDL_memcpy(buffer, completedBuffer, copyLen);
     MOS_data->lastCaptureTicks = now;
     MOS_data->currentBuffer = current;
@@ -535,6 +603,10 @@ MOS_Init(SDL_AudioDriverImpl * impl)
         SDL_SetError("Failed to open AHI device");
         return false;
     }
+
+	if (MOS_QueryAHICaps(&g_ahi_caps)) {
+		g_ahi_caps_valid = true;
+	}
 
     impl->DetectDevices = MOS_DetectDevices;
     impl->OpenDevice = MOS_OpenDevice;

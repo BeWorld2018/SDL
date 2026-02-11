@@ -23,11 +23,14 @@
 #ifndef _SDL_ahi_audio_h
 #define _SDL_ahi_audio_h
 
+#include <proto/exec.h>
 #include <exec/types.h>
 #include <exec/ports.h>
-#include <devices/ahi.h>
+#include <proto/ahi.h>
 
 #include "../SDL_sysaudio.h"
+
+#define AHI_AUDIO_BUFFER_SIZE 4096
 
 struct SDL_PrivateAudioData
 {
@@ -45,5 +48,17 @@ struct SDL_PrivateAudioData
 };
 
 typedef struct SDL_PrivateAudioData MOSAudioData;
+typedef struct
+{
+    int freq;
+    int channels;
+    SDL_AudioFormat format;
+} MOS_AHICaps;
+
+static MOS_AHICaps g_ahi_caps;
+static bool g_ahi_caps_valid = false;
+
+static Fixed AHI_Volume = 0x10000;
+
 
 #endif /* _SDL_ahi_audio_h */
