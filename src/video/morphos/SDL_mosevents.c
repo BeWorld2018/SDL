@@ -264,10 +264,10 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 
     const int global_x = b.x + local_x;
     const int global_y = b.y + local_y;
-
-    if (global_x != w->x || global_y != w->y) {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, global_x, global_y);
-    }
+	
+	int x, y;
+    SDL_GlobalToRelativeForWindow(data->window, local_x, syswin->TopEdge, &x, &y);
+    SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, global_x, global_y);
 
     int width  = syswin->Width  - syswin->BorderLeft - syswin->BorderRight;
     int height = syswin->Height - syswin->BorderTop  - syswin->BorderBottom;

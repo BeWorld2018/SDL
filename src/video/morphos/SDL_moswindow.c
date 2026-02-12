@@ -883,7 +883,7 @@ MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win) {
 		ULONG value = ((1.0) * (ULONG_MAX));
 		MOS_SetWindowOpacityPrivate(_this, window, value);
-
+		SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_SHOWN, 0, 0);
 		if (window->flags & SDL_WINDOW_FULLSCREEN) {
 			ScreenToFront(data->win->WScreen);
 		}
@@ -911,7 +911,7 @@ MOS_HideWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win) {
 		ULONG value = ((0.0) * (ULONG_MAX));
 		if (MOS_SetWindowOpacityPrivate(_this, window, value)) {
-		
+			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_HIDDEN, 0, 0);
 		}
 	}
 	
@@ -990,9 +990,9 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
 			rect->h == 0 ? TAG_IGNORE : WA_InnerHeight, rect->h,
 			TAG_DONE);
 			
-		if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
-			MOS_GL_ResizeContext(_this, window);
-		}
+		//if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
+		//	MOS_GL_ResizeContext(_this, window);
+		//}
 
     }
 }

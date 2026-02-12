@@ -115,7 +115,6 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->__tglContext != NULL) {
 		GLADestroyContext(data->__tglContext);
 		data->__tglContext = NULL;
-        MOS_GL_FreeBitMap(_this, window);
 	}
 
 	struct TagItem tgltags[] =
