@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -124,6 +124,8 @@
 #define USB_PRODUCT_RAZER_PANTHERA                        0x0401
 #define USB_PRODUCT_RAZER_PANTHERA_EVO                    0x1008
 #define USB_PRODUCT_RAZER_RAIJU                           0x1000
+#define USB_PRODUCT_RAZER_RAIJU_V3_PRO_PS5_WIRED          0x1024
+#define USB_PRODUCT_RAZER_RAIJU_V3_PRO_PS5_WIRELESS       0x1026
 #define USB_PRODUCT_RAZER_TOURNAMENT_EDITION_USB          0x1007
 #define USB_PRODUCT_RAZER_TOURNAMENT_EDITION_BLUETOOTH    0x100a
 #define USB_PRODUCT_RAZER_ULTIMATE_EDITION_USB            0x1004
