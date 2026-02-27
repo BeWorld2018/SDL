@@ -103,7 +103,7 @@ static void MOS_UpdateKeymap(SDL_VideoDevice *_this)
             continue;
         }
 
-        SDL_SetKeymapEntry(keymap, scancode, 0, MOS_MapRawKey(_this, i)); // TODO: test me
+        SDL_SetKeymapEntry(keymap, scancode, 0, MOS_MapRawKey(_this, i));
     }
 
     SDL_SetKeymap(keymap, false);

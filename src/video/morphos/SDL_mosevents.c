@@ -66,13 +66,26 @@ MOS_GetButton(int code)
 }
 
 static void
-MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchMouseButtons(const struct IntuiMessage *m, SDL_WindowData *data)
 {
 	int state = (m->Code & IECODE_UP_PREFIX) ? false : true;
 	int button = MOS_GetButton(m->Code & ~(IECODE_UP_PREFIX));
 	if (button > 0) {
-		globalMouseState.buttonPressed[button] = state;
-		SDL_SendMouseButton(0, data->window, 0, button, state);
+		
+		bool ignore_click = false;
+		
+		if (data->last_focus_event_time) {
+            const int FOCUS_CLICK_TIMEOUT = 10;
+            if (SDL_GetTicks() < (data->last_focus_event_time + FOCUS_CLICK_TIMEOUT)) {
+                ignore_click = 1;
+            }
+            data->last_focus_event_time = 0;
+        }
+
+		if (!ignore_click) {
+			globalMouseState.buttonPressed[button] = state;
+			SDL_SendMouseButton(0, data->window, 0, button, state);
+		}
 	}
 }
 
@@ -474,6 +487,7 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			break;
 
 		case IDCMP_ACTIVEWINDOW:
+			data->last_focus_event_time = SDL_GetTicks();
 			MOS_HandleActivation(_this, data, true);
 			break;
 
@@ -616,6 +630,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 							NameFromLock(argptr->wa_Lock, filename, 1024);
 							AddPart((STRPTR)filename, (STRPTR)argptr->wa_Name, 1024);
 							D("SDL_SendDropfile : '%s'", filename);
+							SDL_SendDropPosition(window, (float)msg->am_MouseX, (float)msg->am_MouseY);
 							SDL_SendDropFile(window, NULL, filename);
 							argptr++;
 						}

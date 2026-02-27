@@ -66,12 +66,10 @@ struct NewMenu SDL_NewMenu[] =
 };
 
 void
-MOS_GetWindowSize(struct Window * window, int * width, int * height)
+MOS_GetWindowSize(struct Window *w, int *width, int *height)
 {
-   
-	*width = getv(window, WA_InnerWidth);
-	*height = getv(window, WA_InnerHeight);
-
+	*width = getv(w, WA_InnerWidth);
+	*height = getv(w, WA_InnerHeight);
 }
 
 static void
@@ -687,11 +685,11 @@ MOS_GetWindowFlags(SDL_Window * window, bool fullscreen)
 static SDL_DisplayID MOS_GetFallbackDisplay(SDL_VideoDevice *_this, SDL_VideoData *vd, SDL_Window *window, SDL_DisplayID failed_did)
 {
 	
-	static int g_recreate_serial = 0;
+	/*static int g_recreate_serial = 0;
 	D("Recreate #%d title='%s' flags=0x%08x pending_displayID=%d pending=(%d,%d %dx%d)",
 		  ++g_recreate_serial, window->title, (unsigned)window->flags,
 		  (int)window->pending_displayID,
-		  window->pending.x, window->pending.y, window->pending.w, window->pending.h);
+		  window->pending.x, window->pending.y, window->pending.w, window->pending.h);*/
 	
     SDL_Window *focus = SDL_GetKeyboardFocus();
     if (focus) {

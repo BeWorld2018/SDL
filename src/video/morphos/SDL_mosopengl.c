@@ -183,7 +183,6 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 bool
 MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext context)
 {
-	D("context 0x%08lx", context);
 	if (context)
 		__tglContext = (GLContext*)context;
 	else
