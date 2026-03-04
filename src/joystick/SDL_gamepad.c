@@ -212,6 +212,7 @@ static const struct SDL_GamepadBlacklistWords SDL_gamepad_blacklist_words[] = {
     {"Mouse ",          GAMEPAD_BLACKLIST_BEGIN}, // "Mouse passthrough"
     {" Pen",            GAMEPAD_BLACKLIST_END}, // "Wacom One by Wacom S Pen"
     {" Finger",         GAMEPAD_BLACKLIST_END}, // "Wacom HID 495F Finger"
+    {" System Control", GAMEPAD_BLACKLIST_END}, // "hid-over-i2c 0107 System Control"
     {" LED ",           GAMEPAD_BLACKLIST_ANYWHERE}, // "ASRock LED Controller"
     {" Thelio ",        GAMEPAD_BLACKLIST_ANYWHERE}, // "System76 Thelio Io 2"
 };
@@ -1266,6 +1267,10 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
                 // Apex 5 has additional shoulder macro buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
             }
+        } else if (SDL_IsJoystickGameSirController(vendor, product) &&
+                   guid.data[0] == SDL_HARDWARE_BUS_USB) {
+            // The GameSir-G7 Pro 8K has a set of paddles and shoulder macro buttons
+            SDL_strlcat(mapping_string, "misc1:b11,paddle1:b13,paddle2:b12,misc2:b14,misc3:b15,", sizeof(mapping_string));
         } else if (vendor == USB_VENDOR_8BITDO && product == USB_PRODUCT_8BITDO_ULTIMATE2_WIRELESS) {
             SDL_strlcat(mapping_string, "paddle1:b12,paddle2:b11,paddle3:b14,paddle4:b13,", sizeof(mapping_string));
         } else {
@@ -2360,7 +2365,7 @@ static GamepadMapping_t *SDL_PrivateGetGamepadMapping(SDL_JoystickID instance_id
     return mapping;
 }
 
-bool SDL_PrivateIsGamepadPlatformMatch(const char *platform, size_t platform_len)
+static bool SDL_PrivateIsGamepadPlatformMatch(const char *platform, size_t platform_len)
 {
 #ifdef SDL_PLATFORM_MACOS
     // We also accept the older SDL2 platform name for macOS
@@ -3253,6 +3258,11 @@ bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version
         }
     }
 
+#ifdef SDL_PLATFORM_MACOS
+    // On macOS do nothing here since we detect Steam virtual gamepads
+    // in IOKit HID backends to ensure accuracy.
+    // See joystick/darwin/SDL_iokitjoystick.c and hidapi/mac/hid.c.
+#else
     const char *hint = SDL_getenv_unsafe("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD");
     bool allow_steam_virtual_gamepad = SDL_GetStringBoolean(hint, false);
 #ifdef SDL_PLATFORM_WIN32
@@ -3268,6 +3278,7 @@ bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version
     if (SDL_IsJoystickSteamVirtualGamepad(vendor_id, product_id, version)) {
         return !allow_steam_virtual_gamepad;
     }
+#endif
 
     if (SDL_allowed_gamepads.num_included_entries > 0) {
         if (SDL_VIDPIDInList(vendor_id, product_id, &SDL_allowed_gamepads)) {

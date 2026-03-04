@@ -169,6 +169,7 @@
     <PreBuildEvent>
       <Command>
         call "$(ProjectDir)..\..\src\render\direct3d12\compile_shaders_xbox.bat" "$(ProjectDir)..\"
+        call "$(ProjectDir)..\..\src\render\gpu\shaders\compile_shaders_xbox.bat" "$(ProjectDir)..\"
         call "$(ProjectDir)..\..\src\gpu\d3d12\compile_shaders_xbox.bat" "$(ProjectDir)..\"
       </Command>
     </PreBuildEvent>
@@ -207,6 +208,7 @@
     <PreBuildEvent>
       <Command>
         call $(ProjectDir)..\..\src\render\direct3d12\compile_shaders_xbox.bat $(ProjectDir)..\ one
+        call $(ProjectDir)..\..\src\render\gpu\shaders\compile_shaders_xbox.bat $(ProjectDir)..\ one
         call $(ProjectDir)..\..\src\gpu\d3d12\compile_shaders_xbox.bat $(ProjectDir)..\ one
       </Command>
     </PreBuildEvent>
@@ -278,6 +280,7 @@
     <PreBuildEvent>
       <Command>
         call $(ProjectDir)..\..\src\render\direct3d12\compile_shaders_xbox.bat $(ProjectDir)..\
+        call $(ProjectDir)..\..\src\render\gpu\shaders\compile_shaders_xbox.bat $(ProjectDir)..\
         call $(ProjectDir)..\..\src\gpu\d3d12\compile_shaders_xbox.bat $(ProjectDir)..\
       </Command>
     </PreBuildEvent>
@@ -317,6 +320,7 @@
     <PreBuildEvent>
       <Command>
         call $(ProjectDir)..\..\src\render\direct3d12\compile_shaders_xbox.bat $(ProjectDir)..\ one
+        call $(ProjectDir)..\..\src\render\gpu\shaders\compile_shaders_xbox.bat $(ProjectDir)..\ one
         call $(ProjectDir)..\..\src\gpu\d3d12\compile_shaders_xbox.bat $(ProjectDir)..\ one
       </Command>
     </PreBuildEvent>
@@ -722,6 +726,7 @@
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapijoystick.c" />
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_8bitdo.c" />
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_flydigi.c" />
+    <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_gamesir.c" />
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_combined.c" />
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_gamecube.c" />
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_gip.c" />

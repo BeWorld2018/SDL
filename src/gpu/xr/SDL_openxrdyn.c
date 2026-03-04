@@ -18,7 +18,6 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "SDL_internal.h"
 
 #include "SDL_openxrdyn.h"
@@ -26,6 +25,7 @@
 #ifdef HAVE_GPU_OPENXR
 
 #include <SDL3/SDL_dlopennote.h>
+#include <SDL3/SDL_openxr.h>
 
 #if defined(SDL_PLATFORM_APPLE)
 static const char *openxr_library_names[] = { "libopenxr_loader.dylib", NULL };
@@ -259,7 +259,10 @@ SDL_DECLSPEC bool SDLCALL SDL_OpenXR_LoadLibrary(void)
         }
 
         if (!openxr_loader.lib) {
-            SDL_SetError("Failed loading OpenXR library");
+            SDL_SetError("Failed to load OpenXR loader library. "
+                         "On Windows, ensure openxr_loader.dll is in your application directory or PATH. "
+                         "On Linux, install the OpenXR loader package (libopenxr-loader) or set LD_LIBRARY_PATH. "
+                         "You can also use the SDL_HINT_OPENXR_LIBRARY hint to specify the loader path.");
             openxr_load_refcount--;
             return false;
         }

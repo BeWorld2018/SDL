@@ -42,6 +42,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include <xkbcommon/xkbcommon.h>
 
 #include <wayland-util.h>
@@ -69,6 +70,7 @@
 #include "color-management-v1-client-protocol.h"
 #include "pointer-warp-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
+#include "single-pixel-buffer-v1-client-protocol.h"
 
 #ifdef HAVE_LIBDECOR_H
 #include <libdecor.h>
@@ -547,10 +549,11 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
                                                  SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER, NULL);
     bool display_is_external = !!display;
 
-    // Are we trying to connect to or are currently in a Wayland session?
+    // Are we trying to connect to, or are currently in, a Wayland session?
     if (!SDL_getenv("WAYLAND_DISPLAY")) {
         const char *session = SDL_getenv("XDG_SESSION_TYPE");
         if (session && SDL_strcasecmp(session, "wayland") != 0) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "Wayland initialization failed: no Wayland session available");
             return NULL;
         }
     }
@@ -563,6 +566,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
         display = WAYLAND_wl_display_connect(NULL);
         if (!display) {
             SDL_WAYLAND_UnloadSymbols();
+            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "Failed to connect to the Wayland display server: %s", strerror(errno));
             return NULL;
         }
     }
@@ -609,7 +613,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
 
     if (!display_is_external) {
         SDL_SetPointerProperty(SDL_GetGlobalProperties(),
-                        SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER, display);
+                               SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER, display);
     }
 
     device->internal = data;
@@ -634,6 +638,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
     device->GL_UnloadLibrary = Wayland_GLES_UnloadLibrary;
     device->GL_GetProcAddress = Wayland_GLES_GetProcAddress;
     device->GL_DestroyContext = Wayland_GLES_DestroyContext;
+    device->GL_SetDefaultProfileConfig = Wayland_GLES_SetDefaultProfileConfig;
     device->GL_GetEGLSurface = Wayland_GLES_GetEGLSurface;
 #endif
 
@@ -652,6 +657,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(bool require_preferred_protocols)
     device->SetWindowResizable = Wayland_SetWindowResizable;
     device->SetWindowPosition = Wayland_SetWindowPosition;
     device->SetWindowSize = Wayland_SetWindowSize;
+    device->SetWindowAspectRatio = Wayland_SetWindowAspectRatio;
     device->SetWindowMinimumSize = Wayland_SetWindowMinimumSize;
     device->SetWindowMaximumSize = Wayland_SetWindowMaximumSize;
     device->SetWindowParent = Wayland_SetWindowParent;
@@ -1277,6 +1283,8 @@ static void handle_registry_global(void *data, struct wl_registry *registry, uin
 
     if (SDL_strcmp(interface, "wl_compositor") == 0) {
         d->compositor = wl_registry_bind(d->registry, id, &wl_compositor_interface, SDL_min(SDL_WL_COMPOSITOR_VERSION, version));
+    } else if (SDL_strcmp(interface, "wl_subcompositor") == 0) {
+        d->subcompositor = wl_registry_bind(d->registry, id, &wl_subcompositor_interface, 1);
     } else if (SDL_strcmp(interface, "wl_output") == 0) {
         Wayland_add_display(d, id, SDL_min(version, SDL_WL_OUTPUT_VERSION));
     } else if (SDL_strcmp(interface, "wl_seat") == 0) {
@@ -1343,6 +1351,8 @@ static void handle_registry_global(void *data, struct wl_registry *registry, uin
     } else if (SDL_strcmp(interface, "zwp_pointer_gestures_v1") == 0) {
         d->zwp_pointer_gestures = wl_registry_bind(d->registry, id, &zwp_pointer_gestures_v1_interface, SDL_min(version, 3));
         Wayland_DisplayInitPointerGestureManager(d);
+    } else if (SDL_strcmp(interface, "wp_single_pixel_buffer_manager_v1") == 0) {
+        d->single_pixel_buffer_manager = wl_registry_bind(d->registry, id, &wp_single_pixel_buffer_manager_v1_interface, 1);
     }
 #ifdef SDL_WL_FIXES_VERSION
     else if (SDL_strcmp(interface, "wl_fixes") == 0) {
@@ -1689,6 +1699,16 @@ static void Wayland_VideoCleanup(SDL_VideoDevice *_this)
             zwp_pointer_gestures_v1_destroy(data->zwp_pointer_gestures);
         }
         data->zwp_pointer_gestures = NULL;
+    }
+
+    if (data->single_pixel_buffer_manager) {
+        wp_single_pixel_buffer_manager_v1_destroy(data->single_pixel_buffer_manager);
+        data->single_pixel_buffer_manager = NULL;
+    }
+
+    if (data->subcompositor) {
+        wl_subcompositor_destroy(data->subcompositor);
+        data->subcompositor = NULL;
     }
 
     if (data->compositor) {
