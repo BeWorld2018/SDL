@@ -1256,7 +1256,7 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
 
 #else
     SDL_SetError("SDL not compiled with stdio support");
-#endif // !HAVE_STDIO_H
+#endif // SDL_PLATFORM_ANDROID
 
     return iostr;
 }
@@ -1634,7 +1634,8 @@ SDL_PropertiesID SDL_GetIOProperties(SDL_IOStream *context)
 Sint64 SDL_GetIOSize(SDL_IOStream *context)
 {
     CHECK_PARAM(!context) {
-        return SDL_InvalidParamError("context");
+        SDL_InvalidParamError("context");
+        return -1;
     }
 
     if (!context->iface.size) {
