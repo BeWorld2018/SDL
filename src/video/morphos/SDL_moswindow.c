@@ -435,7 +435,7 @@ bool
 MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D("0x%08lx position %d, %d (pending_displayID=%d)", data->win, window->pending.x, window->pending.y, (int)window->pending_displayID);
+	//D("0x%08lx position %d, %d (pending_displayID=%d)", data->win, window->pending.x, window->pending.y, (int)window->pending_displayID);
 
 	if (data->win) {
 		SDL_DisplayID target_did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
@@ -979,7 +979,7 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
     SDL_WindowData *data = window->internal;
 
     if (data->win) {
-		D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
+		//D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
 
         SetAttrs(data->win,
 			WA_Left, rect->x,
