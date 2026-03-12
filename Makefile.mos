@@ -84,7 +84,7 @@ SOURCES = \
 	./src/time/SDL_time.c \
 	./src/time/unix/SDL_systime.c \
 	$(wildcard ./src/timer/*.c) \
-	$(wildcard ./src/timer/unix/*.c) \
+	$(wildcard ./src/timer/morphos/*.c) \
 	./src/tray/SDL_tray_utils.c \
 	./src/tray/dummy/SDL_tray.c \
 	$(wildcard ./src/video/*.c) \

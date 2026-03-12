@@ -74,6 +74,60 @@ extern bool SDL_HelperWindowCreate(void);
 extern void SDL_HelperWindowDestroy(void);
 #endif
 
+#ifdef SDL_PLATFORM_MORPHOS
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <devices/timer.h>
+#include <proto/exec.h>
+
+struct timerequest GlobalTimeReq;
+static struct MsgPort *GlobalTimePort = NULL;
+static bool GlobalTimeOpened = false;
+
+bool MorphOS_OpenTimer(void)
+{
+    if (GlobalTimeOpened) {
+        return true;
+    }
+
+    GlobalTimePort = CreateMsgPort();
+    if (!GlobalTimePort) {
+        SDL_SetError("CreateMsgPort() failed");
+        return false;
+    }
+
+    SDL_zero(GlobalTimeReq);
+    GlobalTimeReq.tr_node.io_Message.mn_ReplyPort = GlobalTimePort;
+
+    if (OpenDevice("timer.device", UNIT_VBLANK, (struct IORequest *)&GlobalTimeReq, 0) != 0) {
+        DeleteMsgPort(GlobalTimePort);
+        GlobalTimePort = NULL;
+        SDL_SetError("OpenDevice(timer.device) failed");
+        return false;
+    }
+
+    GlobalTimeOpened = true;
+    return true;
+}
+
+void MorphOS_CloseTimer(void)
+{
+    if (!GlobalTimeOpened) {
+        return;
+    }
+
+    CloseDevice((struct IORequest *)&GlobalTimeReq);
+
+    if (GlobalTimePort) {
+        DeleteMsgPort(GlobalTimePort);
+        GlobalTimePort = NULL;
+    }
+
+    SDL_zero(GlobalTimeReq);
+    GlobalTimeOpened = false;
+}
+#endif
+
 #ifdef SDL_BUILD_MAJOR_VERSION
 SDL_COMPILE_TIME_ASSERT(SDL_BUILD_MAJOR_VERSION,
                         SDL_MAJOR_VERSION == SDL_BUILD_MAJOR_VERSION);
@@ -297,6 +351,13 @@ void SDL_InitMainThread(void)
 
     SDL_InitTLSData();
     SDL_InitEnvironment();
+	
+#ifdef SDL_PLATFORM_MORPHOS
+    if (!MorphOS_OpenTimer()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "MorphOS timer init failed: %s", SDL_GetError());
+    }
+#endif
+
     SDL_InitTicks();
     SDL_InitFilesystem();
 
