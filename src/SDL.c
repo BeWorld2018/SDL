@@ -99,7 +99,7 @@ bool MorphOS_OpenTimer(void)
     SDL_zero(GlobalTimeReq);
     GlobalTimeReq.tr_node.io_Message.mn_ReplyPort = GlobalTimePort;
 
-    if (OpenDevice("timer.device", UNIT_VBLANK, (struct IORequest *)&GlobalTimeReq, 0) != 0) {
+    if (OpenDevice("timer.device", UNIT_MICROHZ, (struct IORequest *)&GlobalTimeReq, 0) != 0) {
         DeleteMsgPort(GlobalTimePort);
         GlobalTimePort = NULL;
         SDL_SetError("OpenDevice(timer.device) failed");
