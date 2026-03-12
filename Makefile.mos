@@ -2,12 +2,12 @@
 #
 # Features enabled in this build:
 #   - Pthreads
-#   - Unix timer backend
+#   - MorphOS timer backend
 #   - AHI audio backend
-#   - OpenGL video + OpenGL renderer
+#   - OpenGL video supported
 #   - Gamepad support: sensors library / hotplug supported
 #   - Dialog support (MorphOS backend)
-#   - AltiVec optimizations (selected files)
+#   - AltiVec optimizations
 #	- Multi-monitor supported
 #	- Software and OpenGL renderers supported
 #
