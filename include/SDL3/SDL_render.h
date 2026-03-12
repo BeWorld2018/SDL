@@ -169,6 +169,7 @@ struct SDL_Texture
 
 typedef struct SDL_Texture SDL_Texture;
 
+
 /* Function prototypes */
 
 /**
@@ -2434,8 +2435,10 @@ extern SDL_DECLSPEC bool SDLCALL SDL_RenderTexture9GridTiled(SDL_Renderer *rende
 
 /**
  * Render a list of triangles, optionally using a texture and indices into the
- * vertex array Color and alpha modulation is done per vertex
- * (SDL_SetTextureColorMod and SDL_SetTextureAlphaMod are ignored).
+ * vertex array.
+ *
+ * Color and alpha modulation is done per vertex (SDL_SetTextureColorMod and
+ * SDL_SetTextureAlphaMod are ignored).
  *
  * \param renderer the rendering context.
  * \param texture (optional) The SDL texture to use.
@@ -2462,8 +2465,10 @@ extern SDL_DECLSPEC bool SDLCALL SDL_RenderGeometry(SDL_Renderer *renderer,
 
 /**
  * Render a list of triangles, optionally using a texture and indices into the
- * vertex arrays Color and alpha modulation is done per vertex
- * (SDL_SetTextureColorMod and SDL_SetTextureAlphaMod are ignored).
+ * vertex arrays.
+ *
+ * Color and alpha modulation is done per vertex (SDL_SetTextureColorMod and
+ * SDL_SetTextureAlphaMod are ignored).
  *
  * \param renderer the rendering context.
  * \param texture (optional) The SDL texture to use.
@@ -3076,6 +3081,44 @@ extern SDL_DECLSPEC bool SDLCALL SDL_SetGPURenderState(SDL_Renderer *renderer, S
  * \sa SDL_CreateGPURenderState
  */
 extern SDL_DECLSPEC void SDLCALL SDL_DestroyGPURenderState(SDL_GPURenderState *state);
+
+#ifdef SDL_PLATFORM_GDK
+
+/**
+ * Call this to suspend Render operations on Xbox after receiving the
+ * SDL_EVENT_DID_ENTER_BACKGROUND event.
+ *
+ * Do NOT call any SDL_Render functions after calling this function! This must
+ * also be called before calling SDL_GDKSuspendComplete.
+ *
+ * This function MUST be called on the application's render thread.
+ *
+ * \param renderer the renderer which should suspend operation.
+ *
+ * \since This function is available since SDL 3.6.0.
+ *
+ * \sa SDL_AddEventWatch
+ */
+extern SDL_DECLSPEC void SDLCALL SDL_GDKSuspendRenderer(SDL_Renderer *renderer);
+
+/**
+ * Call this to resume Render operations on Xbox after receiving the
+ * SDL_EVENT_WILL_ENTER_FOREGROUND event.
+ *
+ * When resuming, this function MUST be called before calling any other
+ * SDL_Render functions.
+ *
+ * This function MUST be called on the application's render thread.
+ *
+ * \param renderer the renderer which should resume operation.
+ *
+ * \since This function is available since SDL 3.6.0.
+ *
+ * \sa SDL_AddEventWatch
+ */
+extern SDL_DECLSPEC void SDLCALL SDL_GDKResumeRenderer(SDL_Renderer *renderer);
+
+#endif /* SDL_PLATFORM_GDK */
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

@@ -3023,7 +3023,7 @@ extern SDL_DECLSPEC long SDLCALL SDL_wcstol(const wchar_t *str, wchar_t **endp, 
  * If you need the length of a UTF-8 string, consider using SDL_utf8strlen().
  *
  * \param str The null-terminated string to read. Must not be NULL.
- * \returns the length (in bytes, excluding the null terminator) of `src`.
+ * \returns the length (in bytes, excluding the null terminator) of `str`.
  *
  * \threadsafety It is safe to call this function from any thread.
  *
@@ -3212,7 +3212,7 @@ extern SDL_DECLSPEC char * SDLCALL SDL_strrev(char *str);
  * Convert a string to uppercase.
  *
  * **WARNING**: Regardless of system locale, this will only convert ASCII
- * values 'A' through 'Z' to uppercase.
+ * values 'a' through 'z' to uppercase.
  *
  * This function operates on a null-terminated string of bytes--even if it is
  * malformed UTF-8!--and converts ASCII characters 'a' through 'z' to their
