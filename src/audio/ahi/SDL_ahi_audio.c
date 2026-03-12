@@ -375,7 +375,7 @@ MOS_ThreadInit(SDL_AudioDevice *_this)
     if (!MOS_OpenAhiDevice(MOS_data)) {
         D("Failed to open AHI");
     }
-    SetTaskPri(FindTask(NULL), 5);
+    SetTaskPri(FindTask(NULL), 25);
 }
 
 static void
@@ -462,9 +462,10 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
     /* Let SDL handle possible conversions between formats, channels etc., but
        because order of 7.1 channels is different (AHI <-> SDL), remap it here */
 
-    if (spec->channels == 8) {
-        MOS_RemapSurround((Sint32 *)MOS_data->audioBuffer[current], MOS_data->audioBufferSize/sizeof(Sint32)/8 /* TODO: FIXME */);
-    }
+	if (spec->channels == 8) {
+		const int frames = len / SDL_AUDIO_FRAMESIZE(*spec);
+		MOS_RemapSurround((Sint32 *)MOS_data->audioBuffer[current], frames);
+	}
 
     SendIO((struct IORequest *)ahiRequest);
 
