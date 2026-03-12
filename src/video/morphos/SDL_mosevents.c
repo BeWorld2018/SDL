@@ -68,25 +68,19 @@ MOS_GetButton(int code)
 static void
 MOS_DispatchMouseButtons(const struct IntuiMessage *m, SDL_WindowData *data)
 {
-	int state = (m->Code & IECODE_UP_PREFIX) ? false : true;
-	int button = MOS_GetButton(m->Code & ~(IECODE_UP_PREFIX));
-	if (button > 0) {
-		
-		bool ignore_click = false;
-		
-		if (data->last_focus_event_time) {
-            const int FOCUS_CLICK_TIMEOUT = 10;
-            if (SDL_GetTicks() < (data->last_focus_event_time + FOCUS_CLICK_TIMEOUT)) {
-                ignore_click = 1;
-            }
-            data->last_focus_event_time = 0;
-        }
+    int state = (m->Code & IECODE_UP_PREFIX) ? false : true;
+    int button = MOS_GetButton(m->Code & ~(IECODE_UP_PREFIX));
 
-		if (!ignore_click) {
-			globalMouseState.buttonPressed[button] = state;
-			SDL_SendMouseButton(0, data->window, 0, button, state);
+    if (button > 0) {
+		if (!SDL_GetRelativeMouseMode()) {
+			int x = m->IDCMPWindow->MouseX - m->IDCMPWindow->BorderLeft;
+			int y = m->IDCMPWindow->MouseY - m->IDCMPWindow->BorderTop;
+			SDL_SendMouseMotion(0, data->window, 0, 0, x, y);
 		}
-	}
+
+		globalMouseState.buttonPressed[button] = state;
+		SDL_SendMouseButton(0, data->window, 0, button, state);
+    }
 }
 
 static int
@@ -193,11 +187,14 @@ MOS_HandleActivation(SDL_VideoDevice *_this, SDL_WindowData *data, bool activate
 				if (SDL_GetKeyboardFocus() != sdlwin)
 					SDL_SetKeyboardFocus(sdlwin);
 				
+				//SDL_SetMouseFocus(sdlwin);
+				
 			} else {
 				
 				if (SDL_GetKeyboardFocus() == sdlwin) {
-					if (!SDL_GetRelativeMouseMode())
+					if (!SDL_GetRelativeMouseMode()) {
 						SDL_SetKeyboardFocus(NULL);
+					}
 					
 				}
 			}
@@ -226,7 +223,6 @@ MOS_FocusAndWarpIfNeeded(SDL_VideoDevice *_this, SDL_WindowData *data)
 	if (!data || !data->win || !data->window) return;
 	if (!data->warp_pending || SDL_GetRelativeMouseMode()) return;
 
-	D("");
 	struct Window *newwin = data ? data->win : NULL;
 
 	if (newwin && newwin->WScreen) {
@@ -487,7 +483,6 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			break;
 
 		case IDCMP_ACTIVEWINDOW:
-			data->last_focus_event_time = SDL_GetTicks();
 			MOS_HandleActivation(_this, data, true);
 			break;
 
@@ -518,7 +513,6 @@ MOS_CheckBrokerMsg(SDL_VideoDevice *_this)
 		size_t id = CxMsgID(msg);
 		size_t tp = CxMsgType(msg);
 
-		//D("check CxMsg");
 		ReplyMsg((APTR)msg);
 
 		if (tp == CXM_COMMAND) {
