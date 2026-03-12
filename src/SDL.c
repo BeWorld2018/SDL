@@ -380,6 +380,11 @@ static void SDL_QuitMainThread(void)
 {
     SDL_QuitFilesystem();
     SDL_QuitTicks();
+    
+#ifdef SDL_PLATFORM_MORPHOS
+    MorphOS_CloseTimer();
+#endif
+
     SDL_QuitEnvironment();
     SDL_QuitTLSData();
 }
