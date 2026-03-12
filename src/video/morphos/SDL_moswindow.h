@@ -83,7 +83,6 @@ struct SDL_WindowData
 	SDL_DisplayID pending_jump_display;
 	bool warp_pending;
 	
-	int last_focus_event_time;
 };
 
 /* SDL functions */
