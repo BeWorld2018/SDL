@@ -66,12 +66,10 @@ struct NewMenu SDL_NewMenu[] =
 };
 
 void
-MOS_GetWindowSize(struct Window * window, int * width, int * height)
+MOS_GetWindowSize(struct Window *w, int *width, int *height)
 {
-   
-	*width = getv(window, WA_InnerWidth);
-	*height = getv(window, WA_InnerHeight);
-
+	*width = getv(w, WA_InnerWidth);
+	*height = getv(w, WA_InnerHeight);
 }
 
 static void
@@ -437,7 +435,7 @@ bool
 MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D("0x%08lx position %d, %d (pending_displayID=%d)", data->win, window->pending.x, window->pending.y, (int)window->pending_displayID);
+	//D("0x%08lx position %d, %d (pending_displayID=%d)", data->win, window->pending.x, window->pending.y, (int)window->pending_displayID);
 
 	if (data->win) {
 		SDL_DisplayID target_did = window->pending_displayID ? window->pending_displayID : SDL_GetDisplayForWindow(window);
@@ -486,12 +484,14 @@ MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_DISPLAY_CHANGED, (Sint32)target_did, 0);
 		}
 		SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_MOVED, window->pending.x, window->pending.y);
+		/*
 		const bool cross_display = (target_did && current_did && (target_did != current_did));
 		const bool should_warp = cross_display || (window == SDL_GetMouseFocus());
 		if ( !(window->flags & SDL_WINDOW_FULLSCREEN) && should_warp) {
 			data->warp_pending = true;
 			MOS_FocusAndWarpIfNeeded(_this, data);
 		}
+		*/
 		
 	}
 	return true;
@@ -568,8 +568,20 @@ MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window)
 		int width = 0, height = 0;
 		MOS_GetWindowSize(data->win, &width, &height);
 		if (width != window->pending.w || height != window->pending.h) {
-			MOS_SetWindowBox(_this, window, &window->pending);			
-			SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, window->pending.w, window->pending.h);
+			SDL_DisplayID current_did = SDL_GetDisplayForWindow(window);
+			SDL_Rect bounds;
+			SDL_zero(bounds);
+			SDL_GetDisplayBounds(current_did, &bounds);
+			const int local_x = window->pending.x - bounds.x;
+			const int local_y = window->pending.y - bounds.y;
+			
+			SDL_Rect r;
+			r.x = (window->pending.x != 0 ? local_x :  window->windowed.x);
+			r.y = (window->pending.y != 0 ? local_y :  window->windowed.y);
+			r.w = window->pending.w;
+			r.h = window->pending.h;
+
+			MOS_SetWindowBox(_this, window, &r);			
 		}
 	}
 }
@@ -673,11 +685,11 @@ MOS_GetWindowFlags(SDL_Window * window, bool fullscreen)
 static SDL_DisplayID MOS_GetFallbackDisplay(SDL_VideoDevice *_this, SDL_VideoData *vd, SDL_Window *window, SDL_DisplayID failed_did)
 {
 	
-	static int g_recreate_serial = 0;
+	/*static int g_recreate_serial = 0;
 	D("Recreate #%d title='%s' flags=0x%08x pending_displayID=%d pending=(%d,%d %dx%d)",
 		  ++g_recreate_serial, window->title, (unsigned)window->flags,
 		  (int)window->pending_displayID,
-		  window->pending.x, window->pending.y, window->pending.w, window->pending.h);
+		  window->pending.x, window->pending.y, window->pending.w, window->pending.h);*/
 	
     SDL_Window *focus = SDL_GetKeyboardFocus();
     if (focus) {
@@ -869,7 +881,7 @@ MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win) {
 		ULONG value = ((1.0) * (ULONG_MAX));
 		MOS_SetWindowOpacityPrivate(_this, window, value);
-
+		SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_SHOWN, 0, 0);
 		if (window->flags & SDL_WINDOW_FULLSCREEN) {
 			ScreenToFront(data->win->WScreen);
 		}
@@ -897,7 +909,7 @@ MOS_HideWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->win) {
 		ULONG value = ((0.0) * (ULONG_MAX));
 		if (MOS_SetWindowOpacityPrivate(_this, window, value)) {
-		
+			SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_HIDDEN, 0, 0);
 		}
 	}
 	
@@ -967,7 +979,7 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
     SDL_WindowData *data = window->internal;
 
     if (data->win) {
-		D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
+		//D("wnd 0x%08lx Resize x=%d, y=%d, w=%d, h=%d", data->win, rect->x, rect->y, rect->w, rect->h);
 
         SetAttrs(data->win,
 			WA_Left, rect->x,
@@ -976,9 +988,9 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
 			rect->h == 0 ? TAG_IGNORE : WA_InnerHeight, rect->h,
 			TAG_DONE);
 			
-		if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
-			MOS_GL_ResizeContext(_this, window);
-		}
+		//if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
+		//	MOS_GL_ResizeContext(_this, window);
+		//}
 
     }
 }

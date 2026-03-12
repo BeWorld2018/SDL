@@ -115,7 +115,6 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 	if (data->__tglContext != NULL) {
 		GLADestroyContext(data->__tglContext);
 		data->__tglContext = NULL;
-        MOS_GL_FreeBitMap(_this, window);
 	}
 
 	struct TagItem tgltags[] =
@@ -156,6 +155,7 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 SDL_GLContext
 MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 {
+	D("");
 	SDL_WindowData *data = window->internal;
 	
 	GLContext *glcont = GLInit();
@@ -183,7 +183,6 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 bool
 MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext context)
 {
-	D("context 0x%08lx", context);
 	if (context)
 		__tglContext = (GLContext*)context;
 	else

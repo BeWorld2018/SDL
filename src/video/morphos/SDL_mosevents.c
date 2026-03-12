@@ -66,13 +66,26 @@ MOS_GetButton(int code)
 }
 
 static void
-MOS_DispatchMouseButtons(const struct IntuiMessage *m, const SDL_WindowData *data)
+MOS_DispatchMouseButtons(const struct IntuiMessage *m, SDL_WindowData *data)
 {
 	int state = (m->Code & IECODE_UP_PREFIX) ? false : true;
 	int button = MOS_GetButton(m->Code & ~(IECODE_UP_PREFIX));
 	if (button > 0) {
-		globalMouseState.buttonPressed[button] = state;
-		SDL_SendMouseButton(0, data->window, 0, button, state);
+		
+		bool ignore_click = false;
+		
+		if (data->last_focus_event_time) {
+            const int FOCUS_CLICK_TIMEOUT = 10;
+            if (SDL_GetTicks() < (data->last_focus_event_time + FOCUS_CLICK_TIMEOUT)) {
+                ignore_click = 1;
+            }
+            data->last_focus_event_time = 0;
+        }
+
+		if (!ignore_click) {
+			globalMouseState.buttonPressed[button] = state;
+			SDL_SendMouseButton(0, data->window, 0, button, state);
+		}
 	}
 }
 
@@ -239,7 +252,7 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
     if (!data || !data->win || !data->window) {
         return;
     }
-	D("");
+
     struct Window *syswin = data->win;
     SDL_Window *w = data->window;
 
@@ -255,8 +268,6 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
         if (w->pending_displayID == did) {
             w->pending_displayID = 0;
         }
-
-        //data->warp_pending = true;
         SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_DISPLAY_CHANGED, (int)did, 0);
     }
 
@@ -266,10 +277,10 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 
     const int global_x = b.x + local_x;
     const int global_y = b.y + local_y;
-
-    if (global_x != w->x || global_y != w->y) {
-        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, global_x, global_y);
-    }
+	
+	int x, y;
+    SDL_GlobalToRelativeForWindow(data->window, local_x, syswin->TopEdge, &x, &y);
+    SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_MOVED, global_x, global_y);
 
     int width  = syswin->Width  - syswin->BorderLeft - syswin->BorderRight;
     int height = syswin->Height - syswin->BorderTop  - syswin->BorderBottom;
@@ -279,7 +290,6 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
         if (data->__tglContext) MOS_GL_ResizeContext(_this, w);
     }
 
-	//MOS_FocusAndWarpIfNeeded(_this, data);
 }
 
 static void 
@@ -316,8 +326,6 @@ MOS_GadgetEvent(SDL_VideoDevice *_this, const struct IntuiMessage *m)
 						const int pos = SDL_WINDOWPOS_CENTERED_DISPLAY(next);
 						SDL_SetWindowPosition(w, pos, pos);
 						SDL_SyncWindow(w);
-						//wd->warp_pending = true;
-						//MOS_FocusAndWarpIfNeeded(_this, wd);
 						
 					}
 				}
@@ -479,6 +487,7 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			break;
 
 		case IDCMP_ACTIVEWINDOW:
+			data->last_focus_event_time = SDL_GetTicks();
 			MOS_HandleActivation(_this, data, true);
 			break;
 
@@ -621,6 +630,7 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 							NameFromLock(argptr->wa_Lock, filename, 1024);
 							AddPart((STRPTR)filename, (STRPTR)argptr->wa_Name, 1024);
 							D("SDL_SendDropfile : '%s'", filename);
+							SDL_SendDropPosition(window, (float)msg->am_MouseX, (float)msg->am_MouseY);
 							SDL_SendDropFile(window, NULL, filename);
 							argptr++;
 						}

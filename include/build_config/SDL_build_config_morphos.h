@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -230,7 +230,7 @@
 #define SDL_THREAD_PTHREAD_RECURSIVE_MUTEX 1
 /* #undef SDL_THREAD_PTHREAD_RECURSIVE_MUTEX_NP */
 
-#define SDL_TIME_UNIX 1
+#define SDL_TIMER_MORPHOS 1
 
 /* Enable various timer systems */
 /* #undef SDL_TIMER_DUMMY */

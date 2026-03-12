@@ -369,6 +369,7 @@ MOS_RecomputeVirtualDisplayPositions(SDL_VideoDevice *_this)
         x += dm->w;
     }
 }
+
 bool 
 MOS_InitModes(SDL_VideoDevice *_this)
 {
@@ -376,13 +377,11 @@ MOS_InitModes(SDL_VideoDevice *_this)
 
     SDL_VideoData *data = (SDL_VideoData *) _this->internal;
 
-    /* 1) Snapshot des pubscreens actifs */
     PubScreenInfo pubs[32];
     const int pubCount = MOS_CollectPublicScreens(pubs, SDL_arraysize(pubs));
 
     data->CustomScreen = NULL;
 
-    /* 2) Lock du PubScreen par défaut (Workbench / pubscreen courant) */
     data->PublicScreen = LockPubScreen(NULL);
     if (!data->PublicScreen) {
         D("LockPubScreen failed");
@@ -392,7 +391,6 @@ MOS_InitModes(SDL_VideoDevice *_this)
     APTR default_mon = (APTR)getv(data->PublicScreen, SA_MonitorObject);
     const ULONG default_modeid = (ULONG)getv(data->PublicScreen, SA_DisplayID);
 
-    /* 3) Ajout du display 0 (celui du pubscreen par défaut) */
     {
         SDL_DisplayMode mode;
         SDL_VideoDisplay display;
@@ -406,7 +404,6 @@ MOS_InitModes(SDL_VideoDevice *_this)
         dd->monitor = default_mon;
         dd->screen  = NULL;
 
-        /* pubscreen name (si trouvé dans la liste) */
         const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(default_mon, pubs, pubCount);
         if (ps && ps->name[0]) {
             SDL_strlcpy(dd->pubscreen_name, ps->name, sizeof(dd->pubscreen_name));
@@ -430,10 +427,8 @@ MOS_InitModes(SDL_VideoDevice *_this)
         SDL_AddVideoDisplay(&display, false);
     }
 
-    /* 4) ScreenNotify / Workbench client */
     data->ScreenNotifyHandle = AddWorkbenchClient(&data->ScreenNotifyPort, -20);
 
-    /* 5) Ajouter UNIQUEMENT les autres moniteurs qui ont un PubScreen actif */
     Object **monitors = GetMonitorList(NULL);
     if (monitors) {
         for (int i = 0; monitors[i]; i++) {
@@ -445,7 +440,6 @@ MOS_InitModes(SDL_VideoDevice *_this)
 
             const PubScreenInfo *ps = MOS_FindPubScreenForMonitor(m, pubs, pubCount);
             if (!ps) {
-                /* Pas de PubScreen actif sur ce moniteur => on ne le “voit” pas */
                 continue;
             }
 
@@ -488,12 +482,10 @@ MOS_InitModes(SDL_VideoDevice *_this)
         FreeMonitorList(monitors);
     }
 
-    /* 6) Coordonnées virtuelles stables */
     MOS_RecomputeVirtualDisplayPositions(_this);
 
     return true;
 }
-
 
 static SDL_VideoDisplay *
 MOS_FindDisplayByMonitor(SDL_VideoDevice *_this, APTR monitor)
@@ -619,7 +611,6 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
         }
     }
 	
-	/* Display set may have changed; rebuild our virtual coordinates. */
     MOS_RecomputeVirtualDisplayPositions(_this);
 	
 }
@@ -634,15 +625,11 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         return true;
     }
 
-    /* SDL peut appeler SetDisplayMode même pour du fullscreen "desktop".
-       On ne doit PAS ouvrir de CustomScreen dans ce cas. */
     if (display->fullscreen_active == 0) {
         D("Not a fullscreen exclusive (fullscreen_active=0) -> ignore SetDisplayMode");
         return true;
     }
 
-    /* Détermine si le mode demandé == desktop mode du display.
-       Dans ce cas, c'est du fullscreen desktop : pas de CustomScreen. */
     SDL_DisplayMode *desk = &display->desktop_mode;
     SDL_DisplayModeData *req_md  = (SDL_DisplayModeData *)mode->internal;
     SDL_DisplayModeData *desk_md = (SDL_DisplayModeData *)desk->internal;
@@ -660,19 +647,16 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         D("SetDisplayMode: requested mode matches desktop (%dx%d bpp=%d modeid=%lu) -> desktop fullscreen, no CustomScreen",
           mode->w, mode->h, req_bpp, (ULONG)(req_md ? req_md->modeid : 0));
 
-        /* Si on avait une CustomScreen ouverte (ancien exclusif), on la ferme. */
         if (vd->CustomScreen) {
             D("SetDisplayMode(desktop): closing existing CustomScreen and reopening windows");
             MOS_CloseWindows(_this);
             MOS_CloseScreen(_this);
         }
 
-        /* On est explicitement en "pas de screen exclusif" pour ce display. */
         dd->screen = NULL;
         return true;
     }
 
-    /* Mode exclusif réel: on (re)crée une CustomScreen sur le bon moniteur. */
     D("SetDisplayMode: exclusive requested on display=%p (monitor=%p) screen=%p",
       display, dd->monitor, dd->screen);
 
@@ -690,14 +674,13 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
     ULONG openError = 0;
     const int bpp = req_bpp;
 
-    /* IMPORTANT: utiliser SA_MonitorObject pour viser le bon écran/moniteur */
     dd->screen = OpenScreenTags(NULL,
         SA_Width,         (IPTR)mode->w,
         SA_Height,        (IPTR)mode->h,
         SA_Depth,         (IPTR)bpp,
         SA_DisplayID,     (IPTR)req_md->modeid,
 
-        SA_MonitorObject, (IPTR)dd->monitor,     /* <- robuste multi-moniteurs */
+        SA_MonitorObject, (IPTR)dd->monitor,
         SA_Quiet,         (IPTR)TRUE,
         SA_ShowTitle,     (IPTR)FALSE,
         SA_Title,         (IPTR)FilePart(vd->FullAppName),
@@ -727,7 +710,6 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 
     vd->CustomScreen = dd->screen;
 
-    /* Petit clear pour éviter du garbage visuel au switch */
     SetRPAttrs(&dd->screen->RastPort, RPTAG_PenMode, FALSE, RPTAG_FgColor, 0xFF000000, TAG_DONE);
     RectFill(&dd->screen->RastPort, 0, 0, dd->screen->Width - 1, dd->screen->Height - 1);
 	
