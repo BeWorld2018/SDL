@@ -282,8 +282,10 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
     int height = syswin->Height - syswin->BorderTop  - syswin->BorderBottom;
 
     if (width != w->w || height != w->h) {
+		if (data->__tglContext) {
+			MOS_GL_ResizeContext(_this, w);
+		}
         SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, width, height);
-        if (data->__tglContext) MOS_GL_ResizeContext(_this, w);
     }
 
 }

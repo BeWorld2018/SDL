@@ -258,23 +258,16 @@ MOS_OpenWindows(SDL_VideoDevice *_this)
 static void 
 MOS_CloseWindow(SDL_VideoDevice *_this, SDL_Window *window) 
 {
-	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	D("data->win=0x%08lx", data->win);
-	if (data->win) {
-		
-		if (data->grabbed) {
-			data->grabbed = TRUE;
-			DoMethod((Object *)data->win, WM_ReleaseEvents);
-		}
-		
-		MOS_RemoveAppWindow(data);
-		MOS_RemoveAppIcon(data);
-		MOS_RemoveMenuObject(data);
-		
-		struct Window *win = data->win;
-        CloseWindow(win);
-        data->win = NULL;
-	}
+    SDL_WindowData *data = (SDL_WindowData *)window->internal;
+    struct Window *win = data ? data->win : NULL;
+
+    D("data->win=0x%08lx", win);
+    if (!win) {
+        return;
+    }
+
+    MOS_CloseWindowSafely(_this, window, win);
+    data->win = NULL;
 }
 
 void
@@ -1253,12 +1246,12 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window *window,
 
         int width = 0, height = 0;
         MOS_GetWindowSize(data->win, &width, &height);
-        D("Force to inform SDL about window size %d x %d", width, height);
-        SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
-				
-        if (data->__tglContext) {
+		if (data->__tglContext) {
             MOS_GL_ResizeContext(_this, window);
         }
+		
+        D("Force to inform SDL about window size %d x %d", width, height);
+        SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
 
         if (fullscreen == SDL_FULLSCREEN_OP_ENTER) {
             if (window->flags & SDL_WINDOW_MAXIMIZED) {
