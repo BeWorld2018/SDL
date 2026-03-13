@@ -28,125 +28,283 @@
 
 typedef struct
 {
-    const SDL_DialogFileFilter *filters;
-    const char* title;
-    const char* accept;
-    const char* cancel;
-    const char* default_file;
-    const char* default_dir;
-    struct Window* window;
+    SDL_DialogFileFilter *filters;
+    int nfilters;
+    char *title;
+    char *accept;
+    char *cancel;
+    char *default_file;
+    char *default_dir;
+    struct Window *window;
     bool allow_many;
     bool save;
     bool dir_only;
     SDL_DialogFileCallback callback;
-    void* userdata;
+    void *userdata;
 } MOS_DialogArgs;
 
-static const char *MOS_DefaultAccept(void) { return "Ok"; }
-static const char *MOS_DefaultCancel(void) { return "Cancel"; }
-
-static void MOS_FreeDialogArgs(MOS_DialogArgs* args)
+static const char *MOS_DefaultAccept(void)
 {
+    return "Ok";
+}
 
-    SDL_free((void *)args->title);
-    SDL_free((void *)args->accept);
-    SDL_free((void *)args->cancel);
-    SDL_free((void *)args->default_file);
-    SDL_free((void *)args->default_dir);
+static const char *MOS_DefaultCancel(void)
+{
+    return "Cancel";
+}
 
-    args->title = NULL;
-    args->accept = NULL;
-    args->cancel = NULL;
-    args->default_file = NULL;
-    args->default_dir = NULL;
+static void MOS_FreePathList(char **paths, int count)
+{
+    int i;
+
+    if (!paths) {
+        return;
+    }
+
+    for (i = 0; i < count; i++) {
+        SDL_free(paths[i]);
+    }
+    SDL_free(paths);
+}
+
+static void MOS_FreeFilters(SDL_DialogFileFilter *filters, int nfilters)
+{
+    int i;
+
+    if (!filters) {
+        return;
+    }
+
+    for (i = 0; i < nfilters; i++) {
+        SDL_free((void *)filters[i].name);
+        SDL_free((void *)filters[i].pattern);
+    }
+
+    SDL_free(filters);
+}
+
+static void MOS_FreeDialogArgs(MOS_DialogArgs *args)
+{
+    if (!args) {
+        return;
+    }
+
+    MOS_FreeFilters(args->filters, args->nfilters);
+    SDL_free(args->title);
+    SDL_free(args->accept);
+    SDL_free(args->cancel);
+    SDL_free(args->default_file);
+    SDL_free(args->default_dir);
 
     SDL_free(args);
+}
+
+static bool MOS_CopyFilters(MOS_DialogArgs *args, const SDL_DialogFileFilter *filters, int nfilters)
+{
+    int i;
+
+    args->filters = NULL;
+    args->nfilters = 0;
+
+    if (!filters || nfilters <= 0) {
+        return true;
+    }
+
+    args->filters = (SDL_DialogFileFilter *)SDL_calloc((size_t)nfilters, sizeof(*args->filters));
+    if (!args->filters) {
+        SDL_OutOfMemory();
+        return false;
+    }
+
+    args->nfilters = nfilters;
+
+    for (i = 0; i < nfilters; i++) {
+        if (filters[i].name) {
+            args->filters[i].name = SDL_strdup(filters[i].name);
+            if (!args->filters[i].name) {
+                SDL_OutOfMemory();
+                return false;
+            }
+        }
+
+        if (filters[i].pattern) {
+            args->filters[i].pattern = SDL_strdup(filters[i].pattern);
+            if (!args->filters[i].pattern) {
+                SDL_OutOfMemory();
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool MOS_SplitLocation(const char *loc, char **out_dir, char **out_file)
+{
+    const char *last_slash;
+    const char *last_colon;
+    const char *sep;
+    size_t len;
+
+    *out_dir = SDL_strdup("");
+    *out_file = SDL_strdup("");
+
+    if (!*out_dir || !*out_file) {
+        SDL_free(*out_dir);
+        SDL_free(*out_file);
+        *out_dir = NULL;
+        *out_file = NULL;
+        SDL_OutOfMemory();
+        return false;
+    }
+
+    if (!loc || !loc[0]) {
+        return true;
+    }
+
+    len = SDL_strlen(loc);
+
+    if (loc[len - 1] == ':' || loc[len - 1] == '/') {
+        char *dir = SDL_strdup(loc);
+        if (!dir) {
+            SDL_OutOfMemory();
+            return false;
+        }
+
+        SDL_free(*out_dir);
+        *out_dir = dir;
+        return true;
+    }
+
+    last_slash = SDL_strrchr(loc, '/');
+    last_colon = SDL_strrchr(loc, ':');
+    sep = last_slash;
+
+    if (!sep || (last_colon && last_colon > sep)) {
+        sep = last_colon;
+    }
+
+    if (sep) {
+        const size_t dirlen = (size_t)(sep - loc) + 1;
+        char *dir = (char *)SDL_calloc(dirlen + 1, 1);
+        char *file = SDL_strdup(sep + 1);
+
+        if (!dir || !file) {
+            SDL_free(dir);
+            SDL_free(file);
+            SDL_OutOfMemory();
+            return false;
+        }
+
+        SDL_memcpy(dir, loc, dirlen);
+        dir[dirlen] = '\0';
+
+        SDL_free(*out_dir);
+        SDL_free(*out_file);
+        *out_dir = dir;
+        *out_file = file;
+    } else {
+        char *file = SDL_strdup(loc);
+        if (!file) {
+            SDL_OutOfMemory();
+            return false;
+        }
+
+        SDL_free(*out_file);
+        *out_file = file;
+    }
+
+    return true;
 }
 
 static void MOS_HandleMultiselection(struct FileRequester *req, MOS_DialogArgs *args)
 {
     SDL_DialogFileCallback callback = args->callback;
+    char **paths;
+    size_t pathLen;
+    const char *separator = "/";
+    int i;
 
-    char **paths = SDL_calloc(sizeof(char*), req->fr_NumArgs + 1);
-
-    if (paths) {
-        size_t pathLen = strlen(req->fr_Drawer);
-        const char* separator = "/";
-
-        if (pathLen > 0) {
-            // Try to handle existing path separators
-            const char lastChar = req->fr_Drawer[pathLen - 1];
-            if (lastChar == ':' || lastChar == '/') {
-                separator = "";
-            }
-
-            pathLen++; // Include separator
-        }
-
-        for (int i = 0; i < req->fr_NumArgs; i++) {
-            const char* filename = req->fr_ArgList[i].wa_Name;
-            const size_t totalLen = pathLen + strlen(filename) + 1;
-
-            paths[i] = SDL_calloc(totalLen, 1);
-
-            if (paths[i]) {
-                if (pathLen) {
-                    snprintf(paths[i], totalLen, "%s%s%s", req->fr_Drawer, separator, filename);
-                } else {
-                    snprintf(paths[i], totalLen, "%s", filename);
-                }
-                D("[%d] '%s'", i, paths[i]);
-            } else {
-                D("Failed to allocate memory");
-            }
-        }
-
-        paths[req->fr_NumArgs] = NULL;
-        callback(args->userdata, (const char* const*)paths, -1);
-
-        for (int i = 0; i < req->fr_NumArgs; i++) {
-            SDL_free(paths[i]);
-        }
-
-        SDL_free(paths);
-    } else {
+    paths = (char **)SDL_calloc((size_t)req->fr_NumArgs + 1, sizeof(char *));
+    if (!paths) {
         D("Failed to allocate memory");
+        SDL_OutOfMemory();
         callback(args->userdata, NULL, -1);
+        return;
     }
+
+    pathLen = SDL_strlen(req->fr_Drawer);
+
+    if (pathLen > 0) {
+        const char lastChar = req->fr_Drawer[pathLen - 1];
+        if (lastChar == ':' || lastChar == '/') {
+            separator = "";
+        }
+        pathLen++;
+    }
+
+    for (i = 0; i < req->fr_NumArgs; i++) {
+        const char *filename = req->fr_ArgList[i].wa_Name;
+        const size_t totalLen = pathLen + SDL_strlen(filename) + 1;
+
+        paths[i] = (char *)SDL_calloc(totalLen, 1);
+        if (!paths[i]) {
+            D("Failed to allocate memory");
+            MOS_FreePathList(paths, req->fr_NumArgs);
+            SDL_OutOfMemory();
+            callback(args->userdata, NULL, -1);
+            return;
+        }
+
+        if (pathLen) {
+            SDL_snprintf(paths[i], totalLen, "%s%s%s", req->fr_Drawer, separator, filename);
+        } else {
+            SDL_snprintf(paths[i], totalLen, "%s", filename);
+        }
+
+        D("[%d] '%s'", i, paths[i]);
+    }
+
+    paths[req->fr_NumArgs] = NULL;
+    callback(args->userdata, (const char * const *)paths, -1);
+    MOS_FreePathList(paths, req->fr_NumArgs);
 }
 
 static void MOS_HandleSingleFile(struct FileRequester *req, MOS_DialogArgs *args)
 {
     SDL_DialogFileCallback callback = args->callback;
-
-    size_t pathLen = strlen(req->fr_Drawer);
+    size_t pathLen = SDL_strlen(req->fr_Drawer);
 
     if (pathLen > 0) {
-        const char* separator = "/";
+        const char *separator = "/";
+        const char *filename = req->fr_File;
+        char *path;
+        size_t totalLen;
 
-        // Try to handle existing path separators
-        const char lastChar = req->fr_Drawer[pathLen - 1];
-        if (lastChar == ':' || lastChar == '/') {
+        if (req->fr_Drawer[pathLen - 1] == ':' || req->fr_Drawer[pathLen - 1] == '/') {
             separator = "";
         }
 
-        pathLen++; // Include separator
+        pathLen++;
+        totalLen = pathLen + SDL_strlen(filename) + 1;
+        path = (char *)SDL_calloc(totalLen, 1);
 
-        const char* filename = req->fr_File;
-        const size_t totalLen = pathLen + strlen(filename) + 1;
-        char* path = SDL_calloc(totalLen, 1);
+        if (!path) {
+            D("Failed to allocate memory");
+            SDL_OutOfMemory();
+            callback(args->userdata, NULL, -1);
+            return;
+        }
 
-        if (path) {
-            snprintf(path, totalLen, "%s%s%s", req->fr_Drawer, separator, filename);
-            D("'%s'", path);
+        SDL_snprintf(path, totalLen, "%s%s%s", req->fr_Drawer, separator, filename);
+        D("'%s'", path);
 
+        {
             const char *paths[2] = { path, NULL };
             callback(args->userdata, paths, -1);
-            SDL_free(path);
-        } else {
-            D("Failed to allocate memory");
-            callback(args->userdata, NULL, -1);
         }
+
+        SDL_free(path);
     } else {
         const char *paths[2] = { req->fr_File, NULL };
         callback(args->userdata, paths, -1);
@@ -156,230 +314,204 @@ static void MOS_HandleSingleFile(struct FileRequester *req, MOS_DialogArgs *args
 static void MOS_ShowDialog(MOS_DialogArgs *args)
 {
     SDL_DialogFileCallback callback = args->callback;
+    struct FileRequester *req;
 
-    D("title '%s', accept '%s', cancel '%s', default_dir '%s', default_file '%s'", 
-            args->title,
-            args->accept,
-            args->cancel,
-            args->default_dir,
-            args->default_file);
+    D("title '%s', accept '%s', cancel '%s', default_dir '%s', default_file '%s'",
+      args->title ? args->title : "(null)",
+      args->accept ? args->accept : "(null)",
+      args->cancel ? args->cancel : "(null)",
+      args->default_dir ? args->default_dir : "(null)",
+      args->default_file ? args->default_file : "(null)");
 
-    struct FileRequester *req = AllocAslRequestTags(ASL_FileRequest,
+    req = AllocAslRequestTags(ASL_FileRequest,
         ASLFR_Window, args->window,
         ASLFR_TitleText, args->title,
         ASLFR_PositiveText, args->accept,
         ASLFR_NegativeText, args->cancel,
         ASLFR_InitialFile, args->default_file,
         ASLFR_InitialDrawer, args->default_dir,
-        //ASLFR_InitialPattern, TODO: filters
+        /* ASLFR_InitialPattern, TODO: filters */
         ASLFR_DoMultiSelect, args->allow_many,
         ASLFR_DoSaveMode, args->save,
         ASLFR_DrawersOnly, args->dir_only,
         ASLFR_PrivateIDCMP, TRUE,
         TAG_DONE);
 
-    if (req) {
-        const BOOL result = AslRequestTags(req, TAG_DONE);
-
-        D("Result %d", result);
-
-        if (result) {
-            D("Drawer '%s', file '%s', args %ld", req->fr_Drawer, req->fr_File, req->fr_NumArgs);
-
-            if (req->fr_NumArgs > 0) {
-                MOS_HandleMultiselection(req, args);
-            } else {
-                if (args->dir_only) {
-                    const char *paths[2] = { req->fr_Drawer, NULL };
-                    callback(args->userdata, paths, -1);
-                } else {
-                    MOS_HandleSingleFile(req, args);
-                }
-            }
-        } else {
-            // User cancelled operation
-            const char *files[1] = { NULL };
-            callback(args->userdata, files, -1);
-        }
-
-        FreeAslRequest(req);
-    } else {
+    if (!req) {
         callback(args->userdata, NULL, -1);
+        return;
     }
+
+    if (AslRequestTags(req, TAG_DONE)) {
+        D("Drawer '%s', file '%s', args %ld", req->fr_Drawer, req->fr_File, req->fr_NumArgs);
+
+        if (req->fr_NumArgs > 0) {
+            MOS_HandleMultiselection(req, args);
+        } else if (args->dir_only) {
+            const char *paths[2] = { req->fr_Drawer, NULL };
+            callback(args->userdata, paths, -1);
+        } else {
+            MOS_HandleSingleFile(req, args);
+        }
+    } else {
+        const char *files[1] = { NULL };
+        callback(args->userdata, files, -1);
+    }
+
+    FreeAslRequest(req);
 }
 
-static int MOS_DialogThread(void* ptr)
+static int MOS_DialogThread(void *ptr)
 {
-    MOS_ShowDialog(ptr);
-    MOS_FreeDialogArgs(ptr);
+    MOS_ShowDialog((MOS_DialogArgs *)ptr);
+    MOS_FreeDialogArgs((MOS_DialogArgs *)ptr);
     return 0;
 }
 
-static void MOS_SplitLocation(const char *loc, char **out_dir, char **out_file)
+static MOS_DialogArgs *MOS_AllocDialogArgs(SDL_DialogFileCallback callback, void *userdata, struct Window *window,
+                                           const char *title, const char *accept, const char *cancel)
 {
-    *out_dir = SDL_strdup("");
-    *out_file = SDL_strdup("");
+    MOS_DialogArgs *args = (MOS_DialogArgs *)SDL_calloc(1, sizeof(*args));
 
-    if (!loc || !loc[0]) {
-        return;
+    if (!args) {
+        SDL_OutOfMemory();
+        return NULL;
     }
 
-    const size_t len = SDL_strlen(loc);
+    args->title = SDL_strdup(title ? title : "");
+    args->accept = SDL_strdup(accept ? accept : MOS_DefaultAccept());
+    args->cancel = SDL_strdup(cancel ? cancel : MOS_DefaultCancel());
 
-    /* If it ends with ':' or '/', treat as drawer-only */
-    if (loc[len - 1] == ':' || loc[len - 1] == '/') {
-        SDL_free(*out_dir);
-        *out_dir = SDL_strdup(loc);
-        /* file stays "" */
-        return;
+    if (!args->title || !args->accept || !args->cancel) {
+        SDL_OutOfMemory();
+        MOS_FreeDialogArgs(args);
+        return NULL;
     }
 
-    /* Split at last '/' or ':' */
-    const char *last_slash = SDL_strrchr(loc, '/');
-    const char *last_colon = SDL_strrchr(loc, ':');
-    const char *sep = last_slash;
+    args->window = window;
+    args->callback = callback;
+    args->userdata = userdata;
 
-    if (!sep || (last_colon && last_colon > sep)) {
-        sep = last_colon;
-    }
-
-    if (sep) {
-        const size_t dirlen = (size_t)(sep - loc) + 1; /* include separator */
-        char *dir = SDL_calloc(dirlen + 1, 1);
-        if (dir) {
-            SDL_memcpy(dir, loc, dirlen);
-            dir[dirlen] = '\0';
-            SDL_free(*out_dir);
-            *out_dir = dir;
-        }
-        SDL_free(*out_file);
-        *out_file = SDL_strdup(sep + 1);
-    } else {
-        /* No separator: treat as file only */
-        SDL_free(*out_file);
-        *out_file = SDL_strdup(loc);
-    }
+    return args;
 }
 
-static void MOS_ShowFileDialog(SDL_DialogFileCallback callback, void* userdata, struct Window* window,
-                               const SDL_DialogFileFilter *filters, int nfilters, const char* default_location, bool allow_many, bool is_save,
-                               const char* title, const char* accept, const char* cancel)
+static void MOS_StartDialogThread(MOS_DialogArgs *args, const char *thread_name)
 {
-    MOS_DialogArgs *args = SDL_calloc(sizeof(MOS_DialogArgs), 1);
+    SDL_Thread *thread = SDL_CreateThread(MOS_DialogThread, thread_name, args);
 
-    if (args == NULL) {
-        SDL_OutOfMemory();
+    if (!thread) {
+        args->callback(args->userdata, NULL, -1);
+        MOS_FreeDialogArgs(args);
+        return;
+    }
+
+    SDL_DetachThread(thread);
+}
+
+static void MOS_ShowFileDialog(SDL_DialogFileCallback callback, void *userdata, struct Window *window,
+                               const SDL_DialogFileFilter *filters, int nfilters, const char *default_location,
+                               bool allow_many, bool is_save, const char *title, const char *accept, const char *cancel)
+{
+    MOS_DialogArgs *args = MOS_AllocDialogArgs(callback, userdata, window,
+                                               title ? title : (is_save ? "Save file..." : "Open file..."),
+                                               accept,
+                                               cancel);
+
+    if (!args) {
         callback(userdata, NULL, -1);
         return;
     }
 
-	args->title  = SDL_strdup(title ? title : (is_save ? "Save file..." : "Open file..."));
-	args->accept = SDL_strdup(accept ? accept : MOS_DefaultAccept());
-	args->cancel = SDL_strdup(cancel ? cancel : MOS_DefaultCancel());
-    args->filters = filters;
-	
-	MOS_SplitLocation(default_location, (char **)&args->default_dir, (char **)&args->default_file);
+    if (!MOS_CopyFilters(args, filters, nfilters)) {
+        callback(userdata, NULL, -1);
+        MOS_FreeDialogArgs(args);
+        return;
+    }
 
-    args->window = window;
+    if (!MOS_SplitLocation(default_location, &args->default_dir, &args->default_file)) {
+        callback(userdata, NULL, -1);
+        MOS_FreeDialogArgs(args);
+        return;
+    }
+
     args->allow_many = allow_many;
     args->save = is_save;
     args->dir_only = false;
-    args->callback = callback;
-    args->userdata = userdata;
 
-    SDL_Thread *thread = SDL_CreateThread(MOS_DialogThread, "SDL_ShowFileDialog", (void *) args);
+    MOS_StartDialogThread(args, "SDL_ShowFileDialog");
+}
 
-    if (thread == NULL) {
+static void MOS_ShowFolderDialog(SDL_DialogFileCallback callback, void *userdata, struct Window *window,
+                                 const char *default_location, bool allow_many,
+                                 const char *title, const char *accept, const char *cancel)
+{
+    MOS_DialogArgs *args = MOS_AllocDialogArgs(callback, userdata, window,
+                                               title ? title : "Open folder...",
+                                               accept,
+                                               cancel);
+
+    if (!args) {
+        callback(userdata, NULL, -1);
+        return;
+    }
+
+    args->default_file = SDL_strdup("");
+    args->default_dir = SDL_strdup(default_location ? default_location : "");
+
+    if (!args->default_file || !args->default_dir) {
+        SDL_OutOfMemory();
         callback(userdata, NULL, -1);
         MOS_FreeDialogArgs(args);
         return;
     }
 
-    SDL_DetachThread(thread);
-}
-
-// TODO: probably file + folder code could be merged into one
-static void MOS_ShowFolderDialog(SDL_DialogFileCallback callback, void* userdata, struct Window* window,
-                                 const char* default_location, bool allow_many,
-                                 const char* title, const char* accept, const char* cancel)
-{
-    MOS_DialogArgs *args = SDL_calloc(sizeof(MOS_DialogArgs), 1);
-
-    if (args == NULL) {
-        SDL_OutOfMemory();
-        callback(userdata, NULL, -1);
-        return;
-    }
-
-	args->title  = SDL_strdup(title ? title : "Open folder...");
-	args->accept = SDL_strdup(accept ? accept : MOS_DefaultAccept());
-	args->cancel = SDL_strdup(cancel ? cancel : MOS_DefaultCancel());
-    args->filters = NULL;
-	
-    args->default_file = SDL_strdup("");
-    args->default_dir  = SDL_strdup(default_location ? default_location : "");
-
-    args->window = window;
     args->allow_many = allow_many;
     args->save = false;
     args->dir_only = true;
-    args->callback = callback;
-    args->userdata = userdata;
 
-    SDL_Thread *thread = SDL_CreateThread(MOS_DialogThread, "SDL_ShowFolderDialog", (void *) args);
-
-    if (thread == NULL) {
-        callback(userdata, NULL, -1);
-        MOS_FreeDialogArgs(args);
-        return;
-    }
-
-    SDL_DetachThread(thread);
+    MOS_StartDialogThread(args, "SDL_ShowFolderDialog");
 }
 
 void SDL_SYS_ShowFileDialogWithProperties(SDL_FileDialogType type, SDL_DialogFileCallback callback, void *userdata, SDL_PropertiesID props)
 {
-    /* The internal functions will start threads, and the properties may be freed as soon as this function returns.
-       Save a copy of what we need before invoking the functions and starting the threads. */
-    SDL_Window* window = SDL_GetPointerProperty(props, SDL_PROP_FILE_DIALOG_WINDOW_POINTER, NULL);
-    SDL_DialogFileFilter *filters = SDL_GetPointerProperty(props, SDL_PROP_FILE_DIALOG_FILTERS_POINTER, NULL);
-    int nfilters = (int) SDL_GetNumberProperty(props, SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER, 0);
-    bool allow_many = SDL_GetBooleanProperty(props, SDL_PROP_FILE_DIALOG_MANY_BOOLEAN, false);
-
+    SDL_Window *window = SDL_GetPointerProperty(props, SDL_PROP_FILE_DIALOG_WINDOW_POINTER, NULL);
+    const SDL_DialogFileFilter *filters = (const SDL_DialogFileFilter *)
+        SDL_GetPointerProperty(props, SDL_PROP_FILE_DIALOG_FILTERS_POINTER, NULL);
+    const int nfilters = (int)SDL_GetNumberProperty(props, SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER, 0);
+    const bool allow_many = SDL_GetBooleanProperty(props, SDL_PROP_FILE_DIALOG_MANY_BOOLEAN, false);
+    const char *default_location = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_LOCATION_STRING, NULL);
+    const char *title = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_TITLE_STRING, NULL);
+    const char *accept = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_ACCEPT_STRING, NULL);
+    const char *cancel = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_CANCEL_STRING, NULL);
     struct Window *syswin = NULL;
 
     if (window) {
         SDL_PropertiesID windowProps = SDL_GetWindowProperties(window);
         syswin = SDL_GetPointerProperty(windowProps, "SDL.window.morphos.window", NULL);
-        // D("Syswin %p\n", syswin);
     }
-
-    const char* default_location = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_LOCATION_STRING, NULL);
-    const char* title = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_TITLE_STRING, NULL);
-    const char* accept = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_ACCEPT_STRING, NULL);
-    const char* cancel = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_CANCEL_STRING, NULL);
-
-    // Copy strings because SDL_Dialog destroys properties
-    default_location = default_location ? SDL_strdup(default_location) : SDL_strdup("");
-
-    if (title) {
-        title = SDL_strdup(title);
-    }
-
-    accept = accept ? SDL_strdup(accept) : SDL_strdup("Ok");
-    cancel = cancel ? SDL_strdup(cancel) : SDL_strdup("Cancel");
 
     switch (type) {
-    case SDL_FILEDIALOG_SAVEFILE: {
-        const bool is_save = true;
-        MOS_ShowFileDialog(callback, userdata, syswin, filters, nfilters, default_location, allow_many, is_save, title, accept, cancel);
-    } break;
-    case SDL_FILEDIALOG_OPENFILE: {
-        const bool is_save = false;
-        MOS_ShowFileDialog(callback, userdata, syswin, filters, nfilters, default_location, allow_many, is_save, title, accept, cancel);
-    } break;
+    case SDL_FILEDIALOG_SAVEFILE:
+        MOS_ShowFileDialog(callback, userdata, syswin, filters, nfilters,
+                           default_location, allow_many, true,
+                           title, accept, cancel);
+        break;
+
+    case SDL_FILEDIALOG_OPENFILE:
+        MOS_ShowFileDialog(callback, userdata, syswin, filters, nfilters,
+                           default_location, allow_many, false,
+                           title, accept, cancel);
+        break;
+
     case SDL_FILEDIALOG_OPENFOLDER:
-        MOS_ShowFolderDialog(callback, userdata, syswin, default_location, allow_many, title, accept, cancel);
+        MOS_ShowFolderDialog(callback, userdata, syswin,
+                             default_location, allow_many,
+                             title, accept, cancel);
+        break;
+
+    default:
+        SDL_SetError("Unsupported file dialog type");
+        callback(userdata, NULL, -1);
         break;
     }
 }
