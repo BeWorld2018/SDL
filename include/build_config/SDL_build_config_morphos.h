@@ -230,11 +230,10 @@
 #define SDL_THREAD_PTHREAD_RECURSIVE_MUTEX 1
 /* #undef SDL_THREAD_PTHREAD_RECURSIVE_MUTEX_NP */
 
-#define SDL_TIMER_MORPHOS 1
-
+#define SDL_TIME_UNIX 1
 /* Enable various timer systems */
 /* #undef SDL_TIMER_DUMMY */
-#define SDL_TIMER_UNIX 1
+#define SDL_TIMER_MORPHOS 1
 
 /* Enable various video drivers */
 #define SDL_VIDEO_DRIVER_DUMMY 1
