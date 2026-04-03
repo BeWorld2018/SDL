@@ -1981,12 +1981,15 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL PIXELART shaders not supported");
     }
     // We support INDEX8 textures using 2 textures and a shader
-    if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
+#ifndef __MORPHOS__
+ if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
         GL_SupportsShader(data->shaders, SHADER_PALETTE_LINEAR) &&
         (!data->pixelart_supported || GL_SupportsShader(data->shaders, SHADER_PALETTE_PIXELART)) &&
         data->num_texture_units >= 2) {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
-    } else {
+    } else 
+#endif	
+	{
 		D("OpenGL palette shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL palette shaders not supported");
     }
