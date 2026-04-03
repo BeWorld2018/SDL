@@ -388,6 +388,10 @@ set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors
 set_option(SDL_CCACHE              "Use Ccache to speed up build" OFF)
 set_option(SDL_CLANG_TIDY          "Run clang-tidy static analysis" OFF)
 
+if(EMSCRIPTEN)
+  option_string(SDL_EMSCRIPTEN_PERSISTENT_PATH  "Path to mount Emscripten IDBFS at startup or '' to disable" "")
+endif()
+
 set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_REVISION")
 
 cmake_dependent_option(SDL_SHARED "Build a shared version of the library" ${SDL_SHARED_DEFAULT} ${SDL_SHARED_AVAILABLE} OFF)
@@ -1652,6 +1656,11 @@ elseif(EMSCRIPTEN)
   # project. Uncomment at will for verbose cross-compiling -I/../ path info.
   sdl_compile_options(PRIVATE "-Wno-warn-absolute-paths")
 
+  if(NOT SDL_EMSCRIPTEN_PERSISTENT_PATH STREQUAL "")
+    set(SDL_EMSCRIPTEN_PERSISTENT_PATH_STRING "${SDL_EMSCRIPTEN_PERSISTENT_PATH}")
+    sdl_link_dependency(idbfs LIBS idbfs.js)
+  endif()
+
   sdl_glob_sources(
     "${SDL3_SOURCE_DIR}/src/main/emscripten/*.c"
     "${SDL3_SOURCE_DIR}/src/main/emscripten/*.h"
@@ -2710,13 +2719,6 @@ elseif(APPLE)
           set(SDL_VIDEO_RENDER_METAL 1)
           set(HAVE_RENDER_METAL TRUE)
         endif()
-        if (SDL_GPU)
-          set(SDL_GPU_METAL 1)
-          sdl_glob_sources(
-            "${SDL3_SOURCE_DIR}/src/gpu/metal/*.m"
-            "${SDL3_SOURCE_DIR}/src/gpu/metal/*.h"
-          )
-        endif()
       endif()
     endif()
   endif()
@@ -3529,6 +3531,14 @@ if(SDL_GPU)
     set(SDL_GPU_VULKAN 1)
     set(HAVE_SDL_GPU TRUE)
   endif()
+  if(SDL_VIDEO_METAL)
+    sdl_glob_sources(
+      "${SDL3_SOURCE_DIR}/src/gpu/metal/*.m"
+      "${SDL3_SOURCE_DIR}/src/gpu/metal/*.h"
+    )
+    set(SDL_GPU_METAL 1)
+    set(HAVE_SDL_GPU TRUE)
+  endif()
   if(SDL_RENDER_GPU AND HAVE_SDL_GPU)
     set(SDL_VIDEO_RENDER_GPU 1)
     set(HAVE_RENDER_GPU TRUE)
@@ -3982,6 +3992,7 @@ if(SDL_SHARED)
       )
     endif()
   endif()
+
   target_link_libraries(SDL3-shared PRIVATE ${SDL_CMAKE_DEPENDS})
   target_include_directories(SDL3-shared
     PRIVATE

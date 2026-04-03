@@ -542,9 +542,15 @@ static bool GAMEINPUT_JoystickOpen(SDL_Joystick *joystick, int device_index)
         }
 #endif // GAMEINPUT_API_VERSION >= 1
     } else {
+#if GAMEINPUT_API_VERSION >= 3
+        joystick->naxes = info->controllerInfo->controllerAxisCount;
+        joystick->nbuttons = info->controllerInfo->controllerButtonCount;
+        joystick->nhats = info->controllerInfo->controllerSwitchCount;
+#else
         joystick->naxes = info->controllerAxisCount;
         joystick->nbuttons = info->controllerButtonCount;
         joystick->nhats = info->controllerSwitchCount;
+#endif // GAMEINPUT_API_VERSION >= 3
     }
 
     if (info->supportedRumbleMotors & (GameInputRumbleLowFrequency | GameInputRumbleHighFrequency)) {
@@ -676,13 +682,13 @@ static void GAMEINPUT_JoystickUpdate(SDL_Joystick *joystick)
 #undef CONVERT_TRIGGER
         }
     } else {
-        bool *button_state = SDL_stack_alloc(bool, info->controllerButtonCount);
-        float *axis_state = SDL_stack_alloc(float, info->controllerAxisCount);
-        GameInputSwitchPosition *switch_state = SDL_stack_alloc(GameInputSwitchPosition, info->controllerSwitchCount);
+        bool *button_state = SDL_stack_alloc(bool, joystick->nbuttons);
+        float *axis_state = SDL_stack_alloc(float, joystick->naxes);
+        GameInputSwitchPosition *switch_state = SDL_stack_alloc(GameInputSwitchPosition, joystick->nhats);
 
         if (button_state) {
             uint32_t i;
-            uint32_t button_count = reading->GetControllerButtonState(info->controllerButtonCount, button_state);
+            uint32_t button_count = reading->GetControllerButtonState(joystick->nbuttons, button_state);
             for (i = 0; i < button_count; ++i) {
                 SDL_SendJoystickButton(timestamp, joystick, (Uint8)i, button_state[i]);
             }
@@ -692,7 +698,7 @@ static void GAMEINPUT_JoystickUpdate(SDL_Joystick *joystick)
 #define CONVERT_AXIS(v) (Sint16)((v)*65535.0f - 32768.0f)
         if (axis_state) {
             uint32_t i;
-            uint32_t axis_count = reading->GetControllerAxisState(info->controllerAxisCount, axis_state);
+            uint32_t axis_count = reading->GetControllerAxisState(joystick->naxes, axis_state);
             for (i = 0; i < axis_count; ++i) {
                 SDL_SendJoystickAxis(timestamp, joystick, (Uint8)i, CONVERT_AXIS(axis_state[i]));
             }
@@ -702,7 +708,7 @@ static void GAMEINPUT_JoystickUpdate(SDL_Joystick *joystick)
 
         if (switch_state) {
             uint32_t i;
-            uint32_t switch_count = reading->GetControllerSwitchState(info->controllerSwitchCount, switch_state);
+            uint32_t switch_count = reading->GetControllerSwitchState(joystick->nhats, switch_state);
             for (i = 0; i < switch_count; ++i) {
                 Uint8 hat;
                 switch (switch_state[i]) {

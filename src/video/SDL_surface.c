@@ -229,12 +229,16 @@ SDL_Surface *SDL_CreateSurface(int width, int height, SDL_PixelFormat format)
 
     if (surface->w && surface->h && format != SDL_PIXELFORMAT_MJPG) {
         surface->flags &= ~SDL_SURFACE_PREALLOCATED;
-        surface->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), size);
+        if (SDL_GetHintBoolean("SDL_SURFACE_MALLOC", false)) {
+            surface->pixels = SDL_malloc(size);
+        } else {
+            surface->flags |= SDL_SURFACE_SIMD_ALIGNED;
+            surface->pixels = SDL_aligned_alloc(SDL_GetSIMDAlignment(), size);
+        }
         if (!surface->pixels) {
             SDL_DestroySurface(surface);
             return NULL;
         }
-        surface->flags |= SDL_SURFACE_SIMD_ALIGNED;
 
         // This is important for bitmaps
         SDL_memset(surface->pixels, 0, size);
@@ -1310,7 +1314,8 @@ bool SDL_BlitSurfaceUncheckedScaled(SDL_Surface *src, const SDL_Rect *srcrect, S
             // Change source format if not appropriate for scaling
             if (SDL_BYTESPERPIXEL(src->format) != 4 || src->format == SDL_PIXELFORMAT_ARGB2101010) {
                 SDL_PixelFormat fmt;
-                if (SDL_BYTESPERPIXEL(dst->format) == 4 && dst->format != SDL_PIXELFORMAT_ARGB2101010) {
+                if (SDL_BYTESPERPIXEL(dst->format) == 4 && dst->format != SDL_PIXELFORMAT_ARGB2101010 &&
+                    (SDL_ISPIXELFORMAT_ALPHA(dst->format) || !is_complex_copy_flags)) {
                     fmt = dst->format;
                 } else {
                     fmt = SDL_PIXELFORMAT_ARGB8888;
@@ -2321,7 +2326,7 @@ SDL_Surface *SDL_ConvertSurfaceRect(SDL_Surface *surface, const SDL_Rect *rect, 
         return NULL;
     }
 
-    return SDL_ConvertSurfaceRectAndColorspace(surface, NULL, format, NULL, SDL_GetDefaultColorspaceForFormat(format), surface->props);
+    return SDL_ConvertSurfaceRectAndColorspace(surface, rect, format, NULL, SDL_GetDefaultColorspaceForFormat(format), surface->props);
 }
 
 SDL_Surface *SDL_ConvertSurface(SDL_Surface *surface, SDL_PixelFormat format)
@@ -3104,6 +3109,11 @@ void SDL_DestroySurface(SDL_Surface *surface)
 
 SDL_Surface *SDL_LoadSurface_IO(SDL_IOStream *src, bool closeio)
 {
+    CHECK_PARAM(!src) {
+        SDL_InvalidParamError("src");
+        return NULL;
+    }
+
     if (SDL_IsBMP(src)) {
         return SDL_LoadBMP_IO(src, closeio);
     } else if (SDL_IsPNG(src)) {
