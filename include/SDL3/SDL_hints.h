@@ -1413,6 +1413,26 @@ extern "C" {
 #define SDL_HINT_JOYSTICK_GAMEINPUT "SDL_JOYSTICK_GAMEINPUT"
 
 /**
+ * A variable controlling whether GameInput should be used for handling 
+ * GIP devices that require raw report processing, but aren't supported 
+ * by HIDRAW, such as Xbox One Guitars.
+ * 
+ * Note that this is only supported with GameInput 3 or newer.
+ *
+ * The variable can be set to the following values:
+ *
+ * - "0": GameInput is not used to handle raw GIP devices.
+ * - "1": GameInput is used.
+ *
+ * The default is "1" when using GameInput 3 or newer, and is "0" otherwise.
+ *
+ * This hint should be set before SDL is initialized.
+ *
+ * \since This hint is available since SDL 3.4.4.
+ */
+#define SDL_HINT_JOYSTICK_GAMEINPUT_RAW "SDL_JOYSTICK_GAMEINPUT_RAW"
+
+/**
  * A variable containing a list of devices known to have a GameCube form
  * factor.
  *
