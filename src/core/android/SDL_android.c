@@ -1970,9 +1970,9 @@ bool Android_JNI_EnumerateAssetDirectory(const char *path, SDL_EnumerateDirector
         }
     }
 
-    path = GetAssetPath(path);
+    const char *asset_path = GetAssetPath(path);
 
-    AAssetDir *adir = AAssetManager_openDir(asset_manager, path);
+    AAssetDir *adir = AAssetManager_openDir(asset_manager, asset_path);
     if (!adir) {
         return SDL_SetError("AAssetManager_openDir failed");
     }

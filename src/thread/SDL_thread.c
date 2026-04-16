@@ -411,7 +411,7 @@ SDL_Thread *SDL_CreateThreadWithPropertiesRuntime(SDL_PropertiesID props,
         SDL_DestroySemaphore(thread->ready_sem);
         SDL_free(thread->name);
         SDL_free(thread);
-        thread = NULL;
+		return NULL;
     }
 
     SDL_WaitSemaphore(thread->ready_sem);

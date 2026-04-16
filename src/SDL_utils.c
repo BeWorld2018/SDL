@@ -384,6 +384,39 @@ int SDL_URIToLocal(const char *src, char *dst)
     return -1;
 }
 
+bool SDL_IsURI(const char *uri)
+{
+    /* A valid URI begins with a letter and is followed by any sequence of
+     * letters, digits, '+', '.', or '-'.
+     */
+    if (!uri) {
+        return false;
+    }
+
+    // The first character of the scheme must be a letter.
+    if (!((*uri >= 'a' && *uri <= 'z') || (*uri >= 'A' && *uri <= 'Z'))) {
+        return false;
+    }
+
+    /* If the colon is found before encountering the end of the string or
+     * any invalid characters, the scheme can be considered valid.
+     */
+    while (*uri) {
+        if (!((*uri >= 'a' && *uri <= 'z') ||
+              (*uri >= 'A' && *uri <= 'Z') ||
+              (*uri >= '0' && *uri <= '9') ||
+              *uri == '+' || *uri == '-' || *uri == '.')) {
+            return false;
+        }
+
+        if (*++uri == ':') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // This is a set of per-thread persistent strings that we can return from the SDL API.
 // This is used for short strings that might persist past the lifetime of the object
 // they are related to.
