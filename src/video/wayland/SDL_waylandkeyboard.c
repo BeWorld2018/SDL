@@ -186,7 +186,7 @@ bool Wayland_StartTextInput(SDL_VideoDevice *_this, SDL_Window *window, SDL_Prop
     }
 
     /* Always return true, even if the text input protocol isn't supported, as basic
-     * text can still be obtained from individual keys and composition system.
+     * text can still be obtained from keysyms and the composition system.
      */
     return true;
 }
