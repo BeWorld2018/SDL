@@ -705,7 +705,6 @@ typedef struct IOStreamFDData
 {
     int fd;
     bool autoclose;
-    bool regular_file;
 } IOStreamFDData;
 
 static int SDL_fdatasync(int fd)
@@ -878,9 +877,6 @@ SDL_IOStream *SDL_IOFromFD(int fd, bool autoclose)
     iodata->fd = fd;
     iodata->autoclose = autoclose;
 
-    struct stat st;
-    iodata->regular_file = ((fstat(fd, &st) == 0) && S_ISREG(st.st_mode));
-
     SDL_IOStream *iostr = SDL_OpenIO(&iface, iodata);
     if (!iostr) {
         iface.close(iodata);
@@ -903,7 +899,6 @@ typedef struct IOStreamStdioData
 {
     FILE *fp;
     bool autoclose;
-    bool regular_file;
 } IOStreamStdioData;
 
 #ifdef HAVE_FOPEN64
@@ -1080,9 +1075,6 @@ SDL_IOStream *SDL_IOFromFP(FILE *fp, bool autoclose)
     iodata->fp = fp;
     iodata->autoclose = autoclose;
 
-    struct stat st;
-    iodata->regular_file = ((fstat(fileno(fp), &st) == 0) && S_ISREG(st.st_mode));
-
     SDL_IOStream *iostr = SDL_OpenIO(&iface, iodata);
     if (!iostr) {
         iface.close(iodata);
@@ -1188,19 +1180,19 @@ static bool SDLCALL mem_close(void *userdata)
 }
 
 // Functions to create SDL_IOStream structures from various data sources
+// private platforms might define SKIP_STDIO_DIR_TEST in their build configs, too.
+#if defined(SDL_PLATFORM_WINDOWS) || defined(SDL_PLATFORM_EMSCRIPTEN)
+#define SKIP_STDIO_DIR_TEST 1
+#endif
 
-#if defined(HAVE_STDIO_H) && !defined(SDL_PLATFORM_WINDOWS) && !(defined(SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H))
-static bool IsRegularFileOrPipe(FILE *f)
+#if defined(HAVE_STDIO_H) && !defined(SKIP_STDIO_DIR_TEST)
+static bool IsStdioFileADirectory(FILE *f)
 {
-#ifndef SDL_PLATFORM_EMSCRIPTEN
     struct stat st;
-    if (fstat(fileno(f), &st) < 0 || !(S_ISREG(st.st_mode) || S_ISFIFO(st.st_mode))) {
-        return false;
-    }
-#endif // !SDL_PLATFORM_EMSCRIPTEN
-
-    return true;
+    return ((fstat(fileno(f), &st) == 0) && (S_ISDIR(st.st_mode)));
 }
+#else
+#define IsStdioFileADirectory(f) false
 #endif
 
 SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
@@ -1222,9 +1214,9 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
     if (*file == '/') {
         FILE *fp = fopen(file, mode);
         if (fp) {
-            if (!IsRegularFileOrPipe(fp)) {
+            if (IsStdioFileADirectory(fp)) {
                 fclose(fp);
-                SDL_SetError("%s is not a regular file or pipe", file);
+                SDL_SetError("%s is a directory", file);
                 return NULL;
             }
             return SDL_IOFromFP(fp, true);
@@ -1253,9 +1245,9 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
             FILE *fp = fopen(path, mode);
             SDL_free(path);
             if (fp) {
-                if (!IsRegularFileOrPipe(fp)) {
+                if (IsStdioFileADirectory(fp)) {
                     fclose(fp);
-                    SDL_SetError("%s is not a regular file or pipe", path);
+                    SDL_SetError("%s is a directory", path);
                     return NULL;
                 }
                 return SDL_IOFromFP(fp, true);
@@ -1319,9 +1311,9 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
 
     if (!fp) {
         SDL_SetError("Couldn't open %s: %s", file, strerror(errno));
-    } else if (!IsRegularFileOrPipe(fp)) {
+    } else if (IsStdioFileADirectory(fp)) {
         fclose(fp);
-        SDL_SetError("%s is not a regular file or pipe", file);
+        SDL_SetError("%s is a directory", file);
     } else {
         iostr = SDL_IOFromFP(fp, true);
     }
@@ -1355,9 +1347,9 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
 
         if (!fp) {
             SDL_SetError("Couldn't open %s: %s", file, strerror(errno));
-        } else if (!IsRegularFileOrPipe(fp)) {
+        } else if (IsStdioFileADirectory(fp)) {
             fclose(fp);
-            SDL_SetError("%s is not a regular file or pipe", file);
+            SDL_SetError("%s is a directory", file);
         } else {
             iostr = SDL_IOFromFP(fp, true);
         }

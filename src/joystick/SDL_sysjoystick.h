@@ -266,6 +266,7 @@ extern SDL_JoystickDriver SDL_GAMEINPUT_JoystickDriver;
 #ifdef SDL_JOYSTICK_MORPHOS
 extern SDL_JoystickDriver SDL_MORPHOS_JoystickDriver;
 #endif
+extern SDL_JoystickDriver SDL_DOS_JoystickDriver;
 
 // Ends C function definitions when using C++
 #ifdef __cplusplus

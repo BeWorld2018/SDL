@@ -36,7 +36,7 @@
 #define SDL_SIZEOF_WCHAR_T __SIZEOF_WCHAR_T__
 #elif defined(SDL_PLATFORM_NGAGE)
 #define SDL_SIZEOF_WCHAR_T 2
-#elif defined(SDL_PLATFORM_WINDOWS)
+#elif defined(SDL_PLATFORM_WINDOWS) || defined(SDL_PLATFORM_DOS)
 #define SDL_SIZEOF_WCHAR_T 2
 #else  // assume everything else is UTF-32 (add more tests if compiler-assert fails below!)
 #define SDL_SIZEOF_WCHAR_T 4
@@ -2358,6 +2358,10 @@ int SDL_vsnprintf(SDL_OUT_Z_CAP(maxlen) char *text, size_t maxlen, SDL_PRINTF_FO
 
 int SDL_vswprintf(SDL_OUT_Z_CAP(maxlen) wchar_t *text, size_t maxlen, const wchar_t *fmt, va_list ap)
 {
+    if (text) {
+        text[0] = 0;
+    }
+
     char *fmt_utf8 = NULL;
     if (fmt) {
         fmt_utf8 = SDL_iconv_string("UTF-8", "WCHAR_T", (const char *)fmt, (SDL_wcslen(fmt) + 1) * sizeof(wchar_t));

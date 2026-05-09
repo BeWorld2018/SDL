@@ -376,7 +376,7 @@ struct SDL_VideoDevice
     void (*SetTextInputProperties)(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID props);
 
     // Clipboard
-    const char **(*GetTextMimeTypes)(SDL_VideoDevice *_this, size_t *num_mime_types);
+    const char *const *(*GetTextMimeTypes)(SDL_VideoDevice *_this, size_t *num_mime_types);
     bool (*SetClipboardData)(SDL_VideoDevice *_this);
     void *(*GetClipboardData)(SDL_VideoDevice *_this, const char *mime_type, size_t *size);
     bool (*HasClipboardData)(SDL_VideoDevice *_this, const char *mime_type);
@@ -549,6 +549,7 @@ extern VideoBootStrap OPENVR_bootstrap;
 #ifdef SDL_VIDEO_DRIVER_MORPHOS
 extern VideoBootStrap MORPHOS_bootstrap;
 #endif
+extern VideoBootStrap DOSVESA_bootstrap;
 
 extern bool SDL_UninitializedVideo(void);
 // Use SDL_OnVideoThread() sparingly, to avoid regressions in use cases that currently happen to work

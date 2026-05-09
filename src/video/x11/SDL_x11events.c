@@ -122,15 +122,19 @@ static void X11_ReadProperty(SDL_x11Prop *p, Display *disp, Window w, Atom prop)
    if available, else return None */
 static Atom X11_PickTarget(Display *disp, Atom list[], int list_count)
 {
+    const Atom text_uri_request = X11_XInternAtom(disp, "text/uri-list", False);
     Atom request = None;
-    char *name;
-    int i;
-    for (i = 0; i < list_count && request == None; i++) {
-        name = X11_XGetAtomName(disp, list[i]);
+    Atom preferred = None;
+
+    for (int i = 0; i < list_count && request != text_uri_request; i++) {
+        char *name = X11_XGetAtomName(disp, list[i]);
         // Preferred MIME targets
         if ((SDL_strcmp("text/uri-list", name) == 0) ||
             (SDL_strcmp("text/plain;charset=utf-8", name) == 0) ||
             (SDL_strcmp("UTF8_STRING", name) == 0)) {
+            if (preferred == None) {
+                preferred = list[i];
+            }
             request = list[i];
         }
         // Fallback MIME targets
@@ -141,6 +145,11 @@ static Atom X11_PickTarget(Display *disp, Atom list[], int list_count)
             }
         }
         X11_XFree(name);
+    }
+
+    // The type 'text/uri-list' is preferred over all others.
+    if (preferred != None && request != text_uri_request) {
+        request = preferred;
     }
     return request;
 }
@@ -1825,12 +1834,16 @@ static void X11_DispatchEvent(SDL_VideoDevice *_this, XEvent *xevent)
     case KeyPress:
     case KeyRelease:
     {
+        SDL_KeyboardID keyboardID = SDL_GLOBAL_KEYBOARD_ID;
         if (data->xinput2_keyboard_enabled) {
-            // This input is being handled by XInput2
+            // This input is being handled by XInput2.
             break;
+        } else if (xevent->xkey.serial == videodata->xinput_last_key_serial) {
+            // Use the device ID from the XInput2 event if the serials match.
+            keyboardID = videodata->xinput_last_keyboard_device;
         }
 
-        X11_HandleKeyEvent(_this, data, SDL_GLOBAL_KEYBOARD_ID, xevent);
+        X11_HandleKeyEvent(_this, data, keyboardID, xevent);
     } break;
 
     case MotionNotify:
@@ -1853,8 +1866,8 @@ static void X11_DispatchEvent(SDL_VideoDevice *_this, XEvent *xevent)
 
     case ButtonPress:
     {
-        if (data->xinput2_mouse_enabled) {
-            // This input is being handled by XInput2
+        if (data->xinput2_mouse_enabled && xevent->xbutton.serial == videodata->xinput_last_button_serial) {
+            // This input event was handled by XInput2.
             break;
         }
 
@@ -1864,8 +1877,8 @@ static void X11_DispatchEvent(SDL_VideoDevice *_this, XEvent *xevent)
 
     case ButtonRelease:
     {
-        if (data->xinput2_mouse_enabled) {
-            // This input is being handled by XInput2
+        if (data->xinput2_mouse_enabled && xevent->xbutton.serial == videodata->xinput_last_button_serial) {
+            // This input event was handled by XInput2.
             break;
         }
 

@@ -156,6 +156,9 @@ extern bool SDL_IsJoystickXInput(SDL_GUID guid);
 // Function to return whether a joystick guid comes from the WGI driver
 extern bool SDL_IsJoystickWGI(SDL_GUID guid);
 
+// Function to return whether a joystick guid comes from the GameInput driver
+extern bool SDL_IsJoystickGameInput(SDL_GUID guid);
+
 // Function to return whether a joystick guid comes from the HIDAPI driver
 extern bool SDL_IsJoystickHIDAPI(SDL_GUID guid);
 
@@ -169,7 +172,7 @@ extern bool SDL_IsJoystickRAWINPUT(SDL_GUID guid);
 extern bool SDL_IsJoystickVIRTUAL(SDL_GUID guid);
 
 // Function to return whether a joystick is a wheel
-bool SDL_IsJoystickWheel(Uint16 vendor_id, Uint16 product_id);
+extern bool SDL_IsJoystickWheel(Uint16 vendor_id, Uint16 product_id, Uint16 crc);
 
 // Function to return whether a joystick should be ignored
 extern bool SDL_ShouldIgnoreJoystick(Uint16 vendor_id, Uint16 product_id, Uint16 version, const char *name);

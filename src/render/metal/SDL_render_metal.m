@@ -1393,6 +1393,7 @@ typedef struct
     size_t constants_offset;
     SDL_Texture *texture;
     bool texture_palette;
+    SDL_PixelFormat texture_format;
     SDL_ScaleMode texture_scale_mode;
     SDL_TextureAddressMode texture_address_mode_u;
     SDL_TextureAddressMode texture_address_mode_v;
@@ -1669,7 +1670,8 @@ static bool SetCopyState(SDL_Renderer *renderer, const SDL_RenderCommand *cmd, c
         statecache->texture = texture;
     }
 
-    if (cmd->data.draw.texture_scale_mode != statecache->texture_scale_mode ||
+    if (texture->format != statecache->texture_format ||
+        cmd->data.draw.texture_scale_mode != statecache->texture_scale_mode ||
         cmd->data.draw.texture_address_mode_u != statecache->texture_address_mode_u ||
         cmd->data.draw.texture_address_mode_v != statecache->texture_address_mode_v) {
         id<MTLSamplerState> mtlsampler = GetSampler(data, texture->format, cmd->data.draw.texture_scale_mode, cmd->data.draw.texture_address_mode_u, cmd->data.draw.texture_address_mode_v);
@@ -1678,6 +1680,7 @@ static bool SetCopyState(SDL_Renderer *renderer, const SDL_RenderCommand *cmd, c
         }
         [data.mtlcmdencoder setFragmentSamplerState:mtlsampler atIndex:0];
 
+        statecache->texture_format = texture->format;
         statecache->texture_scale_mode = cmd->data.draw.texture_scale_mode;
         statecache->texture_address_mode_u = cmd->data.draw.texture_address_mode_u;
         statecache->texture_address_mode_v = cmd->data.draw.texture_address_mode_v;
