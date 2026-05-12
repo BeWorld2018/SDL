@@ -41,6 +41,8 @@
 #include <proto/dos.h>
 
 #define MIN_WINDOW_SIZE 32
+#define SDL_PROP_WINDOW_CREATE_MORPHOS_MENU_BOOLEAN "SDL.window.create.morphos.menu"
+#define SDL_PROP_WINDOW_MORPHOS_MENU_BOOLEAN        "SDL.window.morphos.menu"
 
 struct NewMenu SDL_NewMenu[] =
 {
@@ -360,7 +362,7 @@ MOS_SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, struct Window *s
 		return SDL_OutOfMemory();
 	}
 
-	return MOS_CreateSystemWindow(_this, window);
+	return true;
 }
 
 bool
@@ -368,7 +370,13 @@ MOS_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_PropertiesID c
 {
 	D("");
 	struct Window *win = (struct Window *)SDL_GetPointerProperty(create_props,"morphos.window",SDL_GetPointerProperty(create_props, "sdl2-compat.external_window", NULL));
-	
+	bool ok;
+	bool withmenu = SDL_GetBooleanProperty(
+		create_props,
+		SDL_PROP_WINDOW_CREATE_MORPHOS_MENU_BOOLEAN,
+		true
+	);
+
 	if (win) {
 		
 		size_t flags;
@@ -394,13 +402,21 @@ MOS_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window, SDL_PropertiesID c
 
 		window->flags = flags;
 		
-		return MOS_SetupWindowData(_this, window, win);
+		ok = MOS_SetupWindowData(_this, window, win);
 	
 	} else {
 	
-		return MOS_SetupWindowData(_this, window, NULL);
+		ok = MOS_SetupWindowData(_this, window, NULL);
 		
 	}
+	if (!ok) {
+		return false;
+	}
+	
+	SDL_PropertiesID props = SDL_GetWindowProperties(window);
+	SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_MORPHOS_MENU_BOOLEAN, withmenu);
+
+	return MOS_CreateSystemWindow(_this, window);
 }
 
 void
@@ -822,7 +838,10 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 			window->pending_displayID = 0;
 			
             MOS_CreateAppWindow(_this, window);
-            MOS_CreateMenu(_this, window);
+            bool withmenu = SDL_GetBooleanProperty(props, SDL_PROP_WINDOW_MORPHOS_MENU_BOOLEAN, true);
+			if (withmenu) {
+				MOS_CreateMenu(_this, window);
+			}
 
             if (wd->grabbed) {
                 DoMethod((Object *)wd->win, WM_ObtainEvents);
