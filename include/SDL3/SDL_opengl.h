@@ -32,11 +32,11 @@
 #include <SDL3/SDL_platform.h>
 
 #if defined(SDL_PLATFORM_MORPHOS)
-
 #include <tgl/gl.h>
 #include <tgl/glu.h>
 #include "SDL_opengl_glext.h"
-#else
+#endif
+
 
 #ifndef SDL_PLATFORM_IOS  /* No OpenGL on iOS. */
 
