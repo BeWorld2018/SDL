@@ -228,8 +228,8 @@ typedef enum
     ID_OUT_REPORT_HAPTIC_PULSE		= 0x81,
     ID_OUT_REPORT_HAPTIC_COMMAND	= 0x82,
     ID_OUT_REPORT_HAPTIC_LFO_TONE	= 0x83,
-    ID_OUT_REPORT_HAPTIC_LOG_SWEEP	= 0x85,
-    ID_OUT_REPORT_HAPTIC_SCRIPT		= 0x86,
+    ID_OUT_REPORT_HAPTIC_LOG_SWEEP	= 0x84,
+    ID_OUT_REPORT_HAPTIC_SCRIPT		= 0x85,
 } ValveTritonOutReportMessageIDs;
 
 typedef struct
@@ -567,7 +567,7 @@ enum ETritonWirelessState
 
 typedef struct
 {
-    uint32_t uTimestamp;
+    uint32_t timestamp;
     short sAccelX;
     short sAccelY;
     short sAccelZ;
@@ -582,10 +582,21 @@ typedef struct
     short sGyroQuatZ;
 } TritonMTUIMU_t;
 
+typedef struct {
+	uint32_t timestamp;
+	short sAccelX;
+	short sAccelY;
+	short sAccelZ;
+
+	short sGyroX;
+	short sGyroY;
+	short sGyroZ;
+} TritonMTUIMUNoQuat_t;
+
 typedef struct
 {
-    uint8_t cSeq_num;
-    uint32_t uButtons;
+    uint8_t seq_num;
+    uint32_t buttons;
     short sTriggerLeft;
     short sTriggerRight;
 
@@ -596,13 +607,34 @@ typedef struct
 
     short sLeftPadX;
     short sLeftPadY;
-    unsigned short ucPressureLeft;
+    unsigned short sPressureLeft;
 
     short sRightPadX;
     short sRightPadY;
-    unsigned short ucPressureRight;
+    unsigned short sPressureRight;
     TritonMTUIMU_t imu;
 } TritonMTUFull_t;
+
+typedef struct {
+	uint8_t seq_num;
+	uint32_t buttons;
+	short sTriggerLeft;
+	short sTriggerRight;
+
+	short sLeftStickX;
+	short sLeftStickY;
+	short sRightStickX;
+	short sRightStickY;
+
+	short sLeftPadX;
+	short sLeftPadY;
+	unsigned short sPressureLeft;
+
+	short sRightPadX;
+	short sRightPadY;
+	unsigned short sPressureRight;
+	TritonMTUIMUNoQuat_t imu;
+} TritonMTUNoQuat_t;
 
 enum EChargeState
 {
@@ -632,4 +664,4 @@ typedef struct
 
 #pragma pack()
 
-#endif // _CONTROLLER_STRUCTS
+#endif // _CONTROLLER_STRUCTS_
