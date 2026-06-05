@@ -21,8 +21,8 @@
 
 AR = ppc-morphos-ar
 RANLIB = ppc-morphos-ranlib
-CC = ppc-morphos-gcc-11
-CXX = ppc-morphos-g++-11
+CC = ppc-morphos-gcc-9
+CXX = ppc-morphos-g++-9
 STRIP = ppc-morphos-strip
 
 AMIGADATE = $(shell date +"%-d.%m.%Y")
