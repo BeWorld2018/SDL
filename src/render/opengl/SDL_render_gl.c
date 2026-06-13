@@ -1644,7 +1644,7 @@ static SDL_Surface *GL_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect *
         return NULL;
     }
 
-    surface = SDL_CreateSurface(rect->w, rect->h, format);
+    surface = SDL_CreateSurfaceUninitialized(rect->w, rect->h, format);
     if (!surface) {
         return NULL;
     }
