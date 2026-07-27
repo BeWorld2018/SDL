@@ -182,6 +182,11 @@ if(USE_GCC OR USE_CLANG OR USE_INTELCC OR USE_QCC OR USE_TCC)
   set(SDL_GCC_ATOMICS_DEFAULT ON)
 endif()
 
+set(SDL_LEAN_AND_MEAN_DEFAULT FALSE)
+if(NGAGE)
+  set(SDL_LEAN_AND_MEAN_DEFAULT TRUE)
+endif()
+
 # Default option knobs
 set(SDL_LIBC_DEFAULT ON)
 set(SDL_SYSTEM_ICONV_DEFAULT ON)
@@ -395,11 +400,13 @@ dep_option(SDL_HIDAPI_LIBUSB       "Use libusb for low level joystick drivers" O
 dep_option(SDL_HIDAPI_LIBUSB_SHARED "Dynamically load libusb support" ON "SDL_HIDAPI_LIBUSB;SDL_DEPS_SHARED" OFF)
 dep_option(SDL_HIDAPI_JOYSTICK     "Use HIDAPI for low level joystick drivers" ON SDL_HIDAPI OFF)
 dep_option(SDL_VIRTUAL_JOYSTICK    "Enable the virtual-joystick driver" ON SDL_HIDAPI OFF)
-set_option(SDL_LIBUDEV             "Enable libudev support" ON)
+dep_option(SDL_LIBUDEV             "Enable libudev support" ON ${UNIX_SYS} OFF)
+dep_option(SDL_LIBUDEV_SHARED      "Dynamically load libudev support" ON "SDL_LIBUDEV;SDL_DEPS_SHARED" OFF)
 set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors" OFF)
 set_option(SDL_CCACHE              "Use Ccache to speed up build" OFF)
 set_option(SDL_CLANG_TIDY          "Run clang-tidy static analysis" OFF)
 dep_option(SDL_GPU_OPENXR          "Build SDL_GPU with OpenXR support" ON "SDL_GPU;NOT RISCOS" OFF)
+set_option(SDL_LEAN_AND_MEAN       "Build a lean SDL library with reduced graphics functionality" ${SDL_LEAN_AND_MEAN_DEFAULT})
 
 if(EMSCRIPTEN)
   option_string(SDL_EMSCRIPTEN_PERSISTENT_PATH  "Path to mount Emscripten IDBFS at startup or '' to disable" "")
@@ -558,7 +565,7 @@ endif()
 
 check_linker_supports_version_file(HAVE_WL_VERSION_SCRIPT)
 if(HAVE_WL_VERSION_SCRIPT)
-  sdl_shared_link_options("-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/dynapi/SDL_dynapi.sym")
+  sdl_shared_link_options("LINKER:SHELL:--version-script \"${CMAKE_CURRENT_SOURCE_DIR}/src/dynapi/SDL_dynapi.sym\"")
 else()
    # When building with tcc on Linux+glibc or Android, avoid emitting an error
    # for lack of support of the version-script linker flag: the option will be
@@ -639,6 +646,14 @@ endif()
 
 if(NOT SDL_FOREGROUNDING_SIGNAL STREQUAL "OFF")
   sdl_compile_definitions(PRIVATE "SDL_FOREGROUNDING_SIGNAL=${SDL_FOREGROUNDING_SIGNAL}")
+endif()
+
+if(SDL_LEAN_AND_MEAN)
+  sdl_compile_definitions(
+    PRIVATE
+      SDL_LEAN_AND_MEAN
+  )
+  set(HAVE_LEAN_AND_MEAN TRUE)
 endif()
 
 # Compiler option evaluation
@@ -1484,6 +1499,9 @@ if(ANDROID)
     "${SDL3_SOURCE_DIR}/src/core/android/*.h"
   )
 
+  # Core Android code (asset I/O, logging, sensors) needs these regardless of the video subsystem.
+  sdl_link_dependency(android_core LIBS dl log android)
+
   sdl_glob_sources(
     "${SDL3_SOURCE_DIR}/src/misc/android/*.c"
     "${SDL3_SOURCE_DIR}/src/misc/android/*.h"
@@ -1614,10 +1632,6 @@ if(ANDROID)
     )
     set(HAVE_SDL_VIDEO TRUE)
 
-    # Core stuff
-    # find_library(ANDROID_DL_LIBRARY dl)
-    # FIXME failing dlopen https://github.com/android-ndk/ndk/issues/929
-    sdl_link_dependency(android_video LIBS dl log android)
     sdl_compile_definitions(PRIVATE "GL_GLEXT_PROTOTYPES")
 
     #enable gles
@@ -1648,6 +1662,9 @@ if(ANDROID)
         endif()
       endif()
     endif()
+  else()
+    # SDL_events.c pumps Android events even with video disabled; this TU supplies the stub implementations.
+    sdl_sources("${SDL3_SOURCE_DIR}/src/video/android/SDL_androidevents.c")
   endif()
 
   CheckPTHREAD()
@@ -2127,6 +2144,7 @@ elseif(UNIX AND NOT (APPLE OR RISCOS OR HAIKU OR CYGWIN))
       "${SDL3_SOURCE_DIR}/src/core/linux/SDL_evdev_capabilities.c"
       "${SDL3_SOURCE_DIR}/src/core/linux/SDL_evdev_capabilities.h"
       "${SDL3_SOURCE_DIR}/src/core/linux/SDL_threadprio.c"
+      "${SDL3_SOURCE_DIR}/src/core/linux/SDL_ubuntu_touch.c"
     )
 
     # src/core/unix/*.c is included in a generic if(UNIX) section, elsewhere.
@@ -2273,11 +2291,32 @@ elseif(WINDOWS OR CYGWIN)
       string(APPEND CMAKE_REQUIRED_FLAGS " /I\"$ENV{DXSDK_DIR}\\Include\"")
     endif()
 
-    check_include_file(d3d9.h HAVE_D3D9_H)
-    check_include_file(d3d11_1.h HAVE_D3D11_H)
-    check_include_file(ddraw.h HAVE_DDRAW_H)
-    check_include_file(dsound.h HAVE_DSOUND_H)
-    check_include_file(dinput.h HAVE_DINPUT_H)
+    # d3d9.h may need windows.h, but does not include it itself.
+    check_c_source_compiles("
+      #include <windows.h>
+      #include <d3d9.h>
+      int main(int argc, char **argv) { (void)argc; (void)argv; return 0; }" HAVE_D3D9_H
+    )
+    check_c_source_compiles("
+      #include <d3d11_1.h>
+      int main(int argc, char **argv) { (void)argc; (void)argv; return 0; }" HAVE_D3D11_H
+    )
+    # ddraw.h, dsound.h, and dinput.h may need windows.h, but does not include it itself.
+    check_c_source_compiles("
+      #include <windows.h>
+      #include <ddraw.h>
+      int main(int argc, char **argv) { (void)argc; (void)argv; return 0; }" HAVE_DDRAW_H
+    )
+    check_c_source_compiles("
+      #include <windows.h>
+      #include <dsound.h>
+      int main(int argc, char **argv) { (void)argc; (void)argv; return 0; }" HAVE_DSOUND_H
+    )
+    check_c_source_compiles("
+      #include <windows.h>
+      #include <dinput.h>
+      int main(int argc, char **argv) { (void)argc; (void)argv; return 0; }" HAVE_DINPUT_H
+    )
     if(SDL_CPU_ARM32)  # !!! FIXME: this should probably check if we're !(x86 or x86-64) instead of arm.
       set(HAVE_DINPUT_H 0)
     endif()
@@ -2342,6 +2381,7 @@ elseif(WINDOWS OR CYGWIN)
          return 0;
         }" HAVE_GAMEINPUT_LIB
       )
+      cmake_pop_check_state()
       if(HAVE_GAMEINPUT_LIB)
         sdl_link_dependency(gameinput LIBS gameinput.lib PKG_CONFIG_LINK_OPTIONS -lgameinput)
         set(SDL_GAMEINPUT_DYNAMIC 0)
@@ -3332,10 +3372,6 @@ elseif(PS2)
   )
   set(HAVE_SDL_THREADS TRUE)
 
-  set(SDL_TIME_PS2 1)
-  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/time/ps2/*.c")
-  set(HAVE_SDL_TIME TRUE)
-
   set(SDL_TIMER_PS2 1)
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/timer/ps2/*.c")
   set(HAVE_SDL_TIMERS TRUE)
@@ -3547,14 +3583,6 @@ elseif(NGAGE)
     "${SDL3_SOURCE_DIR}/src/video/ngage/*.h"
   )
   set(HAVE_SDL_TIMERS TRUE)
-
-  set_option(SDL_LEAN_AND_MEAN "Enable lean and mean" ON)
-  if(SDL_LEAN_AND_MEAN)
-    sdl_compile_definitions(
-      PRIVATE
-      SDL_LEAN_AND_MEAN
-    )
-  endif()
 
   sdl_link_dependency(ngage
     LINK_OPTIONS "SHELL:-s MAIN_COMPAT=0"
@@ -3837,6 +3865,12 @@ if(NOT HAVE_SDL_THREADS)
     message(FATAL_ERROR "Threads are needed by many SDL subsystems and may not be disabled")
   endif()
 endif()
+
+if(NOT HAVE_SDL_TIME)
+  set(SDL_TIME_DUMMY 1)
+  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/time/dummy/*.c")
+endif()
+
 if(NOT HAVE_SDL_TIMERS)
   message(FATAL_ERROR "Timers are needed by many SDL subsystems and may not be disabled")
 endif()

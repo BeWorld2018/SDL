@@ -497,6 +497,7 @@ static Uint32 initial_gamecube_devices[] = {
     MAKE_VIDPID(0x0079, 0x1846), // DragonRise GameCube Controller Adapter
     MAKE_VIDPID(0x057e, 0x0337), // Nintendo Wii U GameCube Controller Adapter
     MAKE_VIDPID(0x057e, 0x2073), // Nintendo Switch 2 NSO GameCube Controller
+    MAKE_VIDPID(0x05e3, 0x0681), // Austgame GameCube to USB convertor
     MAKE_VIDPID(0x0926, 0x8888), // Cyber Gadget GameCube Controller
     MAKE_VIDPID(0x0e6f, 0x0185), // PDP Wired Fight Pad Pro for Nintendo Switch
     MAKE_VIDPID(0x1a34, 0xf705), // GameCube {HuiJia USB box}
@@ -2261,6 +2262,7 @@ void SDL_CloseJoystick(SDL_Joystick *joystick)
         }
         SDL_free(joystick->touchpads);
         SDL_free(joystick->sensors);
+        SDL_free(joystick->capsenses);
         SDL_free(joystick);
     }
     SDL_UnlockJoysticks();
@@ -3132,13 +3134,14 @@ SDL_GamepadType SDL_GetGamepadTypeFromVIDPID(Uint16 vendor, Uint16 product, cons
         case k_eControllerType_SwitchProController:
         case k_eControllerType_Switch2ProController:
         case k_eControllerType_SwitchInputOnlyController:
+        case k_eControllerType_Switch2InputOnlyController:
             type = SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO;
             break;
         case k_eControllerType_XInputSwitchController:
             if (forUI) {
                 type = SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO;
             } else {
-                type = SDL_GAMEPAD_TYPE_STANDARD;
+                type = SDL_GAMEPAD_TYPE_XBOX360;
             }
             break;
         case k_eControllerType_SteamController:
@@ -3256,14 +3259,26 @@ bool SDL_IsJoystickNintendoSwitchPro(Uint16 vendor_id, Uint16 product_id)
 {
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return eType == k_eControllerType_SwitchProController ||
-           eType == k_eControllerType_Switch2ProController ||
            eType == k_eControllerType_SwitchInputOnlyController;
+}
+
+bool SDL_IsJoystickNintendoSwitch2Pro(Uint16 vendor_id, Uint16 product_id)
+{
+    EControllerType eType = GuessControllerType(vendor_id, product_id);
+    return eType == k_eControllerType_Switch2ProController ||
+           eType == k_eControllerType_Switch2InputOnlyController;
 }
 
 bool SDL_IsJoystickNintendoSwitchProInputOnly(Uint16 vendor_id, Uint16 product_id)
 {
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return eType == k_eControllerType_SwitchInputOnlyController;
+}
+
+bool SDL_IsJoystickNintendoSwitch2ProInputOnly(Uint16 vendor_id, Uint16 product_id)
+{
+    EControllerType eType = GuessControllerType(vendor_id, product_id);
+    return eType == k_eControllerType_Switch2InputOnlyController;
 }
 
 bool SDL_IsJoystickNintendoSwitchJoyCon(Uint16 vendor_id, Uint16 product_id)
@@ -3348,6 +3363,11 @@ bool SDL_IsJoystickSInputController(Uint16 vendor_id, Uint16 product_id)
             product_id == USB_PRODUCT_HANDHELDLEGEND_GCULTIMATE ||
             product_id == USB_PRODUCT_BONZIRICHANNEL_FIREBIRD ||
             product_id == USB_PRODUCT_VOIDGAMING_PS4FIREBIRD) {
+            return true;
+        }
+    }
+    if (vendor_id == USB_VENDOR_ANDGAMER) {
+        if (product_id == USB_PRODUCT_VOIDGAMING_GENESIS_SINPUT) {
             return true;
         }
     }

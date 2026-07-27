@@ -55,11 +55,11 @@ jobs:
           version: 3.1.35
       - uses: browser-actions/setup-chrome@v2
         id: setup-chrome
-        if: ${{ matrix.platform.platform == 'emscripten' }}
+        if: ${{ matrix.platform.platform == 'emscripten' && matrix.platform.run-tests }}
         with:
           install-chromedriver: true
       - name: 'Add chrome to PATH'
-        if: ${{ matrix.platform.platform == 'emscripten' }}
+        if: ${{ matrix.platform.platform == 'emscripten' && matrix.platform.run-tests }}
         run: |
           chrome_dir="$(dirname "${{ steps.setup-chrome.outputs.chrome-path }}")"
           chromedriver_dir="$(dirname "${{ steps.setup-chrome.outputs.chromedriver-path }}")"
@@ -116,7 +116,7 @@ jobs:
           # Download the key to system keyring
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
             | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-          
+
           # Add signed entry to apt sources and configure the APT client to use Intel repository:
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           
@@ -138,9 +138,13 @@ jobs:
       - name: 'Install brew packages'
         if: ${{ matrix.platform.brew-packages != '' }}
         run: |
-          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-          brew update
-          brew install ${{ matrix.platform.brew-packages }}
+          # Unset these GitHub environment variable to keep brew from emitting a few noisy annotions
+          unset GITHUB_ACTIONS
+          unset GITHUB_OUTPUT
+          unset GITHUB_PATH
+
+          brew update --auto-update
+          brew install --quiet ${{ matrix.platform.brew-packages }}
       - name: 'Setup Python'
         uses: 'actions/setup-python@main'
         if: ${{ matrix.platform.setup-python }}
@@ -215,7 +219,7 @@ jobs:
         run: |
           ${{ matrix.platform.source-cmd }}
           ${{ matrix.platform.cmake-config-emulator }} cmake -S . -B build -G "${{ matrix.platform.cmake-generator }}" \
-            -Wdeprecated -Wdev -Werror \
+            -Wdeprecated -Wdev -Werror=dev -Werror=deprecated \
             ${{ matrix.platform.cmake-toolchain-file != '' && format('-DCMAKE_TOOLCHAIN_FILE={0}', matrix.platform.cmake-toolchain-file) || '' }} \
             -DSDL_WERROR=${{ matrix.platform.werror }} \
             -DSDL_EXAMPLES=${{ matrix.platform.build-tests }} \
@@ -372,7 +376,7 @@ jobs:
       - name: 'Build (Android.mk)'
         if: ${{ matrix.platform.android-mk }}
         run: |
-          ./build-scripts/androidbuildlibs.sh
+          ./build-scripts/androidbuildlibs.sh -j$(nproc)
       - name: 'Create Gradle project (Android)'
         if: ${{ matrix.platform.android-gradle }}
         run: |
