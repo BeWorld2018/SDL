@@ -44,30 +44,27 @@ static bool MOS_QueryAHICaps(MOS_AHICaps *caps)
         return false;
     }
 
-    caps->freq = (int)freq;
-
-    /* Clamp channels to SDL expectations */
-    /*if (maxch >= 8) {
-        caps->channels = 8;
-    } else*/ if (maxch >= 2) {
-        caps->channels = 2;
-    } else {
-        caps->channels = 1;
-    }
+    caps->freq = (freq > 0) ? (int)freq : 44100;
 
     switch (bits) {
-        /*case 32:
+        case 32:
             caps->format = SDL_AUDIO_S32BE;
             break;
         case 16:
             caps->format = SDL_AUDIO_S16BE;
-            break;*/
+            break;
         case 8:
             caps->format = SDL_AUDIO_S8;
             break;
         default:
             caps->format = SDL_AUDIO_S16BE;
             break;
+    }
+
+    if (maxch >= 2) {
+        caps->channels = 2;
+    } else {
+        caps->channels = 1;
     }
 
     return true;
@@ -233,21 +230,23 @@ MOS_DetectDevices(SDL_AudioDevice **default_output,
 {
     SDL_AudioSpec output, capture;
     MOS_AHICaps fallback;
-	fallback.freq = 44100;
-	fallback.channels = 2;
-	fallback.format = SDL_AUDIO_S16BE;
+    const MOS_AHICaps *caps;
+
+    fallback.freq     = 44100;
+    fallback.channels = 2;
+    fallback.format   = SDL_AUDIO_S16BE;
 
     SDL_zero(output);
     SDL_zero(capture);
 
-	const MOS_AHICaps *caps = g_ahi_caps_valid ? &g_ahi_caps : &fallback;
+    caps = g_ahi_caps_valid ? &g_ahi_caps : &fallback;
 
     output.freq     = caps->freq;
     output.channels = caps->channels;
-	output.format = caps->format;
+    output.format   = caps->format;
 
     capture.freq     = caps->freq;
-    capture.channels = 1;
+    capture.channels = caps->channels;
     capture.format   = caps->format;
 
     *default_output = SDL_AddAudioDevice(
@@ -609,9 +608,11 @@ MOS_Init(SDL_AudioDriverImpl * impl)
         return false;
     }
 
-	if (MOS_QueryAHICaps(&g_ahi_caps)) {
-		g_ahi_caps_valid = true;
-	}
+    if (MOS_QueryAHICaps(&g_ahi_caps)) {
+        g_ahi_caps_valid = true;
+        D("Detected AHI default mode: %d Hz, %d ch, format 0x%X",
+          g_ahi_caps.freq, g_ahi_caps.channels, g_ahi_caps.format);
+    }
 
     impl->DetectDevices = MOS_DetectDevices;
     impl->OpenDevice = MOS_OpenDevice;
