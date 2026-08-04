@@ -39,6 +39,7 @@ struct SDL_PrivateAudioData
     Uint32                ahiType;
     int                   currentBuffer;
     struct AHIRequest    *link;
+	struct AHIRequest    *pendingWait;
 
     bool                  deviceOpen;
     Uint32                audioBufferSize;

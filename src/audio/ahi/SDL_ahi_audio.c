@@ -47,21 +47,21 @@ static bool MOS_QueryAHICaps(MOS_AHICaps *caps)
     caps->freq = (int)freq;
 
     /* Clamp channels to SDL expectations */
-    if (maxch >= 8) {
+    /*if (maxch >= 8) {
         caps->channels = 8;
-    } else if (maxch >= 2) {
+    } else*/ if (maxch >= 2) {
         caps->channels = 2;
     } else {
         caps->channels = 1;
     }
 
     switch (bits) {
-        case 32:
+        /*case 32:
             caps->format = SDL_AUDIO_S32BE;
             break;
         case 16:
             caps->format = SDL_AUDIO_S16BE;
-            break;
+            break;*/
         case 8:
             caps->format = SDL_AUDIO_S8;
             break;
@@ -311,7 +311,7 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
     SDL_UpdatedAudioDeviceFormat(_this);
 
 	MOS_data->audioBufferSize =
-		SDL_AUDIO_FRAMESIZE(_this->spec) * 1024;
+		SDL_AUDIO_FRAMESIZE(_this->spec) * _this->sample_frames;
 
 	MOS_data->audioBufferSize =
 		SDL_max(MOS_data->audioBufferSize, AHI_AUDIO_BUFFER_SIZE);
@@ -387,6 +387,13 @@ MOS_ThreadDeinit(SDL_AudioDevice *_this)
 static bool
 MOS_WaitDevice(SDL_AudioDevice *_this)
 {
+    MOSAudioData *MOS_data = _this->hidden;
+
+    if (MOS_data->pendingWait) {
+        WaitIO((struct IORequest *)MOS_data->pendingWait);
+        MOS_data->pendingWait = NULL;
+    }
+
     return true;
 }
 
@@ -469,10 +476,7 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
 
     SendIO((struct IORequest *)ahiRequest);
 
-    if (MOS_data->link) {
-        WaitIO((struct IORequest *)MOS_data->link);
-    }
-
+    MOS_data->pendingWait = MOS_data->link;
     MOS_data->link = ahiRequest;
     MOS_data->currentBuffer = MOS_SwapBuffer(current);
 
