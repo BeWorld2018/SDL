@@ -79,11 +79,14 @@ SOURCES = \
 	./src/storage/SDL_storage.c \
 	./src/storage/generic/SDL_genericstorage.c \
 	$(wildcard ./src/thread/*.c) \
-	$(wildcard ./src/thread/pthread/*.c) \
 	./src/time/SDL_time.c \
 	./src/time/unix/SDL_systime.c \
 	$(wildcard ./src/timer/*.c) \
 	$(wildcard ./src/timer/morphos/*.c) \
+	$(wildcard ./src/thread/morphos/*.c) \
+	./src/thread/generic/SDL_syscond.c \
+	./src/thread/generic/SDL_systls.c \
+	./src/thread/generic/SDL_sysrwlock.c \
 	./src/tray/SDL_tray_utils.c \
 	./src/tray/dummy/SDL_tray.c \
 	$(wildcard ./src/video/*.c) \

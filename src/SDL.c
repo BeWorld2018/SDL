@@ -79,21 +79,26 @@ extern void SDL_HelperWindowDestroy(void);
 #include <exec/memory.h>
 #include <devices/timer.h>
 #include <proto/exec.h>
+#include <libraries/threadpool.h>
+#include <proto/threadpool.h>
 
 struct timerequest GlobalTimeReq;
 static struct MsgPort *GlobalTimePort = NULL;
 static bool GlobalTimeOpened = false;
+struct Library       *TimerBase = NULL;
 
-bool MorphOS_OpenTimer(void)
+struct Library        *ThreadPoolBase = NULL;
+APTR                   threadpool = NULL;
+
+static void MorphOS_OpenTimer(void)
 {
     if (GlobalTimeOpened) {
-        return true;
+        return;
     }
 
     GlobalTimePort = CreateMsgPort();
     if (!GlobalTimePort) {
-        SDL_SetError("CreateMsgPort() failed");
-        return false;
+        return;
     }
 
     SDL_zero(GlobalTimeReq);
@@ -102,15 +107,14 @@ bool MorphOS_OpenTimer(void)
     if (OpenDevice("timer.device", UNIT_MICROHZ, (struct IORequest *)&GlobalTimeReq, 0) != 0) {
         DeleteMsgPort(GlobalTimePort);
         GlobalTimePort = NULL;
-        SDL_SetError("OpenDevice(timer.device) failed");
-        return false;
+        return;
     }
 
+	TimerBase = (struct Library *)GlobalTimeReq.tr_node.io_Device;
     GlobalTimeOpened = true;
-    return true;
 }
 
-void MorphOS_CloseTimer(void)
+static void MorphOS_CloseTimer(void)
 {
     if (!GlobalTimeOpened) {
         return;
@@ -124,7 +128,67 @@ void MorphOS_CloseTimer(void)
     }
 
     SDL_zero(GlobalTimeReq);
+	TimerBase = NULL;
     GlobalTimeOpened = false;
+}
+
+static APTR MorphOS_GetR2(void)
+{
+    register APTR r2 asm("r2");
+    return r2;
+}
+
+void MorphOS_OpenThreadPool(void)
+{
+    struct TagItem pool_tags[3];
+
+    if (threadpool) {
+        return;
+    }
+
+    ThreadPoolBase = OpenLibrary("threadpool.library", 53);
+    if (!ThreadPoolBase) {
+        return;
+    }
+
+    pool_tags[0].ti_Tag = THREADPOOL_Name;
+    pool_tags[0].ti_Data = (IPTR)"SDL3";
+    pool_tags[1].ti_Tag = THREADPOOL_DataSegment;
+    pool_tags[1].ti_Data = (IPTR)MorphOS_GetR2();
+    pool_tags[2].ti_Tag = TAG_DONE;
+    pool_tags[2].ti_Data = 0;
+
+    threadpool = CreateThreadPoolTagList(32768, pool_tags);
+    if (!threadpool) {
+        CloseLibrary(ThreadPoolBase);
+        ThreadPoolBase = NULL;
+    }
+}
+
+static void MorphOS_CloseThreadPool(void)
+{
+    if (threadpool) {
+        DeleteThreadPool(threadpool);
+        threadpool = NULL;
+    }
+
+    if (ThreadPoolBase) {
+        CloseLibrary(ThreadPoolBase);
+        ThreadPoolBase = NULL;
+    }
+}
+
+__attribute__((constructor))
+static void MorphOS_TimerCtor(void)
+{
+    MorphOS_OpenTimer();
+}
+
+__attribute__((destructor))
+static void MorphOS_TimerDtor(void)
+{
+    MorphOS_CloseThreadPool();
+    MorphOS_CloseTimer();
 }
 #endif
 
@@ -347,6 +411,10 @@ void SDL_InitMainThread(void)
 {
     static bool done_info = false;
 
+#ifdef SDL_PLATFORM_MORPHOS
+    MorphOS_OpenThreadPool();
+#endif
+
     // If we haven't done it by now, mark this as the main thread
     if (SDL_MainThreadID == 0) {
         SDL_MainThreadID = SDL_GetCurrentThreadID();
@@ -354,12 +422,6 @@ void SDL_InitMainThread(void)
 
     SDL_InitTLSData();
     SDL_InitEnvironment();
-	
-#ifdef SDL_PLATFORM_MORPHOS
-    if (!MorphOS_OpenTimer()) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_SYSTEM, "MorphOS timer init failed: %s", SDL_GetError());
-    }
-#endif
 
     SDL_InitTicks();
     SDL_InitFilesystem();
@@ -383,9 +445,9 @@ static void SDL_QuitMainThread(void)
 {
     SDL_QuitFilesystem();
     SDL_QuitTicks();
-    
+
 #ifdef SDL_PLATFORM_MORPHOS
-    MorphOS_CloseTimer();
+    MorphOS_CloseThreadPool();
 #endif
 
     SDL_QuitEnvironment();

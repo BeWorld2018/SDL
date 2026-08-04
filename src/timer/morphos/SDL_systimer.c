@@ -42,11 +42,11 @@ Uint64 SDL_GetPerformanceFrequency(void)
     return ReadCPUClock(&val);
 }
 
-static void MorphOS_InitQPort(struct MsgPort *port)
+void MorphOS_InitQPort(struct MsgPort *port)
 {
     port->mp_SigBit = SIGB_SINGLE;
     port->mp_Flags = PA_SIGNAL;
-    port->mp_SigTask = SysBase->ThisTask;
+    port->mp_SigTask = FindTask(NULL);
     NEWLIST(&port->mp_MsgList);
 }
 
@@ -72,6 +72,11 @@ void SDL_SYS_DelayNS(Uint64 ns)
         return;
     }
 
+    if (!GlobalTimeReq.tr_node.io_Device || !GlobalTimeReq.tr_node.io_Unit) {
+		D("");
+        return;
+    }
+	
     us = (ns + 999ULL) / 1000ULL;
     if (us == 0) {
         us = 1;
