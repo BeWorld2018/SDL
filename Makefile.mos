@@ -1,7 +1,7 @@
 # Makefile for building SDL3 (MorphOS)
 #
 # Features enabled in this build:
-#   - Pthreads
+#   - Native thread
 #   - MorphOS timer backend
 #   - AHI audio backend
 #   - OpenGL video supported
@@ -10,6 +10,7 @@
 #   - AltiVec optimizations
 #	- Multi-monitor supported
 #	- Software and OpenGL renderers supported
+#	- LoadObject via DLL
 #
 # Notes:
 #   - "debug" adds -D__SDL_DEBUG
