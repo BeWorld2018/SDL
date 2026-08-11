@@ -228,6 +228,10 @@ static void MORPHOS_JoystickDetect(void)
 		if (got_any) {
 			g_hidListDirty = true;
 		}
+
+		if (!g_hidListDirty) {
+			return;
+		}
 	}
 
 	g_hidListDirty = false;
