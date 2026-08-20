@@ -160,10 +160,10 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 							MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
 						}
 						val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
-						if (val && strlen(val)>0) {					
+						if (val && strlen(val)>0) {
 							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
 							MOS_GlobalMenu(data->menu, 1, 3, 1, (strcmp(val, "opengl")==0 ? 1 : 0));
-							MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "opengl")==0 ? 0 : 1));
+							MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "software")==0 ? 1 : 0));
 						}
 						val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 						if (val && strlen(val)>0) {
@@ -300,7 +300,7 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	}
 }
 
-void 
+void
 MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window *window)
 {
     if (window->flags & SDL_WINDOW_EXTERNAL) {

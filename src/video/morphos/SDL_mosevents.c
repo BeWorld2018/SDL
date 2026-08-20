@@ -481,7 +481,10 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 			break;
 
 		case IDCMP_RAWKEY:
-			if (!minimized) MOS_DispatchRawKey(m, data);
+			if (!minimized) {
+				MOS_SyncKeyModifiers(_this);
+				MOS_DispatchRawKey(m, data);
+			}
 			break;
 
 		case IDCMP_ACTIVEWINDOW:
