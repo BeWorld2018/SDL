@@ -40,18 +40,19 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 {
 	D("");
 	if (!TinyGLBase) {
-		TinyGLBase = OpenLibrary("tinygl.library", 53); 
+		TinyGLBase = OpenLibrary("tinygl.library", 53);
 	}
+
 	if (TinyGLBase) {
-			
-			if (!LIB_MINVER(TinyGLBase, 53, 10))		
+
+			if (!LIB_MINVER(TinyGLBase, 53, 10))
 			{
 				CloseLibrary(TinyGLBase);
 				SDL_SetError("Failed to open tinygl.library 53.10+");
 				return false;
 			}
 			return true;
-	} else 
+	} else
 		SDL_SetError("Failed to open tinygl.library 53+");
 
 	return false;
@@ -95,23 +96,23 @@ bool MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	MOS_GL_FreeBitMap(_this, window);
-	
+
 	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
 	ULONG depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
 
 	int w = 0;
 	int h = 0;
 	MOS_GetWindowSize(data->win, &w, &h);
-	
+
 	D("AllocBitMap w=%d h=%d depth=%d", w, h, (int)depth);
 	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
 bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 {
-	D("");	
+	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	
+
 	if (data->__tglContext != NULL) {
 		GLADestroyContext(data->__tglContext);
 		data->__tglContext = NULL;
@@ -122,34 +123,34 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 		{TAG_IGNORE, 0},
 		{TGL_CONTEXT_STENCIL, TRUE},
 		{TAG_DONE}
-	};	
-	
+	};
+
 	if (MOS_GL_AllocBitmap(_this, window))
-	{	
+	{
 		tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
 		tgltags[0].ti_Data = (IPTR)data->bitmap;
 	} else {
-		D("Failed to AllocBitmap !");	
+		D("Failed to AllocBitmap !");
 		return false;
 	}
-		
+
 	// Initialize new context
 	GLContext *ctx = data->__tglContext ? data->__tglContext : __tglContext;
 	int success = GLAInitializeContext(ctx, tgltags);
 	if (success) {
-		D("GLAInitializeContext Success");	
+		D("GLAInitializeContext Success");
 		data->__tglContext = __tglContext = ctx;
-		
+
 		// Clean Screen
 		if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
 			GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
 			GLClear(__tglContext, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
-		
-	} else
-		D("GLAInitializeContext Failed");	
 
-	return success ? true : false;		
+	} else
+		D("GLAInitializeContext Failed");
+
+	return success ? true : false;
 }
 
 SDL_GLContext
@@ -157,14 +158,14 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	D("");
 	SDL_WindowData *data = window->internal;
-	
+
 	GLContext *glcont = GLInit();
 	if (glcont) {
 		__tglContext = glcont;
 		TGLSetAutomaticContextVersion(TinyGLBase, glcont);
 		bool success = MOS_GL_InitContext(_this, window);
 		if (success) {
-			D("SUCCES 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);		
+			D("SUCCES 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);
 			return (SDL_GLContext)glcont;
 		} else {
 			D("FAILED 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);
@@ -187,7 +188,7 @@ MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext co
 		__tglContext = (GLContext*)context;
 	else
 		__tglContext = NULL;
-	
+
 	return true;
 }
 
@@ -222,14 +223,14 @@ MOS_GL_SwapWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	if (video->vsyncEnabled) {
 		WaitTOF();
 	}
-	
+
 	GLASwapBuffers(data->__tglContext);
-	
-	if (data->bitmap != NULL) {	
-		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop, 
+
+	if (data->bitmap != NULL) {
+		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop,
 				window->w, window->h, 0xc0);
 	}
-	
+
 	return true;
 }
 
@@ -241,7 +242,7 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
 	if (TinyGLBase != NULL && context) {
 		SDL_Window *sdlwin;
 		int deletions = 0;
-		
+
 		for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
 
 			SDL_WindowData *data = sdlwin->internal;
@@ -261,9 +262,9 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
 		GLClose((GLContext*)context);
 		__tglContext = NULL;
 		return true;
-		
+
 	}
-	
+
 	return false;
 }
 
@@ -271,12 +272,12 @@ bool
 MOS_GL_ResizeContext(SDL_VideoDevice *_this, SDL_Window *window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
-	
+
 	D("Context=0x%08lx data->__tglContext=0x%08lx data->win=0x%08lx", __tglContext, data->__tglContext, data->win);
 	if (data->__tglContext == NULL || data->win == NULL) {
 		return false;
 	}
-	
+
 	return (MOS_GL_InitContext(_this, window) ? true : false);
 }
 

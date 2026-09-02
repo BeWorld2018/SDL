@@ -308,6 +308,8 @@ MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window *window)
         return;
     }
 
+    SDL_ResetKeyboard();
+
     SDL_WindowData *data = (SDL_WindowData *)window->internal;
     if (data && data->win) {
         D("Closing system window '%s' before re-creation", window->title);

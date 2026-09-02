@@ -166,6 +166,12 @@ typedef struct
     SDL_TextureAddressMode texture_address_mode_u;
     SDL_TextureAddressMode texture_address_mode_v;
     GL_FBOList *fbo;
+#ifdef __MORPHOS__
+    GLsizei mos_full_w, mos_full_h;
+    GLuint mos_linear_tex;
+    Uint8 *mos_linear_px;
+    bool   mos_linear;
+#endif
 } GL_TextureData;
 
 static const char *GL_TranslateError(GLenum error)
@@ -655,6 +661,10 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
     data->texture_scale_mode = texture->scaleMode;
     data->texture_address_mode_u = SDL_TEXTURE_ADDRESS_CLAMP;
     data->texture_address_mode_v = SDL_TEXTURE_ADDRESS_CLAMP;
+#ifdef __MORPHOS__
+    data->mos_full_w = texture_w;
+    data->mos_full_h = texture_h;
+#endif
     renderdata->glEnable(textype);
     renderdata->glBindTexture(textype, data->texture);
 #ifdef SDL_PLATFORM_MACOS
@@ -808,6 +818,50 @@ static bool GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w,
                                 rect->h, data->format, data->formattype,
                                 pixels);
+#ifdef __MORPHOS__
+    if (!data->mos_linear && texture->format == SDL_PIXELFORMAT_INDEX8 &&
+        (texture->scaleMode == SDL_SCALEMODE_LINEAR ||
+         texture->scaleMode == SDL_SCALEMODE_PIXELART)) {
+        data->mos_linear_px = (Uint8 *)SDL_malloc((size_t)texture->w * texture->h * 4);
+        if (data->mos_linear_px) {
+            renderdata->glGenTextures(1, &data->mos_linear_tex);
+            renderdata->glBindTexture(textype, data->mos_linear_tex);
+            renderdata->glTexImage2D(textype, 0, GL_RGBA8, data->mos_full_w, data->mos_full_h,
+                                     0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+            SetTextureScaleMode(renderdata, textype, SDL_PIXELFORMAT_RGBA32, SDL_SCALEMODE_LINEAR);
+            SetTextureAddressMode(renderdata, textype, data->texture_address_mode_u, data->texture_address_mode_v);
+            renderdata->glBindTexture(textype, data->texture);
+            data->mos_linear = true;
+            D("INDEX8 %dx%d: %s scaling via CPU RGBA shadow", texture->w, texture->h,
+              texture->scaleMode == SDL_SCALEMODE_PIXELART ? "PIXELART" : "LINEAR");
+        }
+    }
+
+    if (data->mos_linear && data->mos_linear_px && texture->public_palette) {
+        const SDL_Color *pal = texture->public_palette->colors;
+        const int nc = texture->public_palette->ncolors;
+        for (int yy = 0; yy < rect->h; ++yy) {
+            const Uint8 *s = (const Uint8 *)pixels + (size_t)yy * pitch;
+            Uint8 *d = data->mos_linear_px + (((size_t)(rect->y + yy) * texture->w + rect->x) * 4);
+            for (int xx = 0; xx < rect->w; ++xx) {
+                unsigned i = s[xx];
+                if (i < (unsigned)nc) {
+                    d[0] = pal[i].r; d[1] = pal[i].g; d[2] = pal[i].b; d[3] = pal[i].a;
+                } else {
+                    d[0] = d[1] = d[2] = 0; d[3] = 255;
+                }
+                d += 4;
+            }
+        }
+        renderdata->glBindTexture(textype, data->mos_linear_tex);
+        renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, texture->w);
+        renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w, rect->h,
+                                    GL_RGBA, GL_UNSIGNED_BYTE,
+                                    data->mos_linear_px + (((size_t)rect->y * texture->w + rect->x) * 4));
+        renderdata->glBindTexture(textype, data->texture);
+    }
+#endif
 #ifdef SDL_HAVE_YUV
     if (data->yuv) {
         renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, ((pitch + 1) / 2));
@@ -1216,19 +1270,20 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
     GL_Shader shader = texturedata->shader;
     const float *shader_params = texturedata->shader_params;
 
+#ifdef __MORPHOS__
+    const bool mos_shadow = texturedata->mos_linear &&
+        (cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_LINEAR ||
+         cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_PIXELART);
+    if (mos_shadow) {
+        shader = GL_SupportsShader(data->shaders, SHADER_RGBA) ? SHADER_RGBA : SHADER_RGB;
+        shader_params = NULL;
+    }
+#endif
+
     switch (shader) {
     case SHADER_PALETTE_NEAREST:
         if (cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_LINEAR) {
-#ifdef __MORPHOS__
-			// put failback !
-			if (GL_SupportsShader(data->shaders, SHADER_PALETTE_LINEAR)) {
-				shader = SHADER_PALETTE_LINEAR;
-				shader_params = texturedata->texel_size;
-			} else {
-				shader = SHADER_PALETTE_NEAREST;
-				shader_params = NULL;
-			}
-#else
+#ifndef __MORPHOS__
             shader = SHADER_PALETTE_LINEAR;
             shader_params = texturedata->texel_size;
 #endif
@@ -1271,7 +1326,11 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
             data->glBindTexture(textype, texturedata->utexture);
         }
 #endif
-        if (texture->palette) {
+        if (texture->palette
+#ifdef __MORPHOS__
+            && !mos_shadow
+#endif
+        ) {
             GL_PaletteData *palette = (GL_PaletteData *)texture->palette->internal;
             data->glActiveTextureARB(GL_TEXTURE1_ARB);
             data->glBindTexture(textype, palette->texture);
@@ -1279,7 +1338,11 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
         if (data->GL_ARB_multitexture_supported) {
             data->glActiveTextureARB(GL_TEXTURE0_ARB);
         }
+#ifdef __MORPHOS__
+        data->glBindTexture(textype, mos_shadow ? texturedata->mos_linear_tex : texturedata->texture);
+#else
         data->glBindTexture(textype, texturedata->texture);
+#endif
 
         data->drawstate.texture = texture;
     }
@@ -1307,7 +1370,11 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
             data->glActiveTextureARB(GL_TEXTURE0);
         }
 #endif
-        if (texture->palette) {
+        if (texture->palette
+#ifdef __MORPHOS__
+            && !mos_shadow
+#endif
+        ) {
             data->glActiveTextureARB(GL_TEXTURE1);
             if (!SetTextureScaleMode(data, textype, SDL_PIXELFORMAT_UNKNOWN, SDL_SCALEMODE_NEAREST)) {
                 return false;
@@ -1315,6 +1382,14 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
 
             data->glActiveTextureARB(GL_TEXTURE0);
         }
+#ifdef __MORPHOS__
+        if (mos_shadow) {
+            data->glBindTexture(textype, texturedata->mos_linear_tex);
+            if (!SetTextureScaleMode(data, textype, SDL_PIXELFORMAT_RGBA32, SDL_SCALEMODE_LINEAR)) {
+                return false;
+            }
+        } else
+#endif
         if (!SetTextureScaleMode(data, textype, texture->format, cmd->data.draw.texture_scale_mode)) {
             return false;
         }
@@ -1715,6 +1790,12 @@ static void GL_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
         }
     }
 #endif
+#ifdef __MORPHOS__
+    if (data->mos_linear_tex) {
+        renderdata->glDeleteTextures(1, &data->mos_linear_tex);
+    }
+    SDL_free(data->mos_linear_px);
+#endif
     SDL_free(data->pixels);
     SDL_free(data);
     texture->internal = NULL;
@@ -1987,8 +2068,14 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         (!data->pixelart_supported || GL_SupportsShader(data->shaders, SHADER_PALETTE_PIXELART)) &&
         data->num_texture_units >= 2) {
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
-    } else 
-#endif	
+    } else
+#else
+    if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
+        data->num_texture_units >= 2) {
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL INDEX8 via GLSL SHADER_PALETTE_NEAREST");
+    } else
+#endif
 	{
 		D("OpenGL palette shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL palette shaders not supported");
