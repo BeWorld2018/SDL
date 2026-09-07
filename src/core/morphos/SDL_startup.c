@@ -28,6 +28,8 @@
 int  ThisRequiresConstructorHandling = 0;
 APTR libnix_mempool;
 
+struct SDL_Library *SDL3Base;
+
 __attribute__((noreturn)) void exit(int rc);
 __attribute__((noreturn)) void exit(int rc)
 {
@@ -47,10 +49,20 @@ asm
 "	.size __restore_r13, __end__restore_r13 - __restore_r13\n"
 );
 
+void LIB_InitTGL(struct SDL_Library *base, void **glcptr, struct Library **tglptr)
+{
+    if (base && base->MyGLContext == NULL) {
+        base->MyGLContext  = glcptr;
+        base->MyTinyGLBase = tglptr;
+    }
+}
+
 int SAVEDS MOS_Startup(struct SDL_Library *LibBase)
 {
     struct CTDT *ctdt      = LibBase->ctdtlist;
     struct CTDT *last_ctdt = LibBase->last_ctdt;
+
+    SDL3Base = LibBase;
 
     MorphOS_OpenThreadPoolWithSegment(LibBase->DataSeg);
 

@@ -52,6 +52,22 @@ my %exclude = map { $_ => 1 } qw(
     SDL_memset
 );
 
+# MorphOS-private glue LVOs that are NOT in src/dynapi/SDL_dynapi_procs.h.
+# They are appended AFTER every generated entry so no existing LVO offset ever
+# moves. Each needs:
+#   - an .fd line (custom calling convention allowed)
+#   - a real C prototype in sdl3_protos.h (BEFORE the "#if 0", so the compiler
+#     that builds the client glue can see it)
+#   - a hand-written LIB_xxx in src/core/morphos/SDL_startup.c
+#   - a hand-added (APTR)&LIB_xxx in the FuncTable[] of src/core/morphos/SDL_library.c
+# They are deliberately NOT emitted into SDL_stubs.h (no generated trampoline).
+my @manual_lvos = (
+    {
+        fd    => 'SDL_InitTGL(glcptr,tglptr)(base,sysv)',
+        proto => 'void SDL_InitTGL(void **glcptr, struct Library **tglptr)',
+    },
+);
+
 while (my $line = <$in>) {
     chomp $line;
 
@@ -151,6 +167,8 @@ EOT
         $args =~ s/\s+//g;
         print $o "$e->[1]($args)(sysv,r12base)\n";
     }
+    print $o "* --- MorphOS-private glue LVOs (keep LAST; hand-wired in SDL_library.c) ---\n";
+    print $o "$_->{fd}\n" for @manual_lvos;
     close $o;
 }
 
@@ -172,8 +190,12 @@ EOT
 #include <SDL3/SDL.h>
 #endif
 
-#if 0
 EOT
+    # MorphOS-private glue prototypes - REAL (outside the "#if 0"): the client
+    # glue in src/core/morphos/devenv/ is compiled against these.
+    print $o "struct Library;\n";
+    print $o "$_->{proto};\n" for @manual_lvos;
+    print $o "\n#if 0\n";
     for my $e (@entries) {
         my ($rc, $fn, $params) = @{$e}[0,1,2];
         # strip SAL-ish annotation macros cvinclude does not know

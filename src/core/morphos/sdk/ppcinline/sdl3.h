@@ -11,6 +11,9 @@
 #define SDL3_BASE_NAME SDL3Base
 #endif /* !SDL3_BASE_NAME */
 
+#define SDL_InitTGL(__p0, __p1) \
+	(((void (*)(void *, void **, struct Library **))*(void**)((long)(SDL3_BASE_NAME) - 7528))((void*)(SDL3_BASE_NAME), __p0, __p1))
+
 #define SDL_AcquireCameraFrame(__p0, __p1) \
 	({ \
 		SDL_Camera * __t__p0 = __p0;\

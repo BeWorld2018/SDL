@@ -19,6 +19,9 @@
 #include <SDL3/SDL.h>
 #endif
 
+struct Library;
+void SDL_InitTGL(void **glcptr, struct Library **tglptr);
+
 #if 0
 SDL_Surface* SDL_AcquireCameraFrame(SDL_Camera *a, Uint64 *b);
 SDL_GPUCommandBuffer* SDL_AcquireGPUCommandBuffer(SDL_GPUDevice *a);

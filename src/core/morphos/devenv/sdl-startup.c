@@ -27,6 +27,8 @@
 #include <proto/muimaster.h>
 #include <proto/openurl.h>
 #include <proto/sdl3.h>
+#include <proto/tinygl.h>
+#include <tgl/gl.h>
 
 #include "../SDL_mosversion.h"
 
@@ -39,6 +41,9 @@ extern struct Library *SDL3Base;
 #else
 
 struct Library *SDL3Base = NULL;
+
+struct Library *TinyGLBase;
+GLContext      *__tglContext;
 
 int  _INIT_4_SDL3Base(void) __attribute__((alias("__CSTP_init_SDL3Base")));
 void _EXIT_4_SDL3Base(void) __attribute__((alias("__DSTP_cleanup_SDL3Base")));
@@ -88,6 +93,8 @@ static CONSTRUCTOR_P(init_SDL3Base, 100)
 		SDL3_OpenLibError();
 		return 1;
 	}
+
+	SDL_InitTGL((void **)&__tglContext, (struct Library **)&TinyGLBase);
 
 	ProgDirLock = Lock("PROGDIR:", ACCESS_READ);
 	if (ProgDirLock) {

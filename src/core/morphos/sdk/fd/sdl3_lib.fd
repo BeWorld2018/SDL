@@ -1254,3 +1254,5 @@ SDL_RotateSurface(a,b)(sysv,r12base)
 SDL_LoadSurface_IO(a,b)(sysv,r12base)
 SDL_LoadSurface(a)(sysv,r12base)
 SDL_SetWindowFillDocument(a,b)(sysv,r12base)
+* --- MorphOS-private glue LVOs (keep LAST; hand-wired in SDL_library.c) ---
+SDL_InitTGL(glcptr,tglptr)(base,sysv)

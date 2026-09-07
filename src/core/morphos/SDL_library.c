@@ -474,6 +474,8 @@ error:
 /* forward declarations of every LIB_xxx trampoline (neither macro defined) */
 #include "SDL_stubs.h"
 
+extern void LIB_InitTGL(void);
+
 static const APTR FuncTable[] =
 {
     (APTR)FUNCARRAY_BEGIN,
@@ -490,6 +492,8 @@ static const APTR FuncTable[] =
     #define GENERATE_POINTERS
     #include "SDL_stubs.h"
     #undef GENERATE_POINTERS
+
+    (APTR)LIB_InitTGL,
 
     (APTR)-1,
     (APTR)FUNCARRAY_END
