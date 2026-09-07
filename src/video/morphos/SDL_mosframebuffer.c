@@ -77,7 +77,7 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
 	*format = fmt;
 	*pitch = bpr;
 
-	data->fb = fb = SDL_malloc(sizeof(SDL_Framebuffer) + bpr * window->h);
+	data->fb = fb = SDL_calloc(1, sizeof(SDL_Framebuffer) + bpr * window->h);
 
 	if (fb) {
 		fb->bpr = bpr;

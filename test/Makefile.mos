@@ -102,6 +102,9 @@ TARGETS = littleSDL checkkeys \
 
 # 	testloadso \ 	testprocess \
 
+ifeq ($(LINK_WITHSHARED),1)
+TARGETS := $(filter-out testnative,$(TARGETS))
+endif
 all: $(TARGETS)
 
 checkkeys: checkkeys.o
@@ -369,7 +372,8 @@ torturethread: torturethread.o
 	$(CC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -f $(TARGETS) *.o $(DEPS)
+	@echo "Cleaning tests"
+	@rm -f $(TARGETS) *.o $(DEPS)
 
 %.d : %.c
 	@echo Making dependencies for $<

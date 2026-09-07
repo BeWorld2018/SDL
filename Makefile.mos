@@ -8,9 +8,12 @@
 #   make sdk           -> build everything + install shared-library SDK
 #                         (headers to $(GG)/os-include, -lSDL3 glue to $(PREFIX),
 #                          sdl3.library to $(LIBSDEST); override GG/PREFIX/LIBSDEST)
-#   make DEBUG=1 ...    -> add -D__SDL_DEBUG
 #   make install       -> copy the monolithic static libSDL3.a + headers to $(PREFIX)
 #   make clean
+#
+# Debug tracing (the D(...) macro) is ALWAYS compiled in - there is no debug
+# build.  It is silent until you set the MorphOS env var  SDL3_HINT_DEBUG = 1
+# (setenv SDL3_HINT_DEBUG 1  /  SetEnv SDL3_HINT_DEBUG 1).
 #
 # The static and shared builds use separate object trees because the shared
 # objects carry -mresident32 -DBUILD_SDL3_LIBRARY and cannot be shared:
@@ -33,7 +36,6 @@ AMIGADATE = $(shell date +"%-d.%m.%Y")
 
 # ----------------------------------------------------------------- mode / flags
 MODE  ?= static
-DEBUG ?= 0
 
 DEFINES  = -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
 CFLAGS   = -O2 -Wall -fno-math-errno -Wshadow -fcommon -Wno-pointer-sign \
@@ -43,10 +45,6 @@ CFLAGS   = -O2 -Wall -fno-math-errno -Wshadow -fcommon -Wno-pointer-sign \
 # so it must NOT be compiled -mresident32 (its refs to __sdata_size / __sbss_size
 # / .ctdt would become DREL relocations the linker rejects)
 CFLAGS_NORESIDENT = $(filter-out -mresident32,$(CFLAGS))
-
-ifeq ($(DEBUG),1)
-  CFLAGS += -D__SDL_DEBUG
-endif
 
 ifeq ($(MODE),shared)
   OBJDIR  = build-mos/shared
@@ -265,6 +263,8 @@ clean:
 	       sdl3.library.s sdl3.library.sym libSDL3.a
 	@find ./src -name '*.o' -delete
 	@$(MAKE) -C src/core/morphos/devenv clean 2>/dev/null || true
+	@$(MAKE) -C test     -f Makefile.mos clean 2>/dev/null || true
+	@$(MAKE) -C examples -f Makefile.mos clean 2>/dev/null || true
 
 # ----------------------------------------------------------------- crash triage
 # translate a MorphOS crash dump "LIBS:sdl3.library [Hunk N Offset 0xXXXX]" :
