@@ -719,7 +719,7 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 bool
 MOS_GetDisplayBounds(SDL_VideoDevice *device, SDL_VideoDisplay *display, SDL_Rect *rect)
 {
-    SDL_DisplayMode *m = display->current_mode ? display->current_mode : &display->desktop_mode;
+    const SDL_DisplayMode *m = display->current_mode ? display->current_mode : &display->desktop_mode;
     SDL_DisplayModeData *data = m && m->internal ? (SDL_DisplayModeData *)m->internal : NULL;
 
     rect->x = data ? data->x : 0;
