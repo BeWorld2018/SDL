@@ -168,12 +168,9 @@ typedef struct
     GL_FBOList *fbo;
 #ifdef __MORPHOS__
     GLsizei mos_full_w, mos_full_h;
-    GLuint  mos_linear_tex;      // RGBA8 "shadow" texture used to linear-filter INDEX8
-    Uint8  *mos_linear_px;       // CPU RGBA8 scratch, texture->w * texture->h * 4
-    Uint8  *mos_linear_idx;      // retained INDEX8 source, texture->w * texture->h
-    Uint32  mos_linear_pal_ver;  // palette version currently baked into the shadow
-    bool    mos_linear;          // shadow texture has been created
-    bool    mos_linear_ready;    // shadow content matches mos_linear_pal_ver
+    GLuint mos_linear_tex;
+    Uint8 *mos_linear_px;
+    bool   mos_linear;
 #endif
 } GL_TextureData;
 
@@ -801,98 +798,6 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
     return GL_CheckError("", renderer);
 }
 
-#ifdef __MORPHOS__
-/*
- * MorphOS / TinyGL has no SHADER_PALETTE_LINEAR / SHADER_PALETTE_PIXELART, so an
- * INDEX8 texture that is drawn with linear (or pixelart) filtering is expanded on
- * the CPU into an RGBA8 "shadow" texture that the hardware can filter directly.
- *
- * This keeps the shadow in sync with the texture's current palette. The INDEX8
- * pixels come from data->mos_linear_idx, which GL_UpdateTexture keeps up to date.
- *
- *  - dirty != NULL: only that region changed (a texture upload). Re-expand just
- *    that region, unless the palette also changed (then the whole texture is
- *    stale and gets rebuilt).
- *  - dirty == NULL: a draw. Rebuild only if the palette changed or the shadow was
- *    never built; otherwise this is just a version compare and returns.
- *
- * Returns true when the shadow is ready to be sampled.
- */
-static bool GL_MOS_RefreshLinearShadow(GL_RenderData *renderdata, SDL_Texture *texture, const SDL_Rect *dirty)
-{
-    GL_TextureData *data = (GL_TextureData *)texture->internal;
-    const GLenum textype = renderdata->textype;
-    const SDL_Palette *pal = texture->public_palette;
-    const SDL_Color *colors;
-    bool palette_changed;
-    SDL_Rect region;
-    int yy;
-
-    if (!data->mos_linear_idx || !data->mos_linear_px || !pal) {
-        return false;
-    }
-
-    // Create the shadow GL texture on first use (the draw-time scale mode may
-    // only have become LINEAR after the texture was created).
-    if (!data->mos_linear_tex) {
-        renderdata->glGenTextures(1, &data->mos_linear_tex);
-        renderdata->glBindTexture(textype, data->mos_linear_tex);
-        renderdata->glTexImage2D(textype, 0, GL_RGBA8, data->mos_full_w, data->mos_full_h,
-                                 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        SetTextureScaleMode(renderdata, textype, SDL_PIXELFORMAT_RGBA32, SDL_SCALEMODE_LINEAR);
-        SetTextureAddressMode(renderdata, textype, data->texture_address_mode_u, data->texture_address_mode_v);
-        renderdata->glBindTexture(textype, data->texture);
-        data->mos_linear = true;
-        data->mos_linear_ready = false;
-        D("INDEX8 %dx%d: linear scaling via CPU RGBA shadow", texture->w, texture->h);
-    }
-
-    palette_changed = !data->mos_linear_ready || data->mos_linear_pal_ver != pal->version;
-    if (!palette_changed && !dirty) {
-        return true;
-    }
-
-    if (palette_changed || !dirty) {
-        region.x = 0; region.y = 0; region.w = texture->w; region.h = texture->h;
-    } else {
-        region = *dirty;
-    }
-
-    // Expand the region through the palette. Out-of-range indices become fully
-    // transparent (not opaque black) so they don't paint a solid block.
-    colors = pal->colors;
-    for (yy = 0; yy < region.h; ++yy) {
-        const Uint8 *s = data->mos_linear_idx + ((size_t)(region.y + yy) * texture->w + region.x);
-        Uint8 *d = data->mos_linear_px + (((size_t)(region.y + yy) * texture->w + region.x) * 4);
-        int xx;
-        for (xx = 0; xx < region.w; ++xx) {
-            unsigned i = s[xx];
-            if (i < (unsigned)pal->ncolors) {
-                d[0] = colors[i].r; d[1] = colors[i].g; d[2] = colors[i].b; d[3] = colors[i].a;
-            } else {
-                d[0] = d[1] = d[2] = d[3] = 0;
-            }
-            d += 4;
-        }
-    }
-
-    renderdata->drawstate.texture = NULL;
-    renderdata->glBindTexture(textype, data->mos_linear_tex);
-    renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, texture->w);
-    renderdata->glTexSubImage2D(textype, 0, region.x, region.y, region.w, region.h,
-                                GL_RGBA, GL_UNSIGNED_BYTE,
-                                data->mos_linear_px + (((size_t)region.y * texture->w + region.x) * 4));
-    renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    renderdata->glBindTexture(textype, data->texture);
-
-    data->mos_linear_pal_ver = pal->version;
-    data->mos_linear_ready = true;
-    return true;
-}
-#endif // __MORPHOS__
-
 static bool GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                             const SDL_Rect *rect, const void *pixels, int pitch)
 {
@@ -914,41 +819,47 @@ static bool GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                                 rect->h, data->format, data->formattype,
                                 pixels);
 #ifdef __MORPHOS__
-    // For INDEX8 textures that are (or may become) linear/pixelart filtered, keep
-    // a CPU copy of the raw indices so the RGBA "shadow" texture can be rebuilt
-    // whenever the palette changes. See GL_MOS_RefreshLinearShadow().
-    if (texture->format == SDL_PIXELFORMAT_INDEX8 &&
-        (data->mos_linear_idx ||
-         texture->scaleMode == SDL_SCALEMODE_LINEAR ||
+    if (!data->mos_linear && texture->format == SDL_PIXELFORMAT_INDEX8 &&
+        (texture->scaleMode == SDL_SCALEMODE_LINEAR ||
          texture->scaleMode == SDL_SCALEMODE_PIXELART)) {
-        if (!data->mos_linear_idx) {
-            data->mos_linear_px  = (Uint8 *)SDL_calloc((size_t)texture->w * texture->h, 4);
-            data->mos_linear_idx = (Uint8 *)SDL_calloc((size_t)texture->w * texture->h, 1);
-            if (!data->mos_linear_px || !data->mos_linear_idx) {
-                SDL_free(data->mos_linear_px);
-                SDL_free(data->mos_linear_idx);
-                data->mos_linear_px = NULL;
-                data->mos_linear_idx = NULL;
+        data->mos_linear_px = (Uint8 *)SDL_malloc((size_t)texture->w * texture->h * 4);
+        if (data->mos_linear_px) {
+            renderdata->glGenTextures(1, &data->mos_linear_tex);
+            renderdata->glBindTexture(textype, data->mos_linear_tex);
+            renderdata->glTexImage2D(textype, 0, GL_RGBA8, data->mos_full_w, data->mos_full_h,
+                                     0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+            SetTextureScaleMode(renderdata, textype, SDL_PIXELFORMAT_RGBA32, SDL_SCALEMODE_LINEAR);
+            SetTextureAddressMode(renderdata, textype, data->texture_address_mode_u, data->texture_address_mode_v);
+            renderdata->glBindTexture(textype, data->texture);
+            data->mos_linear = true;
+            D("INDEX8 %dx%d: %s scaling via CPU RGBA shadow", texture->w, texture->h,
+              texture->scaleMode == SDL_SCALEMODE_PIXELART ? "PIXELART" : "LINEAR");
+        }
+    }
+
+    if (data->mos_linear && data->mos_linear_px && texture->public_palette) {
+        const SDL_Color *pal = texture->public_palette->colors;
+        const int nc = texture->public_palette->ncolors;
+        for (int yy = 0; yy < rect->h; ++yy) {
+            const Uint8 *s = (const Uint8 *)pixels + (size_t)yy * pitch;
+            Uint8 *d = data->mos_linear_px + (((size_t)(rect->y + yy) * texture->w + rect->x) * 4);
+            for (int xx = 0; xx < rect->w; ++xx) {
+                unsigned i = s[xx];
+                if (i < (unsigned)nc) {
+                    d[0] = pal[i].r; d[1] = pal[i].g; d[2] = pal[i].b; d[3] = pal[i].a;
+                } else {
+                    d[0] = d[1] = d[2] = 0; d[3] = 255;
+                }
+                d += 4;
             }
         }
-        if (data->mos_linear_idx) {
-            for (int yy = 0; yy < rect->h; ++yy) {
-                SDL_memcpy(data->mos_linear_idx + ((size_t)(rect->y + yy) * texture->w + rect->x),
-                           (const Uint8 *)pixels + (size_t)yy * pitch,
-                           (size_t)rect->w);
-            }
-            // Push the freshly uploaded region into the shadow now if the palette
-            // is already known; otherwise SetCopyState will (re)build it once the
-            // palette is attached (SDL sets it after the first upload in
-            // SDL_CreateTextureFromSurface).
-            if (texture->public_palette &&
-                (texture->scaleMode == SDL_SCALEMODE_LINEAR ||
-                 texture->scaleMode == SDL_SCALEMODE_PIXELART)) {
-                GL_MOS_RefreshLinearShadow(renderdata, texture, rect);
-            } else {
-                data->mos_linear_ready = false; // rebuild pending
-            }
-        }
+        renderdata->glBindTexture(textype, data->mos_linear_tex);
+        renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, texture->w);
+        renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w, rect->h,
+                                    GL_RGBA, GL_UNSIGNED_BYTE,
+                                    data->mos_linear_px + (((size_t)rect->y * texture->w + rect->x) * 4));
+        renderdata->glBindTexture(textype, data->texture);
     }
 #endif
 #ifdef SDL_HAVE_YUV
@@ -1101,9 +1012,6 @@ static bool GL_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
 
     if (!texture) {
         data->glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-#ifdef __MORPHOS__
-        data->glReadBuffer(GL_BACK); // back to the window (see GL_RenderReadPixels)
-#endif
         return true;
     }
 
@@ -1111,11 +1019,6 @@ static bool GL_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
     data->glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, texturedata->fbo->FBO);
     // TODO: check if texture pixel format allows this operation
     data->glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, data->textype, texturedata->texture, 0);
-#ifdef __MORPHOS__
-    // TinyGL won't glReadPixels() an FBO whose read buffer still points at the
-    // window; aim it at the colour attachment while this target is bound.
-    data->glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
-#endif
     // Check FBO status
     status = data->glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
     if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
@@ -1368,15 +1271,9 @@ static bool SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
     const float *shader_params = texturedata->shader_params;
 
 #ifdef __MORPHOS__
-    // INDEX8 + linear/pixelart has no palette shader on TinyGL: sample a CPU-built
-    // RGBA shadow instead. The helper (re)builds it lazily and keeps it in sync
-    // with the palette; it is a cheap version-compare when nothing changed.
-    bool mos_shadow = false;
-    if (texture->format == SDL_PIXELFORMAT_INDEX8 &&
+    const bool mos_shadow = texturedata->mos_linear &&
         (cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_LINEAR ||
-         cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_PIXELART)) {
-        mos_shadow = GL_MOS_RefreshLinearShadow(data, texture, NULL);
-    }
+         cmd->data.draw.texture_scale_mode == SDL_SCALEMODE_PIXELART);
     if (mos_shadow) {
         shader = GL_SupportsShader(data->shaders, SHADER_RGBA) ? SHADER_RGBA : SHADER_RGB;
         shader_params = NULL;
@@ -1827,28 +1724,6 @@ static SDL_Surface *GL_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect *
         return NULL;
     }
 
-#ifdef __MORPHOS__
-    if (renderer->target) {
-        const int rgba_pitch = rect->w * 4;
-        Uint8 *rgba = (Uint8 *)SDL_malloc((size_t)rgba_pitch * rect->h);
-
-        if (rgba) {
-            data->glPixelStorei(GL_PACK_ALIGNMENT, 1);
-            data->glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-            data->glReadPixels(rect->x, rect->y, rect->w, rect->h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-
-            if (GL_CheckError("glReadPixels(FBO)", renderer) &&
-                SDL_ConvertPixels(rect->w, rect->h,
-                                  SDL_PIXELFORMAT_RGBA32, rgba, rgba_pitch,
-                                  format, surface->pixels, surface->pitch)) {
-                SDL_free(rgba);
-                return surface;
-            }
-            SDL_free(rgba);
-        }
-    }
-#endif
-
     int y = rect->y;
     if (!renderer->target) {
         int w, h;
@@ -1920,7 +1795,6 @@ static void GL_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
         renderdata->glDeleteTextures(1, &data->mos_linear_tex);
     }
     SDL_free(data->mos_linear_px);
-    SDL_free(data->mos_linear_idx);
 #endif
     SDL_free(data->pixels);
     SDL_free(data);

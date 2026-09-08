@@ -261,22 +261,18 @@
 /* Enable tray subsystem */
 #define SDL_TRAY_DUMMY 1
 
-/*
- * D(...) debug tracing.
- *
- * Always compiled in; silent at runtime unless the MorphOS environment
- * variable SDL3_HINT_DEBUG is set to "1" (setenv / SetEnv).  Read once and
- * cached; implemented in src/misc/morphos/SDL_mosdebug.c.
- */
-extern int  MOS_DebugLevel;
-extern int  MOS_DebugCheck(void);
-extern void MOS_DebugTrace(const char *func, const char *fmt, ...);
-
-#define D(fmt, ...) \
-	do { \
-		if (MOS_DebugLevel > 0 || (MOS_DebugLevel < 0 && MOS_DebugCheck() > 0)) \
-			MOS_DebugTrace(__func__, (fmt), ##__VA_ARGS__); \
-	} while (0)
+#ifdef __SDL_DEBUG
+	#include <exec/types.h>
+	struct ExecBase *SysBase;
+	#define E(fmt, ...) ({((STRPTR (*)(void *, CONST_STRPTR , APTR (*)(APTR, UBYTE), STRPTR , ...))*(void**)((long)(SysBase) - 922))((void*)(SysBase), fmt, (APTR)1, NULL, ##__VA_ARGS__);})
+	#define D(fmt, ...) { \
+		char nfmt[1024]; \
+		snprintf(nfmt, sizeof(nfmt), "[%s] %s\n", __FUNCTION__, fmt); \
+		E(nfmt, ##__VA_ARGS__); \
+	}
+#else
+	#define D(x, ...)
+#endif
 
 
 #endif /* SDL_config_morphos_h_ */
