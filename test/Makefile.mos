@@ -1,25 +1,8 @@
 # Makefile to build the MorphOS SDL tests
-#
-#   LINK_WITHSHARED = 1  -> link the client auto-open glue for sdl3.library
-#                           (needs: make -f ../Makefile.mos shared linklib ;
-#                            and sdl3.library in LIBS: or PROGDIR: at runtime)
-#   LINK_WITHSHARED = 0  -> link the monolithic static libSDL3_static.a
-#
-#   both need libSDL3_test.a in .. (make -f ../Makefile.mos static)
-
-LINK_WITHSHARED = 1
 
 CC     = ppc-morphos-gcc-9
-
-ifeq ($(LINK_WITHSHARED),1)
-  SDL3_LINK = -L../src/core/morphos/devenv/lib -lSDL3
-else
-  SDL3_LINK = -L.. -lSDL3_static
-endif
-
-CFLAGS = -noixemul -O2 -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
-LIBS	= -noixemul -L.. -lSDL3_test $(SDL3_LINK) -lGL -lm
-
+CFLAGS = -noixemul -O3 -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
+LIBS	= -noixemul -L.. -lSDL3_test -lSDL3 -lGL -lm
 
 SRC_FILES = $(wildcard *.c)
 #DEPS = $(SRC_FILES:.c=.d)

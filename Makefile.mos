@@ -1,75 +1,39 @@
-# Makefile for building SDL3 on MorphOS
+# Makefile for building SDL3 (MorphOS)
 #
-#   make               -> monolithic libSDL3_static.a + libSDL3_test.a
-#   make static        -> same as above
-#   make shared        -> resident sdl3.library   (re-invokes with MODE=shared)
-#   make linklib       -> client-side auto-open glue for sdl3.library (-lSDL3)
-#   make headers       -> regenerate the SDK proto/ ppcinline/ from the .fd
-#   make sdk           -> build everything + install shared-library SDK
-#                         (headers to $(GG)/os-include, -lSDL3 glue to $(PREFIX),
-#                          sdl3.library to $(LIBSDEST); override GG/PREFIX/LIBSDEST)
-#   make DEBUG=1 ...    -> add -D__SDL_DEBUG
-#   make install       -> copy the monolithic static libSDL3.a + headers to $(PREFIX)
-#   make clean
+# Features enabled in this build:
+#   - Native thread
+#   - MorphOS timer backend
+#   - AHI audio backend
+#   - OpenGL video supported
+#   - Gamepad support: sensors library / hotplug supported
+#   - Dialog support (MorphOS backend)
+#   - AltiVec optimizations
+#	- Multi-monitor supported
+#	- Software and OpenGL renderers supported
+#	- LoadObject via DLL
 #
-# The static and shared builds use separate object trees because the shared
-# objects carry -mresident32 -DBUILD_SDL3_LIBRARY and cannot be shared:
+# Notes:
+#   - "debug" adds -D__SDL_DEBUG
+#   - "install" copies headers and static libs to /gg/usr/local
 #
-#   build-mos/static/...     build-mos/shared/...
-#
-# Feature set: native threads, MorphOS timer, AHI audio, OpenGL (TinyGL),
-# MorphOS video (multi-monitor), gamepad + sensors hotplug, MorphOS dialogs,
-# AltiVec blitters, LoadObject via dll.
+# Known issues:
+#   - MessageBox: no window parent support
+#   - testcolorspace: incorrect color readback with OpenGL renderer
 
-# ----------------------------------------------------------------- toolchain
-AR      = ppc-morphos-ar
-RANLIB  = ppc-morphos-ranlib
-CC      = ppc-morphos-gcc-9 -noixemul
-CXX     = ppc-morphos-g++-9 -noixemul
-STRIP   = ppc-morphos-strip
-CVI     = /gg/bin/cvinclude.pl
+AR = ppc-morphos-ar
+RANLIB = ppc-morphos-ranlib
+CC = ppc-morphos-gcc-9
+CXX = ppc-morphos-g++-9
+STRIP = ppc-morphos-strip
 
 AMIGADATE = $(shell date +"%-d.%m.%Y")
 
-# ----------------------------------------------------------------- mode / flags
-MODE  ?= static
-DEBUG ?= 0
+DEFINES =  -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
+CFLAGS  =  -noixemul -O2 -Wall -ffast-math -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
 
-DEFINES  = -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS   = -O2 -Wall -fno-math-errno -Wshadow -fcommon -Wno-pointer-sign \
-           -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
-
-# the resident-library wrapper manages the -mresident32 data relocation itself,
-# so it must NOT be compiled -mresident32 (its refs to __sdata_size / __sbss_size
-# / .ctdt would become DREL relocations the linker rejects)
-CFLAGS_NORESIDENT = $(filter-out -mresident32,$(CFLAGS))
-
-ifeq ($(DEBUG),1)
-  CFLAGS += -D__SDL_DEBUG
-endif
-
-ifeq ($(MODE),shared)
-  OBJDIR  = build-mos/shared
-  CFLAGS += -mresident32 -DBUILD_SDL3_LIBRARY
-else
-  OBJDIR  = build-mos/static
-endif
-
-# the resident-library wrapper - kept OUT of the internal archive and passed
-# explicitly on the link line (like sdl2.library's $(COREOBJECTS))
-CORE_SRC = ./src/core/morphos/SDL_library.c \
-           ./src/core/morphos/SDL_startup.c \
-           ./src/core/morphos/SDL_stubs.c
-
-# ----------------------------------------------------------------- outputs
-TARGET_STATIC  = libSDL3_static.a       # monolithic: all of SDL3 linked into the app
+TARGET_STATIC  = libSDL3.a
 TESTLIB_STATIC = libSDL3_test.a
-SHARED_LIB     = sdl3.library
-INTERNAL_LIB   = $(OBJDIR)/libSDL3_lib.a
-#   (the -lSDL3 auto-open glue for sdl3.library is a SEPARATE libSDL3.a,
-#    built by `make linklib` under src/core/morphos/devenv/lib/)
 
-# ----------------------------------------------------------------- sources
 SOURCES = \
 	$(wildcard ./src/*.c) \
 	$(wildcard ./src/atomic/*.c) \
@@ -131,153 +95,44 @@ SOURCES = \
 	$(wildcard ./src/video/dummy/*.c) \
 	$(wildcard ./src/video/yuv2rgb/*.c)
 
-# the resident sdl3.library must export every LVO, so it also needs the
-# "unsupported on this platform" stub bodies that the static linklib can skip
-ifeq ($(MODE),shared)
-SOURCES += ./src/core/SDL_core_unsupported.c ./src/hidapi/SDL_hidapi.c
-endif
-
 TESTLIB_SOURCES = $(wildcard ./src/test/*.c)
 
-OBJECTS         = $(patsubst ./%,$(OBJDIR)/%,$(SOURCES:.c=.o))
-TESTLIB_OBJECTS = $(patsubst ./%,$(OBJDIR)/%,$(TESTLIB_SOURCES:.c=.o))
-CORE_OBJECTS    = $(patsubst ./%,$(OBJDIR)/%,$(CORE_SRC:.c=.o))
+OBJECTS = $(SOURCES:.c=.o)
+TESTLIB_OBJECTS = $(TESTLIB_SOURCES:.c=.o)
+ALL_OBJECTS = $(OBJECTS) $(TESTLIB_OBJECTS)
 
-# ----------------------------------------------------------------- top targets
-.PHONY: all static shared linklib headers sdk install clean dump
-
-all: static
-
-static:
-	@$(MAKE) --no-print-directory -f Makefile.mos MODE=static $(TARGET_STATIC) $(TESTLIB_STATIC)
-	@echo "static: $(TARGET_STATIC) $(TESTLIB_STATIC) ready"
-
-shared:
-	@$(MAKE) --no-print-directory -f Makefile.mos MODE=static $(TESTLIB_STATIC)
-	@$(MAKE) --no-print-directory -f Makefile.mos MODE=shared $(SHARED_LIB)
-	@echo "shared: $(SHARED_LIB) + $(TESTLIB_STATIC) ready"
-
-# ----------------------------------------------------------------- static libs
-$(TARGET_STATIC): $(OBJECTS)
-	@echo "Creating $@"
-	@rm -f $@
-	$(AR) crvs $@ $^
-	$(RANLIB) $@
+all: $(TARGET_STATIC) $(TESTLIB_STATIC)
+	@echo All done
+	
+debug: CFLAGS +=  -D__SDL_DEBUG
+debug: all
 
 $(TESTLIB_STATIC): $(TESTLIB_OBJECTS)
-	@echo "Creating $@"
-	@rm -f $@
+	@echo Creating $@
 	$(AR) crvs $@ $^
 	$(RANLIB) $@
 
-# ----------------------------------------------------------------- shared library
-$(INTERNAL_LIB): $(OBJECTS)
-	@echo "Creating $@"
-	@rm -f $@
+$(TARGET_STATIC): $(OBJECTS)
+	@echo Creating $@
 	$(AR) crvs $@ $^
 	$(RANLIB) $@
-
-$(SHARED_LIB): $(CORE_OBJECTS) $(INTERNAL_LIB)
-	@echo "Linking $@"
-	$(CC) -nostartfiles -mresident32 -Wl,-Map=sdl3.map \
-	      $(CORE_OBJECTS) \
-	      -o $@.db -L$(OBJDIR) -lSDL3_lib -lm -lGL
-	@echo "Stripping $@"
-	$(STRIP) -o $@ --remove-section=.comment $@.db
-
-# ----------------------------------------------------------------- client glue
-linklib:
-	$(MAKE) -C src/core/morphos/devenv
-
-# ----------------------------------------------------------------- SDK headers
-PPCINLINE = src/core/morphos/sdk/ppcinline/sdl3.h
-
-headers:
-	@echo "Generating SDK headers from sdl3_lib.fd"
-	$(CVI) --fd=src/core/morphos/sdk/fd/sdl3_lib.fd \
-	       --clib=src/core/morphos/sdk/clib/sdl3_protos.h \
-	       --proto=src/core/morphos/sdk/proto/sdl3.h
-	$(CVI) --fd=src/core/morphos/sdk/fd/sdl3_lib.fd \
-	       --clib=src/core/morphos/sdk/clib/sdl3_protos.h \
-	       --inline=$(PPCINLINE)
-	@echo "Patching va_list copies in $(PPCINLINE)"
-	@sed -i 's/va_list  *__t__p\([0-9]\) *= *__p\1;/va_list __t__p\1; va_copy(__t__p\1, __p\1);/g' $(PPCINLINE)
-
-# ----------------------------------------------------------------- compile rules
-$(OBJDIR)/%.o : %.c
-	@mkdir -p $(dir $@)
-	@echo "Compiling $<"
-	$(CC) $(CFLAGS) -o $@ -c $<
-
-# the library wrapper: never -mresident32 (see CFLAGS_NORESIDENT above)
-$(OBJDIR)/src/core/morphos/SDL_library.o: src/core/morphos/SDL_library.c
-	@mkdir -p $(dir $@)
-	@echo "Compiling $< (no -mresident32)"
-	$(CC) $(CFLAGS_NORESIDENT) -o $@ -c $<
-
-# AltiVec blitter needs its own flags
-$(OBJDIR)/src/video/SDL_blit_N.o: src/video/SDL_blit_N.c
-	@mkdir -p $(dir $@)
-	@echo "Compiling $< (AltiVec)"
-	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $<
-
-# ----------------------------------------------------------------- install / sdk
-GG       ?= /gg
-OSINC     = $(GG)/os-include
-PREFIX   ?= $(GG)/usr/local
-LIBSDEST ?= build-mos/LIBS      # staging for sdl3.library (copy to LIBS: on MorphOS)
-
-# monolithic static libSDL3.a only (SDL linked straight into the app)
-install: static
-	mkdir -p $(PREFIX)/lib $(PREFIX)/include/SDL3
-	cp -f $(TARGET_STATIC) $(TESTLIB_STATIC) $(PREFIX)/lib
-	cp -f include/SDL3/*.h $(PREFIX)/include/SDL3
-
-# full shared-library SDK: sdl3.library + client -lSDL3 auto-open glue + all headers
-sdk:
-	$(MAKE) -f Makefile.mos MODE=static $(TESTLIB_STATIC)
-	$(MAKE) -f Makefile.mos shared
-	$(MAKE) -f Makefile.mos headers
-	$(MAKE) -f Makefile.mos linklib
-	@echo "Installing SDL3 MorphOS shared-library SDK"
-	mkdir -p $(OSINC)/proto $(OSINC)/clib $(OSINC)/ppcinline $(OSINC)/fd
-	cp -f src/core/morphos/sdk/proto/sdl3.h         $(OSINC)/proto/sdl3.h
-	cp -f src/core/morphos/sdk/clib/sdl3_protos.h   $(OSINC)/clib/sdl3_protos.h
-	cp -f src/core/morphos/sdk/ppcinline/sdl3.h     $(OSINC)/ppcinline/sdl3.h
-	cp -f src/core/morphos/sdk/fd/sdl3_lib.fd       $(OSINC)/fd/sdl3_lib.fd
-	mkdir -p $(PREFIX)/include/SDL3 $(PREFIX)/lib/libb32
-	cp -f include/SDL3/*.h                          $(PREFIX)/include/SDL3/
-	cp -f src/core/morphos/devenv/lib/libSDL3.a           $(PREFIX)/lib/libSDL3.a
-	cp -f src/core/morphos/devenv/lib/libb32/libSDL3.a    $(PREFIX)/lib/libb32/libSDL3.a
-	cp -f src/core/morphos/devenv/lib/libb32/libSDL3-nc.a $(PREFIX)/lib/libb32/libSDL3-nc.a
-	-cp -f $(TESTLIB_STATIC)                        $(PREFIX)/lib/$(TESTLIB_STATIC)
-	mkdir -p $(LIBSDEST)
-	cp -f $(SHARED_LIB)                             $(LIBSDEST)/$(SHARED_LIB)
-	@echo ""
-	@echo "  headers : $(OSINC)/{proto,clib,ppcinline,fd}/sdl3*  +  $(PREFIX)/include/SDL3/"
-	@echo "  link    : -L$(PREFIX)/lib -lSDL3 -lGL -lm        (baserel32: add -L$(PREFIX)/lib/libb32)"
-	@echo "  runtime : copy $(LIBSDEST)/$(SHARED_LIB)  ->  LIBS:  inside MorphOS"
 
 clean:
-	@echo "Cleaning"
-	@rm -rf build-mos
-	@rm -f $(TARGET_STATIC) $(TESTLIB_STATIC) $(SHARED_LIB) $(SHARED_LIB).db sdl3.map \
-	       sdl3.library.s sdl3.library.sym libSDL3.a
-	@find ./src -name '*.o' -delete
-	@$(MAKE) -C src/core/morphos/devenv clean 2>/dev/null || true
+	@echo Cleaning
+	@rm -f $(TARGET_STATIC) $(TESTLIB_STATIC) $(ALL_OBJECTS) $(DEPS)
 
-# ----------------------------------------------------------------- crash triage
-# translate a MorphOS crash dump "LIBS:sdl3.library [Hunk N Offset 0xXXXX]" :
-#   - sdl3.library.sym  : symbols sorted by address (nm -n)
-#   - sdl3.library.s    : full disassembly with relocations
-#   - "objdump -h" line : section VMAs, so  Hunk<N>_VMA + 0xXXXX = the address
-#                         to look up in the two files above
-OBJDUMP ?= ppc-morphos-objdump
-NM      ?= ppc-morphos-nm
+install: all
+	mkdir -p /gg/usr/local/lib
+	mkdir -p /gg/usr/local/include/SDL3
+	cp -f $(TARGET_STATIC) /gg/usr/local/lib
+	cp -f $(TESTLIB_STATIC) /gg/usr/local/lib
+	cp -f include/SDL3/*.h /gg/usr/local/include/SDL3
 
-dump:
-	@test -f $(SHARED_LIB).db || { echo "build first: make -f Makefile.mos shared" >&2; false; }
-	$(OBJDUMP) -h $(SHARED_LIB).db
-	$(NM) -n $(SHARED_LIB).db > $(SHARED_LIB).sym
-	$(OBJDUMP) --disassemble-all --reloc $(SHARED_LIB).db > $(SHARED_LIB).s
-	@echo "wrote $(SHARED_LIB).sym  (nm -n)  and  $(SHARED_LIB).s  (disasm+reloc)"
+%.o : %.c
+	@echo Compiling $<
+	$(CC) -o $@ -c $< $(CFLAGS)
+
+# ALTIVEC
+src/video/SDL_blit_N.o: src/video/SDL_blit_N.c
+	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c src/video/SDL_blit_N.c
+
