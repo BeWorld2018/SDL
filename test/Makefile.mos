@@ -1,7 +1,7 @@
 # Makefile to build the MorphOS SDL tests
 
 CC     = ppc-morphos-gcc-9
-CFLAGS = -noixemul -O3 -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
+CFLAGS = -noixemul -O2 -Wall -I../include -I../include/build_config -I../src -DHAVE_OPENGL
 LIBS	= -noixemul -L.. -lSDL3_test -lSDL3 -lGL -lm
 
 SRC_FILES = $(wildcard *.c)
@@ -352,7 +352,8 @@ torturethread: torturethread.o
 	$(CC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -f $(TARGETS) *.o $(DEPS)
+	@echo "Cleaning tests"
+	@rm -f $(TARGETS) *.o $(DEPS)
 
 %.d : %.c
 	@echo Making dependencies for $<

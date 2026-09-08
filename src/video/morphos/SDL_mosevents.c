@@ -286,6 +286,7 @@ MOS_ChangeWindow(SDL_VideoDevice *_this, const struct IntuiMessage *m, SDL_Windo
 			MOS_GL_ResizeContext(_this, w);
 		}
         SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_RESIZED, width, height);
+        SDL_SendWindowEvent(w, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
     }
 
 }
@@ -466,6 +467,9 @@ MOS_DispatchEvent(SDL_VideoDevice *_this, struct IntuiMessage *m)
 		case IDCMP_REFRESHWINDOW:
 			BeginRefresh(m->IDCMPWindow);
 			EndRefresh(m->IDCMPWindow, TRUE);
+			if (data && data->window) {
+				SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+			}
 			break;
 
 		case IDCMP_CLOSEWINDOW:
@@ -579,7 +583,11 @@ MOS_ShowApp(SDL_VideoDevice *_this)
 		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_SHOWN, 0, 0);
 		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
 		SDL_SendWindowEvent(_this->current_glwin, SDL_EVENT_WINDOW_RESIZED, _this->current_glwin->w, _this->current_glwin->h);
-    }
+    } else {
+		for (SDL_Window *sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
+			SDL_SendWindowEvent(sdlwin, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
+		}
+	}
 }
 
 static void

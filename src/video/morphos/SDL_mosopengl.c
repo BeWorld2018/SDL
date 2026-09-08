@@ -48,6 +48,7 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 			if (!LIB_MINVER(TinyGLBase, 53, 10))
 			{
 				CloseLibrary(TinyGLBase);
+				TinyGLBase = NULL;
 				SDL_SetError("Failed to open tinygl.library 53.10+");
 				return false;
 			}

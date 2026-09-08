@@ -896,6 +896,7 @@ MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		ULONG value = ((1.0) * (ULONG_MAX));
 		MOS_SetWindowOpacityPrivate(_this, window, value);
 		SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_SHOWN, 0, 0);
+		SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_EXPOSED, 0, 0);
 		if (window->flags & SDL_WINDOW_FULLSCREEN) {
 			ScreenToFront(data->win->WScreen);
 		}
@@ -1064,10 +1065,8 @@ MOS_MinimizeWindow(SDL_VideoDevice *_this, SDL_Window * window)
 void
 MOS_RestoreWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
-#ifdef __SDL_DEBUG
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 	D("wnd 0x%08lx", data->win);
-#endif
 
 	if (window->flags & SDL_WINDOW_MINIMIZED) {
 		D("Restoring iconified '%s'", window->title);
@@ -1084,7 +1083,6 @@ MOS_RestoreWindow(SDL_VideoDevice *_this, SDL_Window * window)
 	}
 }
 
-#ifdef __SDL_DEBUG	
 static const char*
 MOS_DecodeFullscreenOp(SDL_FullscreenOp fullscreen)
 {
@@ -1099,7 +1097,6 @@ MOS_DecodeFullscreenOp(SDL_FullscreenOp fullscreen)
 
     return "unknown";
 }
-#endif
 
 SDL_FullscreenResult
 MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window *window,
