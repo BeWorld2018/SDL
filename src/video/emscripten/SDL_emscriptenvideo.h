@@ -57,6 +57,5 @@ struct SDL_WindowData
 extern SDL_Window *Emscripten_fill_document_window;
 
 bool Emscripten_ShouldSetSwapInterval(int interval);
-int Emscripten_GetPendingSwapInterval(void);
 
 #endif // SDL_emscriptenvideo_h_

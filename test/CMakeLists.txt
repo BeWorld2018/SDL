@@ -286,7 +286,8 @@ files2headers(gamepad_image_headers
 files2headers(icon_png_header icon.png)
 files2headers(glass_png_header glass.png)
 
-find_package(FFmpeg COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+set(FFmpeg_FIND_COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/FindFFmpeg.cmake")
 if(FFmpeg_FOUND)
     cmake_push_check_state()
     list(APPEND CMAKE_REQUIRED_INCLUDES "${FFmpeg_AVUTIL_INCLUDE_DIRS}")

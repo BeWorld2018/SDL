@@ -654,7 +654,8 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
         case SdlPlatform.Vita:
             job.ccache = True
             job.sudo = ""
-            job.apt_packages.extend(["ccache", "cmake", "unzip"])
+            job.apt_packages = []
+            job.apk_packages = ["ccache", "cmake", "ninja", "pkgconf", "bash", "tar"]
             job.cmake_toolchain_file = "${VITASDK}/share/vita.toolchain.cmake"
             assert spec.vita_gles is not None
             job.setup_vita_gles_type = {
@@ -664,7 +665,6 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
             job.cmake_arguments.extend((
                 f"-DVIDEO_VITA_PIB={ 'true' if spec.vita_gles == VitaGLES.Pib else 'false' }",
                 f"-DVIDEO_VITA_PVR={ 'true' if spec.vita_gles == VitaGLES.Pvr else 'false' }",
-                "-DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=TRUE",  # https://sourceforge.net/p/lame/bugs/526/
                 "-DSDL_ARMNEON=ON",
                 "-DSDL_ARMSIMD=ON",
                 ))
