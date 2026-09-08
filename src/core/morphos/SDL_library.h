@@ -100,9 +100,6 @@ struct SDL_Library
     struct SignalSemaphore Semaphore;
     APTR                   ctdtlist;
     APTR                   last_ctdt;
-
-    void           **MyGLContext;
-    struct Library **MyTinyGLBase;
 };
 
 /* filled in by init_system() from SystemInfo, read by the AltiVec blitters */

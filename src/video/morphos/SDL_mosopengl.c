@@ -35,16 +35,6 @@
 GLContext *__tglContext;
 struct Library *TinyGLBase;
 
-#ifdef BUILD_SDL3_LIBRARY
-#include "../../core/morphos/SDL_library.h"
-extern struct SDL_Library *SDL3Base;
-#define MOS_GL_PUBLISH_CTX(c)  do { if (SDL3Base && SDL3Base->MyGLContext)  *SDL3Base->MyGLContext  = (void *)(c); } while (0)
-#define MOS_GL_PUBLISH_TGL(b)  do { if (SDL3Base && SDL3Base->MyTinyGLBase) *SDL3Base->MyTinyGLBase = (struct Library *)(b); } while (0)
-#else
-#define MOS_GL_PUBLISH_CTX(c)  ((void)0)
-#define MOS_GL_PUBLISH_TGL(b)  ((void)0)
-#endif
-
 bool
 MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 {
@@ -58,11 +48,9 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 			if (!LIB_MINVER(TinyGLBase, 53, 10))
 			{
 				CloseLibrary(TinyGLBase);
-				TinyGLBase = NULL;
 				SDL_SetError("Failed to open tinygl.library 53.10+");
 				return false;
 			}
-			MOS_GL_PUBLISH_TGL(TinyGLBase);
 			return true;
 	} else
 		SDL_SetError("Failed to open tinygl.library 53+");
@@ -90,7 +78,6 @@ MOS_GL_UnloadLibrary(SDL_VideoDevice *_this)
 		CloseLibrary(TinyGLBase);
 		TinyGLBase = NULL;
 	}
-	MOS_GL_PUBLISH_TGL(NULL);
 }
 
 static void
@@ -179,14 +166,12 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 		bool success = MOS_GL_InitContext(_this, window);
 		if (success) {
 			D("SUCCES 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);
-			MOS_GL_PUBLISH_CTX(glcont);
 			return (SDL_GLContext)glcont;
 		} else {
 			D("FAILED 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);
 			MOS_GL_FreeBitMap(_this, window);
 			GLClose(glcont);
 			data->__tglContext = __tglContext = NULL;
-			MOS_GL_PUBLISH_CTX(NULL);
 			SDL_SetError("Couldn't initialize TinyGL context");
 		}
 	} else {
@@ -204,7 +189,6 @@ MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext co
 	else
 		__tglContext = NULL;
 
-	MOS_GL_PUBLISH_CTX(__tglContext);
 	return true;
 }
 
@@ -273,12 +257,10 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
 		}
 		if (deletions == 0) {
             D("GL context doesn't seem to have window binding\n");
-			MOS_GL_PUBLISH_CTX(NULL);
 			return false;
         }
 		GLClose((GLContext*)context);
 		__tglContext = NULL;
-		MOS_GL_PUBLISH_CTX(NULL);
 		return true;
 
 	}
