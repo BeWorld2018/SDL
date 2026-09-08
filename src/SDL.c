@@ -422,7 +422,6 @@ void SDL_InitMainThread(void)
 
     SDL_InitTLSData();
     SDL_InitEnvironment();
-
     SDL_InitTicks();
     SDL_InitFilesystem();
 

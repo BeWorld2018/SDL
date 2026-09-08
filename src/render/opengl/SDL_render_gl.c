@@ -802,22 +802,6 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
 }
 
 #ifdef __MORPHOS__
-/*
- * MorphOS / TinyGL has no SHADER_PALETTE_LINEAR / SHADER_PALETTE_PIXELART, so an
- * INDEX8 texture that is drawn with linear (or pixelart) filtering is expanded on
- * the CPU into an RGBA8 "shadow" texture that the hardware can filter directly.
- *
- * This keeps the shadow in sync with the texture's current palette. The INDEX8
- * pixels come from data->mos_linear_idx, which GL_UpdateTexture keeps up to date.
- *
- *  - dirty != NULL: only that region changed (a texture upload). Re-expand just
- *    that region, unless the palette also changed (then the whole texture is
- *    stale and gets rebuilt).
- *  - dirty == NULL: a draw. Rebuild only if the palette changed or the shadow was
- *    never built; otherwise this is just a version compare and returns.
- *
- * Returns true when the shadow is ready to be sampled.
- */
 static bool GL_MOS_RefreshLinearShadow(GL_RenderData *renderdata, SDL_Texture *texture, const SDL_Rect *dirty)
 {
     GL_TextureData *data = (GL_TextureData *)texture->internal;
@@ -832,8 +816,6 @@ static bool GL_MOS_RefreshLinearShadow(GL_RenderData *renderdata, SDL_Texture *t
         return false;
     }
 
-    // Create the shadow GL texture on first use (the draw-time scale mode may
-    // only have become LINEAR after the texture was created).
     if (!data->mos_linear_tex) {
         renderdata->glGenTextures(1, &data->mos_linear_tex);
         renderdata->glBindTexture(textype, data->mos_linear_tex);
@@ -858,8 +840,6 @@ static bool GL_MOS_RefreshLinearShadow(GL_RenderData *renderdata, SDL_Texture *t
         region = *dirty;
     }
 
-    // Expand the region through the palette. Out-of-range indices become fully
-    // transparent (not opaque black) so they don't paint a solid block.
     colors = pal->colors;
     for (yy = 0; yy < region.h; ++yy) {
         const Uint8 *s = data->mos_linear_idx + ((size_t)(region.y + yy) * texture->w + region.x);
@@ -2159,12 +2139,11 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     }
 
     // RGBA32 is always supported with OpenGL
-#ifndef __MORPHOS__ // MorphOS support that but dont have this extension before futur TinyGL 53.11++
-    if (bgra_supported)
-#endif
-    {
-        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);
+    if (bgra_supported) {
+    	D("OpenGL SDL_PIXELFORMAT_BGRA32 supported");
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);    // SDL_PIXELFORMAT_ARGB8888 on little endian systems
     }
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA32);
 
     // Check for shader support
     data->shaders = GL_CreateShaderContext();
@@ -2188,21 +2167,14 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL PIXELART shaders not supported");
     }
     // We support INDEX8 textures using 2 textures and a shader
+    if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
 #ifndef __MORPHOS__
- if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
         GL_SupportsShader(data->shaders, SHADER_PALETTE_LINEAR) &&
         (!data->pixelart_supported || GL_SupportsShader(data->shaders, SHADER_PALETTE_PIXELART)) &&
-        data->num_texture_units >= 2) {
-        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
-    } else
-#else
-    if (GL_SupportsShader(data->shaders, SHADER_PALETTE_NEAREST) &&
-        data->num_texture_units >= 2) {
-        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL INDEX8 via GLSL SHADER_PALETTE_NEAREST");
-    } else
 #endif
-	{
+        data->num_texture_units >= 2) {
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);
+    } else {
 		D("OpenGL palette shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL palette shaders not supported");
     }
@@ -2213,7 +2185,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_YV12);
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_IYUV);
     } else {
-		D("penGL YUV not supported");
+		D("OpenGL YUV not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL YUV not supported");
     }
 

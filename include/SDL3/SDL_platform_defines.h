@@ -485,7 +485,7 @@
 #endif
 
 #if defined(__MORPHOS__)
-#define SDL_PLATFORM_MORPHOS    1
+#define SDL_PLATFORM_MORPHOS 1
 #endif
 
 #ifdef __GNU__

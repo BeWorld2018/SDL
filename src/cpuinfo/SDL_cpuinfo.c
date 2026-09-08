@@ -87,6 +87,10 @@
 #include <sys/auxv.h>
 #endif
 
+#ifndef PPC_FEATURE_HAS_ALTIVEC
+#define PPC_FEATURE_HAS_ALTIVEC 0x10000000
+#endif
+
 #ifdef SDL_PLATFORM_RISCOS
 #include <kernel.h>
 #include <swis.h>
@@ -1298,8 +1302,7 @@ int SDL_GetSystemPageSize(void)
             }
         }
 #endif
-
-	   if (SDL_SystemPageSize < 0) {  // in case we got a weird result somewhere, or no better information, force it to 0.
+        if (SDL_SystemPageSize < 0) {  // in case we got a weird result somewhere, or no better information, force it to 0.
             SDL_SystemPageSize = 0;  // unknown page size, sorry.
         }
     }
