@@ -141,13 +141,6 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 	if (success) {
 		D("GLAInitializeContext Success");
 		data->__tglContext = __tglContext = ctx;
-
-		// Clean Screen
-		if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
-			GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
-			GLClear(__tglContext, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		}
-
 	} else
 		D("GLAInitializeContext Failed");
 
@@ -166,6 +159,10 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 		TGLSetAutomaticContextVersion(TinyGLBase, glcont);
 		bool success = MOS_GL_InitContext(_this, window);
 		if (success) {
+			if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
+				GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
+				GLClear(__tglContext, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			}
 			D("SUCCES 0x%08lx, data->__tglContext=0x%08lx", glcont, data->__tglContext);
 			return (SDL_GLContext)glcont;
 		} else {
@@ -279,7 +276,16 @@ MOS_GL_ResizeContext(SDL_VideoDevice *_this, SDL_Window *window)
 		return false;
 	}
 
-	return (MOS_GL_InitContext(_this, window) ? true : false);
+	if (!MOS_GL_InitContext(_this, window)) {
+		return false;
+	}
+
+	SDL_Renderer *renderer = SDL_GetRenderer(window);
+	if (renderer) {
+		SDL_FlushRenderer(renderer);
+	}
+
+	return true;
 }
 
 #endif /* SDL_VIDEO_DRIVER_MORPHOS */
