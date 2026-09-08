@@ -588,6 +588,7 @@ static bool CompileShaderProgram(GL_ShaderContext *ctx, int index, GL_ShaderData
     ctx->glAttachObjectARB(data->program, data->vert_shader);
     ctx->glAttachObjectARB(data->program, data->frag_shader);
     ctx->glLinkProgramARB(data->program);
+#ifdef __MORPHOS__
 	GLint linked = 0;
 	ctx->glGetObjectParameterivARB(data->program, GL_OBJECT_LINK_STATUS_ARB, &linked);
 	if (!linked) {
@@ -597,6 +598,7 @@ static bool CompileShaderProgram(GL_ShaderContext *ctx, int index, GL_ShaderData
 		D("Shader[%d] link error LOG=%s", index, log);
 		//D("vert=%s \nfrag=%s", shader_source[index].vertex_shader, shader_source[index].fragment_shader);
 	}
+#endif
 
     // Set up some uniform variables
     ctx->glUseProgramObjectARB(data->program);
