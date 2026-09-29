@@ -49,7 +49,7 @@ static const struct loc locs[] =
 	{ "norsk",		"nn_NO" },
 	{ "polski",		"pl_PL" },
 	{ "português",	"pt_PT" },
-	{ "shqipja"		"sq_AL" },
+	{ "shqipja",		"sq_AL" },
 	{ "suomi",		"fi_FI" },
 	{ "svenska",	"sv_SE" },
 	{ "türkçe",		"tr_TR" },
@@ -70,17 +70,14 @@ SDL_SYS_GetPreferredLocales(char *buf, size_t buflen)
 	// check the LANGUAGE env variable
 	if (GetVar("LANGUAGE", language, sizeof(language), 0) > 0)
 	{
-		int i;
-		const struct loc *curLoc = NULL;
+		const struct loc *curLoc;
 
-		for(i=0;;i++)
+		for (curLoc = locs; curLoc->name; curLoc++)
 		{
-			curLoc = &locs[i];
-
-			if(Strnicmp(language, curLoc->name, sizeof(curLoc->name)) == 0)
+			if (Strnicmp(language, curLoc->name, SDL_strlen(curLoc->name)) == 0)
 			{
 			  D("[%s] found language name for '%s'\n", __FUNCTION__, curLoc->codeLang);
-			  snprintf(buf, buflen, curLoc->codeLang);
+			  SDL_strlcpy(buf, curLoc->codeLang, buflen);
 			  found = SDL_TRUE;
 			  break;
 			}
