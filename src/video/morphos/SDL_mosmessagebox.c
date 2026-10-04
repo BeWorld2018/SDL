@@ -32,59 +32,76 @@ int
 MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonid)
 {
 	struct Library *MUIMasterBase = OpenLibrary("muimaster.library", 0);
-	int rc = -1;
+	char *title = NULL, *message = NULL, *btxt = NULL, **labels = NULL;
+	size_t args[1], len = sizeof("_OK");
+	int i, n = mbd->numbuttons, rc = -1;
 
 	D("[%s]\n", __FUNCTION__);
 
-	if (MUIMasterBase) {
+	if (!MUIMasterBase)
+		return -1;
 
-		char *title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
-        if (title) {
+	title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+	message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+	if (!title || !message)
+		goto done;
 
-            char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+	if (n > 0) {
+		labels = SDL_calloc(n, sizeof(*labels));
+		if (!labels)
+			goto done;
 
-            if (message) {
-                size_t i, tlen = 1024;
-                char *btxt;
-
-                btxt = SDL_malloc(tlen);
-
-                if (btxt) {
-                    char *buf = btxt;
-
-                    for (i = 0; i < mbd->numbuttons; i++) {
-                        if (i > 0)
-                            *buf++ = '|';
-
-                        if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
-                            *buf++ = '*';
-
-                        buf += ConvertTagList((APTR)mbd->buttons[i].text, -1, buf, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL);
-                    }
-
-                    *buf = '\0';
-
-                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL2" : title, btxt, message, NULL);
-
-                    if (rc == 0)
-                        rc = mbd->numbuttons - 1;
-                    else
-                        rc -= 1;
-
-                    *buttonid = mbd->buttons[rc].buttonid;
-
-                    SDL_free(btxt);
-                    rc = 0;
-                }
-
-                SDL_free(message);
-            }
-
-            SDL_free(title);
-        }
-
-		CloseLibrary(MUIMasterBase);
+		for (i = 0; i < n; i++) {
+			labels[i] = MOS_ConvertText(mbd->buttons[i].text ? mbd->buttons[i].text : "", MIBENUM_UTF_8, MIBENUM_SYSTEM);
+			if (!labels[i])
+				goto done;
+			len += SDL_strlen(labels[i]) + 2;  /* '|' and '*' */
+		}
 	}
+
+	btxt = SDL_malloc(len);
+	if (!btxt)
+		goto done;
+
+	if (n == 0) {
+		SDL_strlcpy(btxt, "_OK", len);
+	} else {
+		*btxt = '\0';
+		for (i = 0; i < n; i++) {
+			if (i > 0)
+				SDL_strlcat(btxt, "|", len);
+			if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
+				SDL_strlcat(btxt, "*", len);
+			SDL_strlcat(btxt, labels[i], len);
+		}
+	}
+
+	/* The message is an argument, never the format string */
+	args[0] = (size_t)message;
+	rc = MUI_RequestA(NULL, NULL, 0, title, btxt, "%s", args);
+
+	/* 1..n-1 for the buttons from the left, 0 for the rightmost one */
+	rc = rc > 0 ? rc - 1 : n - 1;
+	if (rc >= n)
+		rc = n - 1;
+
+	*buttonid = n > 0 ? mbd->buttons[rc].buttonid : -1;
+	rc = 0;
+
+done:
+	if (rc < 0)
+		SDL_OutOfMemory();
+
+	if (labels) {
+		for (i = 0; i < n; i++)
+			SDL_free(labels[i]);
+		SDL_free(labels);
+	}
+	SDL_free(btxt);
+	SDL_free(message);
+	SDL_free(title);
+
+	CloseLibrary(MUIMasterBase);
 
 	return rc;
 }
