@@ -64,7 +64,7 @@ SDL_GetTicks64(void)
 		tv.tv_micro += 1000000;
 	}
 
-	return (Uint64)((tv.tv_secs - basetime.tv_secs) * 1000) + ((tv.tv_micro - basetime.tv_micro)/1000);
+	return (Uint64)(tv.tv_secs - basetime.tv_secs) * 1000 + (tv.tv_micro - basetime.tv_micro) / 1000;
 }
 
 Uint64
