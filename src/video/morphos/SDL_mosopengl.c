@@ -281,14 +281,12 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 	SDL_VideoData *video = _this->driverdata;
 	
 	GLASwapBuffers(data->__tglContext);
-	
-	if (video->vsyncEnabled && data->win->WScreen) {
-		BOOL displayed = getv(data->win->WScreen, SA_Displayed);
-		if (displayed) {
-			WaitBOVP(&data->win->WScreen->ViewPort);
-		}
+
+	// WaitTOF() sleeps until the vertical blank, WaitBOVP() polls the beam position
+	if (video->vsyncEnabled) {
+		WaitTOF();
 	}
-	
+
 	if (data->bitmap != NULL) {
 		
 		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop, 

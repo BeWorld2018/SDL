@@ -180,9 +180,11 @@ static void
 MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
 {
 	SDL_WindowData *data = (SDL_WindowData *)m->IDCMPWindow->UserData;
-    if (data) {
+    // Ignore a late message from an Intuition window replaced by a new one
+    if (data && m->IDCMPWindow == data->win) {
         if (data->window) {
             if (activated) {
+                D("[%s] 0x%08lx active\n", __FUNCTION__, data->win);
 
                 SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_SHOWN, 0, 0);
                 if (SDL_GetKeyboardFocus() != data->window)
@@ -191,7 +193,25 @@ MOS_HandleActivation(_THIS, struct IntuiMessage *m, SDL_bool activated)
                 SDL_SetMouseFocus(data->window);
                 MOS_MouseMove(_this, m, data);
 
+                // WM_ObtainEvents needs an active window
+                MOS_UpdateWindowGrab(data);
+                MOS_UpdateWindowPointer(_this->driverdata, data, TRUE);
+
+            } else if (data->win->Flags & WFLG_WINDOWACTIVE) {
+                // Still active: the system revoked WM_ObtainEvents because a window
+                // opened or was activated (ours too: MOS_RecreateWindow), it is
+                // not a focus loss. Release and obtain the events again.
+                D("[%s] 0x%08lx events revoked, still active\n", __FUNCTION__, data->win);
+                MOS_ReleaseWindowEvents(data, data->win);
+                MOS_UpdateWindowGrab(data);
+                MOS_UpdateWindowPointer(_this->driverdata, data, TRUE);
+
             } else {
+                D("[%s] 0x%08lx inactive\n", __FUNCTION__, data->win);
+
+                // The system revoked the events with the activation of another window
+                MOS_ReleaseWindowEvents(data, data->win);
+
                 if (SDL_GetKeyboardFocus() == data->window)
                     SDL_SetKeyboardFocus(NULL);
                 if (SDL_GetMouseFocus() == data->window)
@@ -206,7 +226,7 @@ MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 {
 	struct Window *w = data->win;
 
-	if (data->curr_x != w->LeftEdge || data->curr_h != w->TopEdge) {
+	if (data->curr_x != w->LeftEdge || data->curr_y != w->TopEdge) {
 		data->curr_x = w->LeftEdge;
 		data->curr_y = w->TopEdge;
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_MOVED, data->curr_x, data->curr_y);
@@ -390,20 +410,30 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
                 case MID_RRAUTO:
                     MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
                     MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+                    MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
                     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
                     MOS_setenv("SDL_RENDER_DRIVER", "", SDL_TRUE);
                     break;
                 case MID_RRGL:
                     MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
                     MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+                    MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
                     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
                     MOS_setenv("SDL_RENDER_DRIVER", "opengl", SDL_TRUE);
                     break;
                 case MID_RRSOFT:
                     MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
                     MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+                    MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
                     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
                     MOS_setenv("SDL_RENDER_DRIVER", "software", SDL_TRUE);
+                    break;
+                case MID_RROVL:
+                    MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+                    MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+                    MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+                    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "overlay");
+                    MOS_setenv("SDL_RENDER_DRIVER", "overlay", SDL_TRUE);
                     break;
                 case MID_RVAUTO:
                     MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
@@ -468,14 +498,14 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
                 case MID_BENABLE:
                     MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
                     MOS_GlobalMenu(data->menu, 1, 7, 2, 0);
-                    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
-                    MOS_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
+                    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+                    MOS_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
                     break;
                 case MID_BDISABLE:
                     MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
                     MOS_GlobalMenu(data->menu, 1, 7, 1, 0);
-                    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
-                    MOS_setenv("SDL_RENDER_BATCHING", "1", SDL_TRUE);
+                    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "0");
+                    MOS_setenv("SDL_RENDER_BATCHING", "0", SDL_TRUE);
                     break;
                 case MID_MDEF:
                     MOS_GlobalMenu(data->menu, 1, 8, 1, 0);
@@ -705,43 +735,16 @@ MOS_PumpEvents(_THIS)
         SDL_WindowData *wdata = NULL;
         while ((m = (struct IntuiMessage *)GetMsg(&data->WinPort))) {
             wdata = (SDL_WindowData *)m->IDCMPWindow->UserData;
-            if (m->Class == IDCMP_MOUSEMOVE && !SDL_GetRelativeMouseMode())
+            if (m->Class == IDCMP_MOUSEMOVE)
                 check_mousecoord = TRUE;
 
             MOS_DispatchEvent(_this, m);
             ReplyMsg((struct Message *)m);
         }
 
-        if (wdata && check_mousecoord && wdata->win) {
-            struct Window *w = wdata->win;
-            struct Screen *s = w->WScreen;
-            if (s) {
-                LONG mx = s->MouseX;
-                LONG my = s->MouseY;
-                LONG ws = w->LeftEdge + w->BorderLeft;
-                LONG wy = w->TopEdge + w->BorderTop;
-                LONG wx2 = w->LeftEdge + w->Width - w->BorderRight;
-                LONG wy2 = w->TopEdge + w->Height - w->BorderBottom;
-                if (mx >= ws && my >= wy && mx <= wx2 && my <= wy2) {
-                    w->Flags |= WFLG_RMBTRAP;
-
-                    if (data->CurrentPointer) {
-                        if (!IS_SYSTEM_CURSOR(data->CurrentPointer)) {
-                            SDL_MOSCursor *ac = (SDL_MOSCursor *)data->CurrentPointer;
-                            if (ac->Pointer.mouseptr)
-                                SetWindowPointer(w, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
-                        }
-                    } else {
-                        size_t pointertags[] = { WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE };
-                        SetAttrsA(w, (struct TagItem *)&pointertags);
-                    }
-
-                } else {
-                    w->Flags &= ~WFLG_RMBTRAP;
-                    ClearPointer(w);
-                }
-            }
-        }
+        // SDL cursor over the window, system pointer outside of it
+        if (wdata && check_mousecoord && wdata->win)
+            MOS_UpdateWindowPointer(data, wdata, FALSE);
     }
 
     if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)

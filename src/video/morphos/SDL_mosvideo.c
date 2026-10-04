@@ -57,7 +57,9 @@ MOS_CloseDisplay(_THIS)
 	D("[%s] CustomScreen=0x%08lx  WScreen=0x%08lx \n", __FUNCTION__, data->CustomScreen, data->WScreen);
 
 	if (data->CustomScreen) {
-		CloseScreen(data->CustomScreen);
+		// Fails while windows are still open on it (other programs...)
+		if (!CloseScreen(data->CustomScreen))
+			D("[%s] CloseScreen(0x%08lx) failed, screen left open\n", __FUNCTION__, data->CustomScreen);
 	}
 	else if (data->WScreen) {
 		if (data->ScreenSaverSuspendCount) {
@@ -146,7 +148,7 @@ MOS_VideoInit(_THIS)
 	MOS_InitKeyboard(_this);
 	MOS_InitMouse(_this);
 
-	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
+	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "ENV:gamecontrollerdb.txt");
 	SDL_SetHint(SDL_HINT_POLL_SENTINEL, "0");
 

@@ -378,7 +378,8 @@ MOS_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
-	D("[%s]\n", __FUNCTION__);
+	D("[%s] %ldx%ld %s, monitor '%s'\n", __FUNCTION__, (long)mode->w, (long)mode->h,
+	  SDL_GetPixelFormatName(mode->format), mode->driverdata == NULL ? display->name : "(Workbench)");
 
 	MOS_CloseWindows(_this);
 	MOS_CloseDisplay(_this);

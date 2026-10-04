@@ -69,6 +69,7 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRAUTO },
 	{ NM_SUB, (char *)"OpenGL", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRGL },
 	{ NM_SUB, (char *)"Software", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRSOFT },
+	{ NM_SUB, (char *)"Overlay", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RROVL },
 	{ NM_ITEM, (char *)"HINT RENDER VSYNC", 0, 0, 0, (APTR)MID_RVSYNC },
 	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVAUTO },
 	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVENABLE },
@@ -97,7 +98,30 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_END , NULL, NULL, 0, 0, NULL }
 };
 
-static void 
+// The overlay renderer must detach its overlay before the window goes away
+static void
+MOS_NotifyWindowClosing(SDL_WindowData *data)
+{
+	if (data && data->overlay_closing)
+		data->overlay_closing(data->overlay_userdata);
+}
+
+// Must be called under Forbid(): the user port is shared by all windows
+static void
+MOS_StripWindowMessages(struct Window *win)
+{
+	struct IntuiMessage *msg, *tmp;
+
+	ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp)
+	{
+		if (msg->IDCMPWindow == win) {
+			REMOVE(&msg->ExecMessage.mn_Node);
+			ReplyMsg(&msg->ExecMessage);
+		}
+	}
+}
+
+static void
 MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 {
 	D("[%s]\n", __FUNCTION__);
@@ -107,21 +131,19 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 
 	if (SDL_GetMouseFocus() == sdlwin)
 		SDL_SetMouseFocus(NULL);
-		
+
     if ((sdlwin->flags & SDL_WINDOW_FOREIGN) == 0) {
-        struct IntuiMessage *msg, *tmp;
+		// MOS_DestroyWindow() already cleared sdlwin->driverdata
+		SDL_WindowData *data = sdlwin->driverdata ? (SDL_WindowData *) sdlwin->driverdata : (SDL_WindowData *) win->UserData;
+
+		MOS_NotifyWindowClosing(data);
+		MOS_ReleaseWindowEvents(data, win);
 
         Forbid();
 
-        ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp)
-        {
-            if (msg->IDCMPWindow == win) {
-                REMOVE(&msg->ExecMessage.mn_Node);
-                ReplyMsg(&msg->ExecMessage);
-            }
-        }
-		SDL_WindowData *data = (SDL_WindowData *) sdlwin->driverdata;
-		if (data->menuactive == TRUE) {
+        MOS_StripWindowMessages(win);
+
+		if (data && data->menuactive == TRUE) {
             ClearMenuStrip(win);
             FreeMenus(data->menu);
             data->menu = NULL;
@@ -197,6 +219,8 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
 		wd->win = win;
 		wd->__tglContext = NULL;
 		wd->grabbed = -1;
+		wd->grab_owned = FALSE;
+		wd->pointer_inside = -1;
 		wd->sdlflags = 0;
 		wd->window_title = NULL;
 		wd->videodata = data;
@@ -278,6 +302,7 @@ MOS_SetWindowIcon(_THIS, SDL_Window * window, SDL_Surface * icon)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] wnd 0x%08lx - TODO convert this icon to appicon \n", __FUNCTION__, data->win);
+	(void)data;
 }
 
 void
@@ -367,28 +392,10 @@ MOS_WindowToFront(struct Window *win)
 	WindowToFront(win);
 }
 
-char *MOS_getenv(const char *name)
+// Reads a local or global variable into value, FALSE when unset or empty
+static BOOL MOS_getenv(const char *name, char *value, size_t size)
 {
-	char *value = NULL;
-	char dummy[32];
-	size_t len;
-
-	if (GetVar((char *)name, dummy, sizeof(dummy), GVF_BINARY_VAR) == -1)
-	{
-		return NULL;
-	}
-	
-	len = IoErr() + 1;
-	
-	if ((value = SDL_malloc(len)))
-	{
-		if (GetVar((char *)name, value, len, GVF_GLOBAL_ONLY) == -1)
-		{
-			SDL_free(value);
-			value = NULL;
-		}
-	}
-	return value;
+	return GetVar((char *)name, value, size, LV_VAR) > 0;
 }
 
 void
@@ -412,12 +419,18 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		SDL_bool win_resizable = (window->flags & SDL_WINDOW_RESIZABLE && !fullscreen);
 
 		data->winflags |= SDL_MOS_WINDOW_SHOWN;
-		
+
+		// Desktop fullscreen stays on the Workbench: only a real fullscreen mode
+		// (MOS_SetDisplayMode() set ScrWidth/ScrHeight/ScrDepth) opens a screen
 		if (vd->WScreen == NULL)
-			MOS_GetScreen(vd->VideoDevice, vd->FullScreen, (window->flags & SDL_WINDOW_OPENGL) != 0);
-		
+			MOS_GetScreen(vd->VideoDevice, vd->FullScreen && !fs_desktop, (window->flags & SDL_WINDOW_OPENGL) != 0);
+
 		scr = vd->WScreen;
-		
+		if (scr == NULL) {
+			D("[%s] no screen: %s\n", __FUNCTION__, SDL_GetError());
+			return;
+		}
+
 		size_t max_w = window->max_w ? window->max_w : (win_resizable ? scr->Width : w);
 		size_t max_h = window->max_h ? window->max_h : (win_resizable ? scr->Height : h);
 	
@@ -505,20 +518,18 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			WA_AutoAdjust, TRUE,
 			WA_Opacity, opacity_value,
 			WA_FrontWindow, win_top ? TRUE : FALSE,
-			WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY | IDCMP_MOUSEMOVE | IDCMP_DELTAMOVE | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW | IDCMP_CHANGEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK,
+			WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY | IDCMP_MOUSEMOVE | (SDL_GetRelativeMouseMode() ? IDCMP_DELTAMOVE : 0) | IDCMP_MOUSEBUTTONS | IDCMP_REFRESHWINDOW | IDCMP_ACTIVEWINDOW | IDCMP_INACTIVEWINDOW | IDCMP_CHANGEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK,
 			vd->CustomScreen ? TAG_IGNORE : WA_ExtraTitlebarGadgets, ETG_ICONIFY,
 			TAG_DONE);
 
 		if (data->win) {
-			if (IS_SYSTEM_CURSOR(vd->CurrentPointer)) {
-				size_t pointertags[] = { WA_PointerType, vd->CurrentPointer == NULL ? POINTERTYPE_INVISIBLE : (size_t)vd->CurrentPointer->driverdata, TAG_DONE };
-				SetAttrsA(data->win, (struct TagItem *)&pointertags);
-			} else{
-				SDL_MOSCursor *ac = (SDL_MOSCursor *)vd->CurrentPointer;
-				if (ac->Pointer.mouseptr) {
-					SetWindowPointer(data->win,WA_Pointer,(size_t)ac->Pointer.mouseptr,TAG_DONE);
-				}
-			}
+			D("[%s] opened 0x%08lx on screen 0x%08lx, %ldx%ld, fullscreen %ld, desktop %ld\n", __FUNCTION__,
+			  data->win, scr, (long)w, (long)h, (long)fullscreen, (long)fs_desktop);
+
+			// Events are obtained again once the window is active, see MOS_UpdateWindowGrab()
+			data->grab_owned = FALSE;
+			data->pointer_inside = -1;
+			MOS_ApplyPointer(vd, data->win);
 
 			data->curr_x = data->win->LeftEdge;
 			data->curr_y = data->win->TopEdge;
@@ -527,6 +538,12 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			data->first_deltamove = TRUE;
             data->menuactive = FALSE;
             data->win->UserData = (APTR)data;
+
+			// Opened active (WFLG_ACTIVATE). When the window is recreated (fullscreen
+			// switch...) the IDCMP_ACTIVEWINDOW can be lost, and without keyboard
+			// focus SDL drops the joystick and game controller events.
+			if (SDL_GetKeyboardFocus() != window)
+				SDL_SetKeyboardFocus(window);
 
 			/* Menu */
             if (!fullscreen) {
@@ -554,56 +571,52 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 
             if (data->menuactive == TRUE) {
 				if (SetMenuStrip(data->win, data->menu)) {
-					char *val = MOS_getenv("SDL_THREAD_PRIORITY_POLICY");
-					if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
+					char val[32];
+					if (MOS_getenv("SDL_THREAD_PRIORITY_POLICY", val, sizeof(val)) && strcmp(val, "-1")==0) {
 						SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
 						MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
 					}
-					val = MOS_getenv("SDL_RENDER_DRIVER");
-					if (val && strlen(val)>0) {					
+					if (MOS_getenv("SDL_RENDER_DRIVER", val, sizeof(val))) {
+						const char *driver = (strcmp(val, "opengl")==0) ? "opengl" : (strcmp(val, "overlay")==0) ? "overlay" : "software";
 						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 3, 1, (strcmp(val, "opengl")==0 ? 1 : 0));
-						MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "opengl")==0 ? 0 : 1));
-						SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : "software"));
+						MOS_GlobalMenu(data->menu, 1, 3, 1, (strcmp(driver, "opengl")==0 ? 1 : 0));
+						MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(driver, "software")==0 ? 1 : 0));
+						MOS_GlobalMenu(data->menu, 1, 3, 3, (strcmp(driver, "overlay")==0 ? 1 : 0));
+						SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver);
 					}
-					val = MOS_getenv("SDL_RENDER_VSYNC");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_VSYNC", val, sizeof(val))) {
 						MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 4, 1, (strcmp(val, "1")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 4, 2, (strcmp(val, "1")==0 ? 0 : 1));
 						SDL_SetHint(SDL_HINT_RENDER_VSYNC, (strcmp(val, "1")==0 ? "1" :"0"));
 					}
-					val = MOS_getenv("SDL_RENDER_SCALE_QUALITY");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_SCALE_QUALITY", val, sizeof(val))) {
 						MOS_GlobalMenu(data->menu, 1, 5, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 5, 1, (strcmp(val, "nearest")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 5, 2, (strcmp(val, "nearest")==0 ? 0 : 1));
 						SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, (strcmp(val, "nearest")==0 ? "nearest" : "linear"));
 					}
-					val = MOS_getenv("SDL_RENDER_LOGICAL_SIZE_MODE");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_LOGICAL_SIZE_MODE", val, sizeof(val))) {
 						MOS_GlobalMenu(data->menu, 1, 6, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 6, 1, (strcmp(val, "0")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 6, 2, (strcmp(val, "0")==0 ? 0 : 1));
 						SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, (strcmp(val, "0")==0 ? "0" : "1"));
 					}
-					val = MOS_getenv("SDL_RENDER_BATCHING");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_BATCHING", val, sizeof(val))) {
+						const BOOL batching = (strcmp(val, "0") != 0);
 						MOS_GlobalMenu(data->menu, 1, 7, 0, 0);
-						MOS_GlobalMenu(data->menu, 1, 7, 1, (strcmp(val, "0")==0 ? 1 : 0));
-						MOS_GlobalMenu(data->menu, 1, 7, 2, (strcmp(val, "0")==0 ? 0 : 1));
-						SDL_SetHint(SDL_HINT_RENDER_BATCHING, (strcmp(val, "0")==0 ? "0" : "1"));
+						MOS_GlobalMenu(data->menu, 1, 7, 1, batching ? 1 : 0);
+						MOS_GlobalMenu(data->menu, 1, 7, 2, batching ? 0 : 1);
+						SDL_SetHint(SDL_HINT_RENDER_BATCHING, batching ? "1" : "0");
 					}
-					val = MOS_getenv("SDL_RENDER_LINE_METHOD");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_LINE_METHOD", val, sizeof(val))) {
 						MOS_GlobalMenu(data->menu, 1, 8, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 8, 1, (strcmp(val, "1")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 8, 2, (strcmp(val, "2")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 8, 3, (strcmp(val, "3")==0 ? 1 : 0));
 						SDL_SetHint(SDL_HINT_RENDER_LINE_METHOD, (strcmp(val, "1")==0 ? "1" : (strcmp(val, "2")==0 ? "2" : "3")));
 					}
-					val = MOS_getenv("SDL_RENDER_OPENGL_SHADERS");
-					if (val && strlen(val)>0) {
+					if (MOS_getenv("SDL_RENDER_OPENGL_SHADERS", val, sizeof(val))) {
 						MOS_GlobalMenu(data->menu, 1, 9, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 9, 1, (strcmp(val, "1")==0 ? 1 : 0));
 						MOS_GlobalMenu(data->menu, 1, 9, 2, (strcmp(val, "0")==0 ? 1 : 0));
@@ -618,11 +631,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 					D("[%s] ERROR AddAppWindow \n", __FUNCTION__);
 			}
 			
-			if (data->grabbed > 0)
-				DoMethod((Object *)data->win, WM_ObtainEvents);
-				
+			MOS_UpdateWindowGrab(data);
 		}
-		
+
 	} else if (data->win) {
 		MOS_WindowToFront(data->win);
 	}
@@ -711,6 +722,10 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = data->videodata;
 
+	D("[%s] %s%s, window 0x%08lx, screen 0x%08lx\n", __FUNCTION__, fullscreen ? "fullscreen" : "windowed",
+	  (window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP ? " desktop" : "",
+	  data->win, vd->WScreen);
+
 	if (fullscreen) {
 		data->winflags |= SDL_MOS_WINDOW_FULLSCREEN;
 		if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
@@ -773,21 +788,66 @@ MOS_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp)
 	return 0;
 }
 
+/*
+ * WM_ObtainEvents (mouse grab) is revoked by the system when a window opens or
+ * gets activated, even our own window: data->grabbed is what SDL wants, kept
+ * while the Intuition window is closed, data->grab_owned whether we really own
+ * the events. They are obtained when the window is active (here, when it
+ * opens and on IDCMP_ACTIVEWINDOW) and released before it closes.
+ */
+void
+MOS_UpdateWindowGrab(SDL_WindowData *data)
+{
+	struct Window *win = data->win;
+
+	if (!win)
+		return;
+
+	if (data->grabbed > 0 && !data->grab_owned && (win->Flags & WFLG_WINDOWACTIVE)) {
+		data->grab_owned = DoMethod((Object *)win, WM_ObtainEvents) ? TRUE : FALSE;
+		D("[%s] WM_ObtainEvents 0x%08lx: %ld\n", __FUNCTION__, win, (long)data->grab_owned);
+		MOS_UpdateWindowPointer(data->videodata, data, TRUE);
+	} else if (data->grabbed <= 0 && data->grab_owned) {
+		D("[%s] WM_ReleaseEvents 0x%08lx\n", __FUNCTION__, win);
+		DoMethod((Object *)win, WM_ReleaseEvents);
+		data->grab_owned = FALSE;
+		MOS_UpdateWindowPointer(data->videodata, data, TRUE);
+	}
+}
+
+// Before closing the Intuition window, which may not be data->win anymore
+void
+MOS_ReleaseWindowEvents(SDL_WindowData *data, struct Window *win)
+{
+	if (data && data->grab_owned) {
+		D("[%s] WM_ReleaseEvents 0x%08lx\n", __FUNCTION__, win);
+		DoMethod((Object *)win, WM_ReleaseEvents);
+		data->grab_owned = FALSE;
+	}
+	if (data)
+		data->pointer_inside = -1;
+}
+
 void
 MOS_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (data->win && data->grabbed != (grabbed ? 1 : 0)) {
-		D("[%s] %s\n", __FUNCTION__, grabbed ? "grabbed" : "not grabbed");
+	if (!data)
+		return;
+
+	// Remembered even without Intuition window (closed for a fullscreen switch...)
+	if (data->grabbed != (grabbed ? 1 : 0)) {
+		D("[%s] %s, window 0x%08lx\n", __FUNCTION__, grabbed ? "grabbed" : "not grabbed", data->win);
 
 		data->grabbed = grabbed ? 1 : 0;
 
-		if (grabbed && (data->win->Flags & WFLG_WINDOWACTIVE) == 0)
+		// Activating it obtains the events, see MOS_HandleActivation()
+		if (grabbed && data->win && (data->win->Flags & WFLG_WINDOWACTIVE) == 0)
 			MOS_WindowToFront(data->win);
-
-		DoMethod((Object *)data->win, grabbed ? WM_ObtainEvents : WM_ReleaseEvents);
 	}
+
+	MOS_UpdateWindowGrab(data);
 }
 
 void
@@ -852,6 +912,10 @@ MOS_CloseWindow(SDL_Window *window)
         }
 
 		struct Window *win = data->win;
+
+		MOS_NotifyWindowClosing(data);
+		MOS_ReleaseWindowEvents(data, win);
+
         if (data->menuactive == TRUE) {
             ClearMenuStrip(win);
             FreeMenus(data->menu);
@@ -860,7 +924,12 @@ MOS_CloseWindow(SDL_Window *window)
             data->menuvisualinfo = NULL;
             data->menuactive = FALSE;
         }
+
+        // Pending messages would point to the closed window in MOS_PumpEvents()
+        Forbid();
+        MOS_StripWindowMessages(win);
         CloseWindow(win);
+        Permit();
         data->win = NULL;
     }
 }

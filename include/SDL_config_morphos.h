@@ -391,6 +391,7 @@
 /* #undef SDL_VIDEO_RENDER_OGL_ES2 */
 /* #undef SDL_VIDEO_RENDER_DIRECTFB */
 /* #undef SDL_VIDEO_RENDER_METAL */
+#define SDL_VIDEO_RENDER_MOS_OVERLAY 1
 
 /* Enable OpenGL support */
 #define SDL_VIDEO_OPENGL 1

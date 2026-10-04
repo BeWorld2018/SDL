@@ -42,6 +42,7 @@ SOURCES = \
 	src/render/*.c \
 	src/render/software/*.c \
 	src/render/opengl/*.c \
+	src/render/morphos/*.c \
 	src/stdlib/*.c \
 	src/thread/*.c \
 	src/thread/morphos/*.c \

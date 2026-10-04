@@ -40,44 +40,49 @@ MOS_GlobalMouseState globalMouseState;
 static SDL_Cursor *
 MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 {
-	D("[%s]\n", __FUNCTION__);
-	SDL_MOSCursor *cursor = SDL_malloc(sizeof(*cursor));
+	SDL_MOSCursor *cursor = SDL_calloc(1, sizeof(*cursor));
+	struct BitMap *bmp;
 
-	if (cursor) {
-		SDL_MOSCursor *ac = SDL_malloc(sizeof(*ac));
-		struct BitMap *bmp;
+	D("[%s] %ldx%ld, hot spot %ld,%ld\n", __FUNCTION__, (long)surface->w, (long)surface->h, (long)hot_x, (long)hot_y);
 
-		cursor->Cursor.next = NULL;
-		cursor->Cursor.driverdata = &cursor->Pointer;
-		cursor->Pointer.offx = hot_x;
-		cursor->Pointer.offy = hot_y;
-
-		bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
-
-		if (bmp != NULL) {
-			struct RastPort rp;
-
-			InitRastPort(&rp);
-			rp.BitMap = bmp;
-
-			if (SDL_LockSurface(surface) == 0) {
-				WritePixelArray(surface->pixels, 0, 0, surface->pitch, &rp, 0, 0, surface->w, surface->h, RECTFMT_ARGB);
-				Object *mouseptr = NewObject(NULL,POINTERCLASS,
-								POINTERA_BitMap, bmp,
-								POINTERA_XOffset, -hot_x,
-								POINTERA_YOffset, -hot_y,
-								TAG_DONE);
-
-				cursor->Pointer.mouseptr = mouseptr;
-				SDL_UnlockSurface(surface);
-			}
-
-			FreeBitMap(bmp);
-		} else {
-			SDL_free(cursor);
-			cursor = NULL;
-		}
+	if (!cursor) {
+		SDL_OutOfMemory();
+		return NULL;
 	}
+
+	cursor->Cursor.next = NULL;
+	cursor->Cursor.driverdata = &cursor->Pointer;
+	cursor->Pointer.offx = hot_x;
+	cursor->Pointer.offy = hot_y;
+
+	// The surface is ARGB8888 (SDL_CreateColorCursor converts it)
+	bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
+
+	if (bmp != NULL && SDL_LockSurface(surface) == 0) {
+		struct RastPort rp;
+
+		InitRastPort(&rp);
+		rp.BitMap = bmp;
+		WritePixelArray(surface->pixels, 0, 0, surface->pitch, &rp, 0, 0, surface->w, surface->h, RECTFMT_ARGB);
+		SDL_UnlockSurface(surface);
+
+		cursor->Pointer.mouseptr = NewObject(NULL, POINTERCLASS,
+						POINTERA_BitMap, bmp,
+						POINTERA_XOffset, -hot_x,
+						POINTERA_YOffset, -hot_y,
+						TAG_DONE);
+	}
+
+	if (cursor->Pointer.mouseptr == NULL) {
+		if (bmp)
+			FreeBitMap(bmp);
+		SDL_free(cursor);
+		SDL_SetError("Couldn't create the pointer");
+		return NULL;
+	}
+
+	// Kept until the pointer object is disposed, in case it doesn't copy it
+	cursor->Pointer.bitmap = bmp;
 
 	return &cursor->Cursor;
 }
@@ -120,11 +125,82 @@ MOS_FreeCursor(SDL_Cursor *cursor)
 {
 	D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
 
-	if (!IS_SYSTEM_CURSOR(cursor))
-		if (((SDL_MOSCursor *)cursor)->Pointer.mouseptr)
-			DisposeObject(((SDL_MOSCursor *)cursor)->Pointer.mouseptr);
+	if (!IS_SYSTEM_CURSOR(cursor)) {
+		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
+
+		if (ac->Pointer.mouseptr)
+			DisposeObject(ac->Pointer.mouseptr);
+		if (ac->Pointer.bitmap)
+			FreeBitMap(ac->Pointer.bitmap);
+	}
 
 	SDL_free(cursor);
+}
+
+// Sets the SDL cursor (NULL: hidden) as pointer of an Intuition window
+void
+MOS_ApplyPointer(SDL_VideoData *vd, struct Window *win)
+{
+	SDL_Cursor *cursor = vd->CurrentPointer;
+
+	if (!win)
+		return;
+
+	if (IS_SYSTEM_CURSOR(cursor)) {
+		size_t pointertags[] = { WA_PointerType, cursor ? (size_t)cursor->driverdata : POINTERTYPE_INVISIBLE, TAG_DONE };
+		SetAttrsA(win, (struct TagItem *)&pointertags);
+	} else {
+		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
+		if (ac->Pointer.mouseptr)
+			SetWindowPointer(win, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
+	}
+}
+
+static BOOL
+MOS_IsPointerInWindow(struct Window *w)
+{
+	struct Screen *s = w->WScreen;
+
+	if (!s)
+		return TRUE;
+
+	return s->MouseX >= w->LeftEdge + w->BorderLeft && s->MouseY >= w->TopEdge + w->BorderTop &&
+	       s->MouseX < w->LeftEdge + w->Width - w->BorderRight && s->MouseY < w->TopEdge + w->Height - w->BorderBottom;
+}
+
+/*
+ * Intuition shows the pointer of the active window on the whole screen, so the
+ * SDL cursor (often hidden) is only set while the mouse is over the window and
+ * the system pointer comes back outside of it. Except while the window owns the
+ * events (WM_ObtainEvents) or the mouse is relative: the SDL cursor everywhere.
+ * Only changed when the state changes, or when forced.
+ */
+void
+MOS_UpdateWindowPointer(SDL_VideoData *vd, SDL_WindowData *wd, BOOL force)
+{
+	struct Window *w = wd->win;
+	BOOL inside;
+
+	if (!w)
+		return;
+
+	inside = wd->grab_owned || SDL_GetRelativeMouseMode() || MOS_IsPointerInWindow(w);
+	if (!force && wd->pointer_inside == (inside ? 1 : 0))
+		return;
+
+	D("[%s] window 0x%08lx: %s pointer\n", __FUNCTION__, w, inside ? "SDL" : "system");
+	wd->pointer_inside = inside ? 1 : 0;
+
+	if (inside) {
+		w->Flags |= WFLG_RMBTRAP;
+		MOS_ApplyPointer(vd, w);
+	} else {
+		size_t pointertags[] = { WA_PointerType, POINTERTYPE_NORMAL, TAG_DONE };
+
+		w->Flags &= ~WFLG_RMBTRAP;
+		ClearPointer(w);
+		SetAttrsA(w, (struct TagItem *)&pointertags);
+	}
 }
 
 static int
@@ -132,35 +208,19 @@ MOS_ShowCursor(SDL_Cursor * cursor)
 {
 	SDL_VideoDevice *video = SDL_GetVideoDevice();
 	SDL_VideoData *data = (SDL_VideoData *)video->driverdata;
-	//D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
+	SDL_WindowData *wd;
 
-	if (IS_SYSTEM_CURSOR(cursor)) {
-		size_t type = cursor ? (size_t)cursor->driverdata : POINTERTYPE_INVISIBLE;
-
-		if (data->CurrentPointer != cursor) {
-			SDL_WindowData *wd;
-			size_t pointertags[] = { WA_PointerType, type, TAG_DONE };
-
-			ForeachNode(&data->windowlist, wd) {
-				if (wd->win) {
-                    SetAttrsA(wd->win, (struct TagItem *)&pointertags);
-                }
-            }
-		}
-	} else {
-		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
-		SDL_WindowData *wd;
-
-		ForeachNode(&data->windowlist, wd) {
-            if (wd->win) {
-                if (ac->Pointer.mouseptr) {
-                    SetWindowPointer(wd->win, WA_Pointer, (size_t)ac->Pointer.mouseptr, TAG_DONE);
-                }
-            }
-        }
-	}
+	D("[%s] %s cursor 0x%08lx\n", __FUNCTION__,
+	  cursor == NULL ? "hidden" : IS_SYSTEM_CURSOR(cursor) ? "system" : "custom", cursor);
 
 	data->CurrentPointer = cursor;
+
+	// Set again even if it didn't change: windows are reopened (fullscreen
+	// switch...) and get the system pointer while the mouse is outside of them
+	ForeachNode(&data->windowlist, wd) {
+		if (wd->win && wd->pointer_inside != 0)
+			MOS_ApplyPointer(data, wd->win);
+	}
 
 	return 0;
 }
@@ -219,8 +279,8 @@ MOS_WarpMouse(SDL_Window * window, int x, int y)
 static int
 MOS_SetRelativeMouseMode(SDL_bool enabled)
 {
-	D("[%s]\n", __FUNCTION__);
-	
+	D("[%s] %s\n", __FUNCTION__, enabled ? "on" : "off");
+
 	SDL_VideoDevice *video = SDL_GetVideoDevice();
 	SDL_VideoData *data = (SDL_VideoData *)video->driverdata;
 	SDL_WindowData *wd;
@@ -234,9 +294,14 @@ MOS_SetRelativeMouseMode(SDL_bool enabled)
 		and_mask = ~IDCMP_DELTAMOVE;
 	}
 
-	ForeachNode(&data->windowlist, wd)
-		if (wd->win)
+	// Windows opened later get IDCMP_DELTAMOVE from MOS_ShowWindow_Internal()
+	ForeachNode(&data->windowlist, wd) {
+		if (wd->win) {
 			ModifyIDCMP(wd->win, (wd->win->IDCMPFlags | or_mask) & and_mask);
+			// The first delta after the switch is not one
+			wd->first_deltamove = TRUE;
+		}
+	}
 
 	return 0;
 }

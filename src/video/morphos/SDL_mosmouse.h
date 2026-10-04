@@ -31,6 +31,7 @@
 struct SDL_MOSPointerData
 {
 	Object *mouseptr;
+	struct BitMap *bitmap;	// image of mouseptr, freed with it
 	int offx, offy;
 };
 
@@ -49,5 +50,7 @@ typedef struct MOS_GlobalMouseState
 
 extern void MOS_InitMouse(_THIS);
 extern void MOS_QuitMouse(_THIS);
+extern void MOS_ApplyPointer(SDL_VideoData *vd, struct Window *win);
+extern void MOS_UpdateWindowPointer(SDL_VideoData *vd, SDL_WindowData *wd, BOOL force);
 
 #endif /* _SDL_mosmouse_h */

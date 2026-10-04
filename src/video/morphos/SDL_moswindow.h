@@ -41,7 +41,7 @@ enum
 	MID_OPTIONS,
 	MID_MUTE,
 	MID_PRIORITY,
-	MID_RRENDER, MID_RRAUTO, MID_RRGL, MID_RRSOFT,
+	MID_RRENDER, MID_RRAUTO, MID_RRGL, MID_RRSOFT, MID_RROVL,
 	MID_RVSYNC, MID_RVAUTO, MID_RVENABLE, MID_RVDISABLE,
 	MID_RSCALER, MID_AUTO, MID_NEAREST, MID_LINEAR,
 	MID_LLOGICAL, MID_LAUTO, MID_LLETTER,MID_LOVERS,
@@ -50,9 +50,11 @@ enum
 	MID_RMETHOD, MID_MDEF, MID_MPOINT, MID_MLINE, MID_MGEO
 };
 
+// Window surface of the software renderer, ARGB8888 in memory (SDL_mosframebuffer.c)
 typedef struct
 {
-	Uint32 kludge1, kludge2, bpr, pixfmt;
+	int w, h, pitch;
+	Uint32 pixfmt;
 	Uint8 buffer[0];
 } SDL_Framebuffer;
 
@@ -90,7 +92,16 @@ typedef struct
 	BOOL menuactive;
 	
 	struct BitMap *bitmap;
-	
+
+	// Set by the overlay renderer: called right before the Intuition window is closed
+	void (*overlay_closing)(void *userdata);
+	void *overlay_userdata;
+
+	// WM_ObtainEvents currently owned (grabbed is what SDL wants), see MOS_UpdateWindowGrab()
+	BYTE grab_owned;
+	// Mouse over the window (1), outside (0), unknown (-1), see MOS_UpdateWindowPointer()
+	BYTE pointer_inside;
+
 } SDL_WindowData;
 
 /* Is this window shown (not iconified) */
@@ -132,5 +143,7 @@ extern void MOS_CloseWindows(_THIS);
 extern void MOS_OpenWindows(_THIS);
 extern void MOS_RecreateWindow(_THIS, SDL_Window * window);
 extern void MOS_WindowToFront(struct Window *win);
+extern void MOS_UpdateWindowGrab(SDL_WindowData *data);
+extern void MOS_ReleaseWindowEvents(SDL_WindowData *data, struct Window *win);
 
 #endif /* _SDL_moswindow_h */
