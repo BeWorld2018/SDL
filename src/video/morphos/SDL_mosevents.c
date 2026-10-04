@@ -239,6 +239,9 @@ MOS_ChangeWindow(_THIS, const struct IntuiMessage *m, SDL_WindowData *data)
 		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_RESIZED, (data->curr_w - w->BorderLeft - w->BorderRight), (data->curr_h - w->BorderTop - w->BorderBottom));
 		// The window's context, not the current one (maybe another window's or NULL)
 		if (data->__tglContext) MOS_GL_ResizeContext(_this, data->window);
+		// The content must be drawn again at the new size, but a smaller
+		// window has no damage: no IDCMP_REFRESHWINDOW
+		SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_EXPOSED, 0, 0);
 	}
 }
 

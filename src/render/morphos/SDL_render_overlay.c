@@ -43,7 +43,9 @@
  * area under it painted with the key colour.
  */
 
+#include "SDL_cpuinfo.h"
 #include "SDL_hints.h"
+#include "SDL_timer.h"
 #include "../SDL_sysrender.h"
 #include "../software/SDL_blendfillrect.h"
 #include "../software/SDL_blendline.h"
@@ -67,6 +69,10 @@
 
 #define OVL_MAX_COMP_SIZE 4096
 
+/* An overlay that couldn't be created is tried again after this delay, as
+   long as none is shown: another program (video player...) may release it. */
+#define OVL_RETRY_MS 2000
+
 struct Library *CGXVideoBase = NULL;
 static int OVL_cgxvideo_users = 0;
 
@@ -85,6 +91,14 @@ typedef struct
     SDL_Rect comp_dst; /* composition pixels, if it has to be composed after all */
 } OVL_DirectCopy;
 
+/* Last overlay creation failure */
+typedef struct
+{
+    struct Window *win;
+    int w, h;
+    Uint32 ticks;
+} OVL_Failure;
+
 typedef struct
 {
     SDL_Window *window;
@@ -100,12 +114,17 @@ typedef struct
     LONG win_left, win_top;        /* window position when the indents were set */
     SDL_Rect shown;                /* inner window rectangle showing the overlay */
     int switch_count;
-    struct Window *failed_win;     /* overlay creation failed for this window and size */
-    int failed_w, failed_h;
+    OVL_Failure failed[2];         /* per mode: direct and composed sizes differ */
     SDL_bool in_fallback;          /* last frame drawn into the window, without overlay */
     SDL_bool dims_logged;          /* real overlay size traced (debug build) */
     SDL_bool colorkey;             /* overlay only shown where the window has key_color */
     ULONG key_color;               /* ARGB */
+    SDL_Texture *shown_texture;    /* direct mode: texture of the frame on screen */
+    SDL_Rect shown_src;
+    Uint16 *row_buf;               /* one overlay row, converted in RAM before the copy */
+    int row_buf_w;
+    Uint64 upload_ticks;           /* time spent uploading (debug build) */
+    int upload_frames;
 
     /* Drawing */
     SDL_Surface *comp;             /* composition surface of the default target, ARGB8888 */
@@ -124,6 +143,7 @@ typedef struct
     /* Window area around the overlay */
     SDL_bool bars_dirty;
     Uint32 bars_color;
+    SDL_bool bars_under;           /* painted for an overlay, not around a fallback frame */
 
     SDL_bool vsync;
 } OVL_RenderData;
@@ -280,13 +300,14 @@ static void OVL_WindowClosing(void *userdata)
 
     D("[%s] Intuition window closing\n", __FUNCTION__);
     OVL_DestroyOverlay(data);
-    data->failed_win = NULL;
+    SDL_zero(data->failed);
 }
 
 static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_Mode mode,
                                  int w, int h, SDL_bool filter, SDL_bool wait_switch)
 {
     struct Screen *screen = win->WScreen;
+    OVL_Failure *fail = &data->failed[mode];
     struct VLayerHandle *vlayer;
     ULONG features = 0, formats = 0, max_width = 0, error = 0;
     SDL_bool double_buffer, colorkey;
@@ -311,8 +332,13 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     }
     data->switch_count = 0;
 
-    if (!screen || w < 1 || h < 1 ||
-        (data->failed_win == win && data->failed_w == w && data->failed_h == h)) {
+    if (!screen || w < 1 || h < 1) {
+        return SDL_FALSE;
+    }
+    /* Known to fail: tried again only while no overlay is shown, destroying a
+       working one for that would flicker */
+    if (fail->win == win && fail->w == w && fail->h == h &&
+        ((data->vlayer && data->vlayer_win == win) || !SDL_TICKS_PASSED(SDL_GetTicks(), fail->ticks + OVL_RETRY_MS))) {
         return SDL_FALSE;
     }
 
@@ -372,9 +398,10 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
 failed:
     D("[%s] no %ldx%ld overlay: error %ld, features 0x%08lx, formats 0x%08lx, max width %ld\n", __FUNCTION__,
       (long)w, (long)h, (long)error, (unsigned long)features, (unsigned long)formats, (long)max_width);
-    data->failed_win = win;
-    data->failed_w = w;
-    data->failed_h = h;
+    fail->win = win;
+    fail->w = w;
+    fail->h = h;
+    fail->ticks = SDL_GetTicks();
     return SDL_FALSE;
 }
 
@@ -436,11 +463,14 @@ static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Re
     const SDL_bool keyed = (under_overlay && data->colorkey) ? SDL_TRUE : SDL_FALSE;
     LONG x0, y0, x1, y1;
 
-    if (!data->bars_dirty && argb == data->bars_color) {
+    /* Back from the fallback, the frame drawn into the window covers dst:
+       the key color must be painted again */
+    if (!data->bars_dirty && argb == data->bars_color && under_overlay == data->bars_under) {
         return;
     }
     data->bars_dirty = SDL_FALSE;
     data->bars_color = argb;
+    data->bars_under = under_overlay;
 
     if (!win->RPort) {
         return;
@@ -495,75 +525,92 @@ static SDL_bool OVL_IsDirectFormat(Uint32 format)
     }
 }
 
+/* Native RGB565 of a pixel, (c & 0xF8) << 8 | (c & 0xFC) << 3 | c >> 3 on its channels */
+#define OVL_565_ARGB(p) ((((p) >> 8) & 0xF800) | (((p) >> 5) & 0x07E0) | (((p) >> 3) & 0x001F))
+#define OVL_565_ABGR(p) ((((p) << 8) & 0xF800) | (((p) >> 5) & 0x07E0) | (((p) >> 19) & 0x001F))
+#define OVL_565_RGBA(p) ((((p) >> 16) & 0xF800) | (((p) >> 13) & 0x07E0) | (((p) >> 11) & 0x001F))
+#define OVL_565_BGRA(p) (((p) & 0xF800) | (((p) >> 13) & 0x07E0) | ((p) >> 27))
+#define OVL_565_555(p)  ((((p) & 0x7FE0) << 1) | (((p) >> 4) & 0x0020) | ((p) & 0x001F))
+#define OVL_565_565(p)  (p)
+
+/* Two pixels per 32-bit store, in little endian order */
+#define OVL_CONVERT_PAIRS(T, PIX)                                     \
+    {                                                                 \
+        const T *s = (const T *)src;                                  \
+        Uint32 *d = (Uint32 *)dst;                                    \
+        for (x = 0; x + 1 < w; x += 2) {                              \
+            const Uint32 p0 = s[x], p1 = s[x + 1];                    \
+            *d++ = SDL_SwapLE32(PIX(p0) | (PIX(p1) << 16));           \
+        }                                                             \
+        if (x < w) {                                                  \
+            const Uint32 p0 = s[x];                                   \
+            *(Uint16 *)d = SDL_SwapLE16((Uint16)PIX(p0));             \
+        }                                                             \
+    }
+
+/* dst must be 4-byte aligned */
 static void OVL_ConvertRow(Uint32 format, const void *src, Uint16 *dst, int w)
 {
     int x;
 
     switch (format) {
     case SDL_PIXELFORMAT_ARGB8888:
-    case SDL_PIXELFORMAT_RGB888: {
-        const Uint32 *s = (const Uint32 *)src;
-        for (x = 0; x < w; x++) {
-            const Uint32 p = s[x];
-            dst[x] = OVL_PackRGB((p >> 16) & 0xFF, (p >> 8) & 0xFF, p & 0xFF);
-        }
+    case SDL_PIXELFORMAT_RGB888:
+        OVL_CONVERT_PAIRS(Uint32, OVL_565_ARGB)
         break;
-    }
     case SDL_PIXELFORMAT_ABGR8888:
-    case SDL_PIXELFORMAT_BGR888: {
-        const Uint32 *s = (const Uint32 *)src;
-        for (x = 0; x < w; x++) {
-            const Uint32 p = s[x];
-            dst[x] = OVL_PackRGB(p & 0xFF, (p >> 8) & 0xFF, (p >> 16) & 0xFF);
-        }
+    case SDL_PIXELFORMAT_BGR888:
+        OVL_CONVERT_PAIRS(Uint32, OVL_565_ABGR)
         break;
-    }
-    case SDL_PIXELFORMAT_RGBA8888: {
-        const Uint32 *s = (const Uint32 *)src;
-        for (x = 0; x < w; x++) {
-            const Uint32 p = s[x];
-            dst[x] = OVL_PackRGB(p >> 24, (p >> 16) & 0xFF, (p >> 8) & 0xFF);
-        }
+    case SDL_PIXELFORMAT_RGBA8888:
+        OVL_CONVERT_PAIRS(Uint32, OVL_565_RGBA)
         break;
-    }
-    case SDL_PIXELFORMAT_BGRA8888: {
-        const Uint32 *s = (const Uint32 *)src;
-        for (x = 0; x < w; x++) {
-            const Uint32 p = s[x];
-            dst[x] = OVL_PackRGB((p >> 8) & 0xFF, (p >> 16) & 0xFF, p >> 24);
-        }
+    case SDL_PIXELFORMAT_BGRA8888:
+        OVL_CONVERT_PAIRS(Uint32, OVL_565_BGRA)
         break;
-    }
-    case SDL_PIXELFORMAT_RGB565: {
-        const Uint16 *s = (const Uint16 *)src;
-        for (x = 0; x < w; x++) {
-            dst[x] = SDL_SwapLE16(s[x]);
-        }
+    case SDL_PIXELFORMAT_RGB565:
+        OVL_CONVERT_PAIRS(Uint16, OVL_565_565)
         break;
-    }
-    case SDL_PIXELFORMAT_RGB555: {
-        const Uint16 *s = (const Uint16 *)src;
-        for (x = 0; x < w; x++) {
-            const Uint16 p = s[x];
-            const Uint16 g5 = (p >> 5) & 0x1F;
-            dst[x] = SDL_SwapLE16((Uint16)(((p & 0x7C00) << 1) | (g5 << 6) | ((g5 >> 4) << 5) | (p & 0x1F)));
-        }
+    case SDL_PIXELFORMAT_RGB555:
+        OVL_CONVERT_PAIRS(Uint16, OVL_565_555)
         break;
-    }
     default:
         break;
     }
+}
+
+/* The overlay is in video memory, where each store is a bus transfer: rows
+   are converted in RAM, then copied in one go by CopyMem(). */
+static SDL_bool OVL_GrowRowBuffer(OVL_RenderData *data, int w)
+{
+    if (w > data->row_buf_w) {
+        Uint16 *buf = (Uint16 *)SDL_SIMDAlloc((size_t)w * sizeof(Uint16));
+        if (!buf) {
+            return SDL_FALSE;
+        }
+        SDL_SIMDFree(data->row_buf);
+        data->row_buf = buf;
+        data->row_buf_w = w;
+    }
+    return SDL_TRUE;
 }
 
 /* Converts rect of src into the overlay and shows it */
 static SDL_bool OVL_Upload(OVL_RenderData *data, SDL_Surface *src, const SDL_Rect *rect)
 {
     struct VLayerHandle *vlayer = data->vlayer;
+    const ULONG row_bytes = (ULONG)rect->w * 2;
     const Uint8 *row;
     UBYTE *base;
     ULONG modulo;
     int y;
+#ifdef __SDL_DEBUG
+    const Uint64 start = SDL_GetPerformanceCounter();
+#endif
 
+    if (!OVL_GrowRowBuffer(data, rect->w)) {
+        return SDL_FALSE;
+    }
     if (!LockVLayer(vlayer)) {
         D("[%s] LockVLayer() failed\n", __FUNCTION__);
         return SDL_FALSE;
@@ -571,7 +618,7 @@ static SDL_bool OVL_Upload(OVL_RenderData *data, SDL_Surface *src, const SDL_Rec
     base = (UBYTE *)GetVLayerAttr(vlayer, VOA_BaseAddress);
     modulo = GetVLayerAttr(vlayer, VOA_Modulo);
     if (!modulo) {
-        modulo = rect->w * 2;
+        modulo = row_bytes;
     }
     if (!base) {
         D("[%s] no VOA_BaseAddress\n", __FUNCTION__);
@@ -589,9 +636,20 @@ static SDL_bool OVL_Upload(OVL_RenderData *data, SDL_Surface *src, const SDL_Rec
        drawn doesn't hold the previous frame. */
     row = (const Uint8 *)src->pixels + rect->y * src->pitch + rect->x * src->format->BytesPerPixel;
     for (y = 0; y < rect->h; y++, row += src->pitch, base += modulo) {
-        OVL_ConvertRow(src->format->format, row, (Uint16 *)base, rect->w);
+        OVL_ConvertRow(src->format->format, row, data->row_buf, rect->w);
+        CopyMem(data->row_buf, base, row_bytes);
     }
     UnlockVLayer(vlayer);
+
+#ifdef __SDL_DEBUG
+    data->upload_ticks += SDL_GetPerformanceCounter() - start;
+    if (++data->upload_frames == 120) {
+        D("[%s] %ldx%ld: %ld us per upload\n", __FUNCTION__, (long)rect->w, (long)rect->h,
+          (long)(data->upload_ticks * 1000000 / (SDL_GetPerformanceFrequency() * 120)));
+        data->upload_ticks = 0;
+        data->upload_frames = 0;
+    }
+#endif
 
     if (data->vsync) {
         WaitTOF();
@@ -612,6 +670,7 @@ static SDL_bool OVL_PresentClear(OVL_RenderData *data, struct Window *win)
 {
     const ULONG argb = 0xFF000000 | (data->clear_color & 0x00FFFFFF);
     const Uint16 pixel = OVL_PackRGB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
+    const ULONG row_bytes = (ULONG)data->src_w * 2;
     UBYTE *base;
     ULONG modulo;
     int x, y;
@@ -627,23 +686,25 @@ static SDL_bool OVL_PresentClear(OVL_RenderData *data, struct Window *win)
         }
         return SDL_TRUE;
     }
-    if (data->mode != OVL_MODE_DIRECT || data->vlayer_win != win || !LockVLayer(data->vlayer)) {
+    if (data->mode != OVL_MODE_DIRECT || data->vlayer_win != win ||
+        !OVL_GrowRowBuffer(data, data->src_w) || !LockVLayer(data->vlayer)) {
         return SDL_FALSE;
     }
     base = (UBYTE *)GetVLayerAttr(data->vlayer, VOA_BaseAddress);
     modulo = GetVLayerAttr(data->vlayer, VOA_Modulo);
     if (!modulo) {
-        modulo = data->src_w * 2;
+        modulo = row_bytes;
     }
     if (!base) {
         UnlockVLayer(data->vlayer);
         return SDL_FALSE;
     }
+    /* One row in RAM, copied to every row of the overlay, see OVL_GrowRowBuffer() */
+    for (x = 0; x < data->src_w; x++) {
+        data->row_buf[x] = pixel;
+    }
     for (y = 0; y < data->src_h; y++, base += modulo) {
-        Uint16 *row = (Uint16 *)base;
-        for (x = 0; x < data->src_w; x++) {
-            row[x] = pixel;
-        }
+        CopyMem(data->row_buf, base, row_bytes);
     }
     UnlockVLayer(data->vlayer);
 
@@ -1612,18 +1673,54 @@ static SDL_bool OVL_TryDirectCopy(OVL_RenderData *data, const SDL_RenderCommand 
  * Renderer interface
  * ------------------------------------------------------------------------- */
 
+/* Shows the frame on screen again at the window position: some drivers only
+   move the overlay with a new frame. */
+static void OVL_ShowAgain(OVL_RenderData *data, struct Window *win)
+{
+    OVL_SetGeometry(data, win, &data->shown);
+
+    if (data->mode == OVL_MODE_DIRECT) {
+        if (data->shown_texture) {
+            OVL_Upload(data, (SDL_Surface *)data->shown_texture->driverdata, &data->shown_src);
+        }
+    } else if (data->comp && !data->composed &&
+               data->comp->w == data->src_w && data->comp->h == data->src_h) {
+        /* Nothing drawn since the last present: comp still holds the frame */
+        SDL_Rect all;
+        all.x = all.y = 0;
+        all.w = data->comp->w;
+        all.h = data->comp->h;
+        OVL_Upload(data, data->comp, &all);
+    }
+}
+
 static void OVL_WindowEvent(SDL_Renderer *renderer, const SDL_WindowEvent *event)
 {
     OVL_RenderData *data = (OVL_RenderData *)renderer->driverdata;
+    struct Window *win = OVL_GetIntuiWindow(data);
+
+    /* The overlay keeps the last frame: it is shown again right away, an app
+       drawing only on input events may not present before the next one */
+    const SDL_bool shown = (win && data->vlayer && data->vlayer_win == win && !data->in_fallback) ? SDL_TRUE : SDL_FALSE;
 
     switch (event->event) {
     case SDL_WINDOWEVENT_SIZE_CHANGED:
     case SDL_WINDOWEVENT_RESIZED:
-    case SDL_WINDOWEVENT_EXPOSED:
         data->bars_dirty = SDL_TRUE;
         break;
+    case SDL_WINDOWEVENT_EXPOSED:
+        data->bars_dirty = SDL_TRUE;
+        if (shown) {
+            OVL_PaintBars(data, win, &data->shown, SDL_TRUE);
+        }
+        break;
     case SDL_WINDOWEVENT_MOVED:
+        D("[%s] window moved to %ld,%ld, overlay %s\n", __FUNCTION__, (long)event->data1, (long)event->data2,
+          shown ? "shown again" : "not shown");
         data->win_left = data->win_top = -32768;
+        if (shown) {
+            OVL_ShowAgain(data, win);
+        }
         break;
     default:
         break;
@@ -1959,7 +2056,12 @@ static SDL_bool OVL_PresentDirect(OVL_RenderData *data, struct Window *win)
     }
     OVL_SetGeometry(data, win, &data->direct.dst);
     OVL_PaintBars(data, win, &data->direct.dst, SDL_TRUE);
-    return OVL_Upload(data, (SDL_Surface *)texture->driverdata, &data->direct.src);
+    if (!OVL_Upload(data, (SDL_Surface *)texture->driverdata, &data->direct.src)) {
+        return SDL_FALSE;
+    }
+    data->shown_texture = texture;
+    data->shown_src = data->direct.src;
+    return SDL_TRUE;
 }
 
 static void OVL_PresentComposed(OVL_RenderData *data, struct Window *win)
@@ -2042,6 +2144,9 @@ static void OVL_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
     if (texture == data->direct.texture) {
         OVL_Materialize(data);
     }
+    if (texture == data->shown_texture) {
+        data->shown_texture = NULL;
+    }
     SDL_FreeSurface((SDL_Surface *)texture->driverdata);
     texture->driverdata = NULL;
 }
@@ -2061,6 +2166,7 @@ static void OVL_DestroyRenderer(SDL_Renderer *renderer)
     }
     OVL_DestroyOverlay(data);
     SDL_FreeSurface(data->comp);
+    SDL_SIMDFree(data->row_buf);
     SDL_free(data);
     renderer->driverdata = NULL;
     OVL_CloseCGXVideo();

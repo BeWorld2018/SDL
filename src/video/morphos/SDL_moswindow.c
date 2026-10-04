@@ -764,6 +764,10 @@ MOS_RestoreWindow(_THIS, SDL_Window * window)
 		}
 		MOS_ShowApp(_this);
 
+	} else if (window->flags & SDL_WINDOW_MINIMIZED) {
+		// Iconified, the window is still open: see MOS_HideApp()
+		MOS_ShowApp(_this);
+
 	} else if (data->sdlflags & SDL_WINDOW_MAXIMIZED) {
 		data->sdlflags &= ~SDL_WINDOW_MAXIMIZED;
 

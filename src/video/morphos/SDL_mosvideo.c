@@ -24,6 +24,7 @@
 #include "SDL_mouse.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
+#include "../../events/SDL_windowevents_c.h"
 #include "SDL_hints.h"
 
 #include "SDL_mosclipboard.h"
@@ -117,8 +118,13 @@ MOS_HideApp(_THIS, size_t with_app_icon)
         struct Window *win = wd->win;
         // The About... requesters disappear with the program
         MOS_CloseRequesters(wd);
-        if (win)
+        if (win) {
             MOS_SetWindowOpacity(_this, wd->window, 0.0);
+            // SDL stops presenting and apps can pause, see MOS_ShowApp(). Not
+            // for a fullscreen window: SDL would leave fullscreen
+            if (!(wd->window->flags & SDL_WINDOW_FULLSCREEN))
+                SDL_SendWindowEvent(wd->window, SDL_WINDOWEVENT_MINIMIZED, 0, 0);
+        }
     }
 
 	if (with_app_icon)
@@ -157,6 +163,13 @@ MOS_ShowApp(_THIS)
         } else if (win) {
             MOS_SetWindowOpacity(_this, wd->window, 1.0);
             MOS_WindowToFront(win);
+
+            // Back from the iconification, see MOS_HideApp()
+            if (wd->window->flags & SDL_WINDOW_MINIMIZED) {
+                SDL_SendWindowEvent(wd->window, SDL_WINDOWEVENT_RESTORED, 0, 0);
+                if (wd->sdlflags & SDL_WINDOW_MAXIMIZED)
+                    SDL_SendWindowEvent(wd->window, SDL_WINDOWEVENT_MAXIMIZED, 0, 0);
+            }
         }
     }
 
