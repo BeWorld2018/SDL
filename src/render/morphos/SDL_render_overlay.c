@@ -112,6 +112,7 @@ typedef struct
     SDL_Surface *target;           /* surface of the target texture, NULL for the default target */
     SDL_Rect area;                 /* window rectangle the composition surface is shown in */
     float kx, ky;                  /* composition pixels per window pixel */
+    SDL_bool comp_sized;           /* comp size fixed until the next present */
     SDL_bool compose_filter;
 
     /* Default target, frame being drawn */
@@ -709,6 +710,14 @@ static SDL_Surface *OVL_UpdateComposition(SDL_Renderer *renderer, OVL_RenderData
     SDL_Rect output, area;
     int comp_w, comp_h;
 
+    /* Sized once per frame: SDL flushes the queue in the middle of a frame
+       (texture update, destroy...) maybe at another scale, and a new surface
+       would lose what was drawn. The commands are in window pixels, mapped
+       through kx/ky whatever the size. */
+    if (data->comp && data->comp_sized) {
+        return data->comp;
+    }
+
     output.x = output.y = 0;
     SDL_GetWindowSizeInPixels(data->window, &output.w, &output.h);
     output.w = SDL_max(output.w, 1);
@@ -747,6 +756,7 @@ static SDL_Surface *OVL_UpdateComposition(SDL_Renderer *renderer, OVL_RenderData
         SDL_FreeSurface(data->comp);
         data->comp = comp;
     }
+    data->comp_sized = SDL_TRUE;
     return data->comp;
 }
 
@@ -2021,6 +2031,7 @@ static int OVL_RenderPresent(SDL_Renderer *renderer)
     data->composed = SDL_FALSE;
     data->clear_pending = SDL_FALSE;
     data->direct.texture = NULL;
+    data->comp_sized = SDL_FALSE;
     return retval;
 }
 
