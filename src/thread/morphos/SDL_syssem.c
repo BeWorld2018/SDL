@@ -132,20 +132,19 @@ void
 SDL_DestroySemaphore(SDL_sem * sem)
 {
     if (sem) {
+        struct waitnode *wn;
+
         ObtainSemaphore(&sem->sem);
 
+        /* Wake up the waiters as if the semaphore was posted */
         sem->sem_value = (Uint32)-1;
+        while ((wn = (struct waitnode *) REMHEAD(&sem->waitlist)))
+            ReplyMsg(&wn->msg);
 
-        while (!IsListEmpty((struct List *) &sem->waitlist)) {
-            struct waitnode *wn;
+        ReleaseSemaphore(&sem->sem);
 
-            for (wn = (struct waitnode *) sem->waitlist.mlh_Head; wn->msg.mn_Node.ln_Succ; wn = (struct waitnode *) wn->msg.mn_Node.ln_Succ)
-                ReplyMsg(&wn->msg);
-
-            if (SDL_SemWaitTimeout(sem, 10) < 0)
-                break;
-        }
-
+        /* A waiter that timed out meanwhile may still be queued on sem->sem */
+        ObtainSemaphore(&sem->sem);
         ReleaseSemaphore(&sem->sem);
 
         SDL_free(sem);
