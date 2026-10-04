@@ -319,6 +319,10 @@ int rwops_testFileRead(void)
     SDLTest_AssertCheck(
         rw->type == SDL_RWOPS_WINFILE,
         "Verify RWops type is SDL_RWOPS_WINFILE; expected: %d, got: %d", SDL_RWOPS_WINFILE, rw->type);
+#elif defined(__MORPHOS__)
+    SDLTest_AssertCheck(
+        rw->type == SDL_RWOPS_MORPHOSFILE,
+        "Verify RWops type is SDL_RWOPS_MORPHOSFILE; expected: %d, got: %" SDL_PRIu32, SDL_RWOPS_MORPHOSFILE, rw->type);
 #else
     SDLTest_AssertCheck(
         rw->type == SDL_RWOPS_STDFILE,
@@ -367,6 +371,10 @@ int rwops_testFileWrite(void)
     SDLTest_AssertCheck(
         rw->type == SDL_RWOPS_WINFILE,
         "Verify RWops type is SDL_RWOPS_WINFILE; expected: %d, got: %d", SDL_RWOPS_WINFILE, rw->type);
+#elif defined(__MORPHOS__)
+    SDLTest_AssertCheck(
+        rw->type == SDL_RWOPS_MORPHOSFILE,
+        "Verify RWops type is SDL_RWOPS_MORPHOSFILE; expected: %d, got: %" SDL_PRIu32, SDL_RWOPS_MORPHOSFILE, rw->type);
 #else
     SDLTest_AssertCheck(
         rw->type == SDL_RWOPS_STDFILE,

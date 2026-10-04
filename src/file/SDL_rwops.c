@@ -389,11 +389,23 @@ morphos_file_open(SDL_RWops *context, const char *filename, const char *mode)
                 if (!flag_p)
                 {
                     context->hidden.morphosio.NoSeek = 1;
-                    context->hidden.morphosio.IsAtEnd = 1;
-                    Seek(fh, 0, OFFSET_END);
+                    /* If this fails, morphos_file_write() seeks again instead of writing at 0 */
+                    if (Seek64(fh, 0, OFFSET_END) != -1)
+                        context->hidden.morphosio.IsAtEnd = 1;
                 }
             }
         }
+        else
+        {
+            char reason[80];
+
+            Fault(IoErr(), NULL, reason, sizeof(reason));
+            SDL_SetError("Couldn't open %s: %s", filename, reason);
+        }
+    }
+    else
+    {
+        SDL_SetError("Unknown open mode '%s'", mode);
     }
 
     return rc;
@@ -415,7 +427,15 @@ morphos_file_seek(SDL_RWops *context, Sint64 offset, int whence)
 {
     Sint64 rc = -1;
 
-    if (!context->hidden.morphosio.NoSeek)
+    if (context->hidden.morphosio.NoSeek)
+    {
+        /* "a": every write goes to the end, only telling the position makes sense */
+        if (whence == RW_SEEK_CUR && offset == 0)
+            return Seek64(context->hidden.morphosio.fp.dos, 0, OFFSET_CURRENT);
+
+        return SDL_SetError("Can't seek in a file opened in append mode");
+    }
+    else
     {
         LONG how = OFFSET_BEGINNING;
 
@@ -449,21 +469,20 @@ morphos_file_seek(SDL_RWops *context, Sint64 offset, int whence)
 static size_t SDLCALL
 morphos_file_read(SDL_RWops *context, void *ptr, size_t size, size_t maxnum)
 {
-    size_t rsize = size * maxnum, result;
+    LONG result;
 
-    if (context->hidden.morphosio.Readable)
+    if (size == 0 || maxnum == 0 || !context->hidden.morphosio.Readable)
+        return 0;
+
+    /* Read() returns -1 on error; a short read is just the end of the file */
+    result = Read(context->hidden.morphosio.fp.dos, ptr, size * maxnum);
+    if (result < 0)
     {
-        if ((result = Read(context->hidden.morphosio.fp.dos, ptr, rsize)) != rsize)
-        {
-            SDL_Error(SDL_EFWRITE);
-        }
-    }
-    else
-    {
-        result = 0;
+        SDL_Error(SDL_EFREAD);
+        return 0;
     }
 
-    return result / size;
+    return (size_t)result / size;
 }
 
 static size_t SDLCALL
@@ -472,15 +491,16 @@ morphos_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
     size_t wnum = 0;
     //D("[%s]\n", __FUNCTION__);
 
-    if (context->hidden.morphosio.Writable)
+    if (size != 0 && num != 0 && context->hidden.morphosio.Writable)
     {
-        size_t wsize, result;
+        size_t wsize;
+        LONG result;
 
         if (context->hidden.morphosio.AppendMode && !context->hidden.morphosio.IsAtEnd)
         {
-            if (Seek(context->hidden.morphosio.fp.dos, 0, OFFSET_END) == -1)
+            if (Seek64(context->hidden.morphosio.fp.dos, 0, OFFSET_END) == -1)
             {
-                SDL_Error(SDL_EFWRITE);
+                SDL_Error(SDL_EFSEEK);
                 return 0;
             }
 
@@ -489,12 +509,19 @@ morphos_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
 
         wsize = size * num;
 
-        if ((result = Write(context->hidden.morphosio.fp.dos, (APTR)ptr, wsize)) != wsize)
+        /* Write() returns -1 on error */
+        result = Write(context->hidden.morphosio.fp.dos, (APTR)ptr, wsize);
+        if (result < 0)
+        {
+            SDL_Error(SDL_EFWRITE);
+            return 0;
+        }
+        if ((size_t)result != wsize)
         {
             SDL_Error(SDL_EFWRITE);
         }
 
-        wnum = result / size;
+        wnum = (size_t)result / size;
     }
 
     return wnum;
@@ -503,15 +530,17 @@ morphos_file_write(SDL_RWops *context, const void *ptr, size_t size, size_t num)
 static int SDLCALL
 morphos_file_close(SDL_RWops *context)
 {
-    if (context->hidden.morphosio.fp.dos != 0)
-    {
-        if (context->hidden.morphosio.autoclose)
-            Close(context->hidden.morphosio.fp.dos);
+    int status = 0;
 
-        SDL_FreeRW(context);
+    if (context->hidden.morphosio.fp.dos != 0 && context->hidden.morphosio.autoclose)
+    {
+        /* Close() flushes: report a failed write like stdio_close() */
+        if (!Close(context->hidden.morphosio.fp.dos))
+            status = SDL_Error(SDL_EFWRITE);
     }
 
-    return(0);
+    SDL_FreeRW(context);
+    return status;
 }
 
 SDL_RWops * SDL_RWFromFP_clib_REAL(void *fp,
@@ -863,16 +892,9 @@ SDL_RWops *SDL_RWFromFile(const char *file, const char *mode)
     rwops->close = morphos_file_close;
     rwops->type = SDL_RWOPS_MORPHOSFILE;
 
-    char *mpath = MOS_ConvertPath(file);
-    int rc = -1;
-
-    if (mpath)
-    {
-        rc = morphos_file_open(rwops,file,mode);
-        SDL_free(mpath);
-    }
-
-    if (rc < 0)
+    /* The path goes to dos.library as given: AmigaDOS paths ("/" is the
+       parent directory) are what MorphOS programs use */
+    if (morphos_file_open(rwops, file, mode) < 0)
     {
         SDL_FreeRW(rwops);
         return NULL;
