@@ -573,8 +573,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
                     }
                 }
             } else {
-			//	D("[%s] Screen to Front\n", __FUNCTION__);
-				ScreenToFront(vd->CustomScreen);
+				ScreenToFront(scr);
 			}
 
             if (data->menuactive == TRUE) {
@@ -738,7 +737,9 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 		data->winflags |= SDL_MOS_WINDOW_FULLSCREEN;
 		if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
 			data->winflags |= SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
-		}	
+		} else {
+			data->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
+		}
 		int ww, hh;
 		SDL_GetWindowSize(window, &ww, &hh);
 		
