@@ -296,7 +296,11 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
             D("[%s] %ldx%ld overlay now %s\n", __FUNCTION__, (long)w, (long)h, OVL_ModeName(mode));
         }
         data->mode = mode;
-        data->switch_count = 0;
+        /* A frame waiting for a direct overlay is shown by the composed one
+           meanwhile: that must not restart the count, see OVL_RenderPresent() */
+        if (mode == OVL_MODE_DIRECT) {
+            data->switch_count = 0;
+        }
         return SDL_TRUE;
     }
 
@@ -1999,6 +2003,10 @@ static int OVL_RenderPresent(SDL_Renderer *renderer)
     } else if (data->clear_pending && !data->direct.texture && !data->composed && OVL_PresentClear(data, win)) {
         /* nothing else drawn */
     } else if (!(data->direct.texture && !data->composed && OVL_PresentDirect(data, win))) {
+        if (!data->direct.texture || data->composed) {
+            /* Really composed: the frames that could go direct must follow each other */
+            data->switch_count = 0;
+        }
         if (!data->comp) {
             OVL_UpdateComposition(renderer, data);
         }
