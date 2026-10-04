@@ -48,17 +48,20 @@ static void AHI_DetectDevices(void)
 	D("[%s]\n", __FUNCTION__);
 	
 	SDL_AudioSpec output, capture;
+	SDL_zero(output);
 	output.freq = 44100;
 	output.format = AUDIO_S16MSB;
 	output.channels = 2;
-	
+
+	SDL_zero(capture);
 	capture.freq = 44100;
 	capture.format = AUDIO_S16MSB;
 	capture.channels = 1;
-	
-	SDL_AddAudioDevice(SDL_FALSE, "AHI Morphos output device", &output, SDL_strdup("default"));;
-	SDL_AddAudioDevice(SDL_TRUE, "AHI Morphos capture device", &capture, SDL_strdup("default"));
-	
+
+	/* OnlyHasDefault*Device: SDL_OpenAudioDevice() only accepts the default
+	   names, so the listed devices must carry them to be openable by name */
+	SDL_AddAudioDevice(SDL_FALSE, DEFAULT_OUTPUT_DEVNAME, &output, (void *)((size_t)0x1));
+	SDL_AddAudioDevice(SDL_TRUE, DEFAULT_INPUT_DEVNAME, &capture, (void *)((size_t)0x2));
 }
 
 static void AHI_WaitDevice(_THIS)
@@ -67,11 +70,11 @@ static void AHI_WaitDevice(_THIS)
 	struct AHIRequest *req = &hidden->req[hidden->current_buffer];
 
 	if (req->ahir_Std.io_Data) {
+		/* WaitIO() also removes the reply from the port: a GetMsg() here
+		   could take the reply of the other request */
 		WaitIO((struct IORequest *)req);
 
 		req->ahir_Std.io_Data = NULL;
-
-		GetMsg(&hidden->ahiport);
 	}
 }
 
@@ -122,7 +125,9 @@ static void AHI_CloseDevice(_THIS)
 	
 	this->hidden = NULL;
 
-	CloseDevice((struct IORequest *)&hidden->req[0].ahir_Std);
+	/* No request is in flight any more, see AHI_ThreadDeinit() */
+	if (hidden->deviceOpen)
+		CloseDevice((struct IORequest *)&hidden->req[0].ahir_Std);
 	SDL_free(hidden);
 }
 
@@ -138,6 +143,40 @@ static void AHI_ThreadInit(_THIS)
 	NEWLIST(&hidden->ahiport.mp_MsgList);
 
 	bcopy(&hidden->req[0], &hidden->req[1], sizeof(hidden->req[1]));
+}
+
+/* Run by the audio thread when it stops. The reply port signals this task,
+   so the requests still in flight can only be aborted and waited for here,
+   before AHI_CloseDevice() frees their buffers. */
+static void AHI_ThreadDeinit(_THIS)
+{
+	MOSAudioData *hidden = this->hidden;
+	SDL_bool pending[2];
+	int i;
+
+	if (this->iscapture) {
+		pending[0] = hidden->requestSent;
+		pending[1] = SDL_FALSE;
+	} else {
+		pending[0] = hidden->req[0].ahir_Std.io_Data ? SDL_TRUE : SDL_FALSE;
+		pending[1] = hidden->req[1].ahir_Std.io_Data ? SDL_TRUE : SDL_FALSE;
+	}
+
+	/* Abort both first: the queued request is linked to the playing one */
+	for (i = 0; i < 2; i++) {
+		if (pending[i])
+			AbortIO((struct IORequest *)&hidden->req[i]);
+	}
+	for (i = 0; i < 2; i++) {
+		if (pending[i]) {
+			WaitIO((struct IORequest *)&hidden->req[i]);
+			hidden->req[i].ahir_Std.io_Data = NULL;
+		}
+	}
+	hidden->requestSent = SDL_FALSE;
+
+	/* The thread pool task may run other work: don't leave the port signal set */
+	SetSignal(0, SIGBREAKF_CTRL_E);
 }
 
 static int AHI_OpenDevice(_THIS, const char *devname)
@@ -201,10 +240,13 @@ static int AHI_OpenDevice(_THIS, const char *devname)
 	/* Update the fragment size as size in bytes */
 	SDL_CalculateAudioSpec(&this->spec);
 
-	hidden = SDL_malloc(sizeof(MOSAudioData));
+	/* Zeroed: AHI_CloseDevice() frees what got allocated if this fails */
+	hidden = SDL_calloc(1, sizeof(MOSAudioData));
 
 	if (hidden == NULL)
 		return SDL_OutOfMemory();
+
+	this->hidden = hidden;
 
 	hidden->req[0].ahir_Std.io_Message.mn_ReplyPort = &hidden->ahiport;
 	hidden->req[0].ahir_Std.io_Message.mn_Length = sizeof(struct AHIRequest);
@@ -229,12 +271,11 @@ static int AHI_OpenDevice(_THIS, const char *devname)
 	hidden->playing = 0;
 	hidden->requestSent = SDL_FALSE;
 
-	this->hidden = hidden;
-	
 	if (OpenDevice(AHINAME, 0, (struct IORequest *)&hidden->req[0].ahir_Std, 0) != 0) {
 		SDL_SetError("Unable to open ahi.device unit 0! Error code %d.\n", hidden->req[0].ahir_Std.io_Error);
 		return -1;
 	}
+	hidden->deviceOpen = SDL_TRUE;
 	return 0;
 }
 
@@ -320,6 +361,7 @@ static SDL_bool AHI_Init(SDL_AudioDriverImpl * impl)
 	impl->DetectDevices = AHI_DetectDevices;
 	impl->OpenDevice = AHI_OpenDevice;
 	impl->ThreadInit = AHI_ThreadInit;
+	impl->ThreadDeinit = AHI_ThreadDeinit;
 	impl->PlayDevice = AHI_PlayDevice;
 	impl->WaitDevice = AHI_WaitDevice;
 	impl->CaptureFromDevice = AHI_CaptureFromDevice;	

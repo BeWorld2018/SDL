@@ -28,8 +28,17 @@
 #include <signal.h>
 #endif
 
+#ifdef __MORPHOS__
+#include <dos/dos.h>
+#include <proto/exec.h>
+#endif
+
 #include "SDL_events.h"
 #include "SDL_events_c.h"
+
+#ifdef __MORPHOS__
+static SDL_bool mos_break_quits = SDL_FALSE;
+#endif
 
 #if defined(HAVE_SIGNAL_H) || defined(HAVE_SIGACTION)
 #define HAVE_SIGNAL_SUPPORT 1
@@ -149,6 +158,9 @@ static void SDL_QuitQuit_Internal(void)
 
 int SDL_QuitInit(void)
 {
+#ifdef __MORPHOS__
+    mos_break_quits = !SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, SDL_FALSE);
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (!SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, SDL_FALSE)) {
         return SDL_QuitInit_Internal();
@@ -159,6 +171,9 @@ int SDL_QuitInit(void)
 
 void SDL_QuitQuit(void)
 {
+#ifdef __MORPHOS__
+    mos_break_quits = SDL_FALSE;
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (!disable_signals) {
         SDL_QuitQuit_Internal();
@@ -168,6 +183,11 @@ void SDL_QuitQuit(void)
 
 void SDL_SendPendingSignalEvents(void)
 {
+#ifdef __MORPHOS__
+    if (mos_break_quits && (SetSignal(0, SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C)) {
+        SDL_SendQuit();
+    }
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (send_quit_pending) {
         SDL_SendQuit();

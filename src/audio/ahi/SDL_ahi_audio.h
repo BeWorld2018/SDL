@@ -42,6 +42,7 @@ struct SDL_PrivateAudioData
 	UBYTE playing;
 	Uint32	lastCaptureTicks;
 	SDL_bool requestSent;
+	SDL_bool deviceOpen;
 };
 
 typedef struct SDL_PrivateAudioData MOSAudioData;
