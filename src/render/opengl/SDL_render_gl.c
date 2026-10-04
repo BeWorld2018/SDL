@@ -427,6 +427,28 @@ convert_format(GL_RenderData *renderdata, Uint32 pixel_format,
         *format = GL_RGBA;
         *type = GL_UNSIGNED_INT_8_8_8_8_REV;
         break;
+#ifdef __MORPHOS__
+    /* On big endian, the bytes of these are in GL_BGRA / GL_RGBA order.
+       BGRA8888 is the format of most MorphOS screens, so of the textures of
+       games using the window format: SDL doesn't have to convert them on
+       every update anymore. */
+    case SDL_PIXELFORMAT_BGRA8888:
+        *internalFormat = GL_RGBA8;
+        *format = GL_BGRA;
+        *type = GL_UNSIGNED_BYTE;
+        break;
+    case SDL_PIXELFORMAT_RGBA8888:
+        *internalFormat = GL_RGBA8;
+        *format = GL_RGBA;
+        *type = GL_UNSIGNED_BYTE;
+        break;
+    /* Half the bytes to upload, for games and emulators working in 16-bit */
+    case SDL_PIXELFORMAT_RGB565:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_SHORT_5_6_5;
+        break;
+#endif
     case SDL_PIXELFORMAT_YV12:
     case SDL_PIXELFORMAT_IYUV:
     case SDL_PIXELFORMAT_NV12:
@@ -473,6 +495,12 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
         return SDL_SetError("Texture format %s not supported by OpenGL",
                             SDL_GetPixelFormatName(texture->format));
     }
+#ifdef __MORPHOS__
+    /* A 16-bit framebuffer object may be refused, render targets stay 32-bit */
+    if (texture->access == SDL_TEXTUREACCESS_TARGET && texture->format == SDL_PIXELFORMAT_RGB565) {
+        internalFormat = GL_RGBA8;
+    }
+#endif
 
     data = (GL_TextureData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
@@ -640,6 +668,10 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
 
     if (texture->format == SDL_PIXELFORMAT_ABGR8888 || texture->format == SDL_PIXELFORMAT_ARGB8888) {
         data->shader = SHADER_RGBA;
+#ifdef __MORPHOS__
+    } else if (texture->format == SDL_PIXELFORMAT_BGRA8888 || texture->format == SDL_PIXELFORMAT_RGBA8888) {
+        data->shader = SHADER_RGBA;
+#endif
     } else {
         data->shader = SHADER_RGB;
     }
@@ -707,8 +739,20 @@ static int GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     renderdata->drawstate.texture = NULL; /* we trash this state. */
 
     renderdata->glBindTexture(textype, data->texture);
-    renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / texturebpp));
+#ifdef __MORPHOS__
+    /* 32 and 16-bit rows: the default unpack state of GL when possible
+       (alignment 4, row length 0 when tightly packed), in case TinyGL has
+       a faster path for it. YUV planes (1 byte per pixel) keep the state
+       below. */
+    if (texturebpp == 4 || texturebpp == 2) {
+        renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, (pitch % 4) ? 1 : 4);
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch == rect->w * texturebpp) ? 0 : (pitch / texturebpp));
+    } else
+#endif
+    {
+        renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / texturebpp));
+    }
     renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w,
                                 rect->h, data->format, data->formattype,
                                 pixels);
@@ -1962,11 +2006,21 @@ SDL_RenderDriver GL_RenderDriver = {
     GL_CreateRenderer,
     { "opengl",
       (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE),
+#ifdef __MORPHOS__
+      7,
+#else
       4,
+#endif
       { SDL_PIXELFORMAT_ARGB8888,
         SDL_PIXELFORMAT_ABGR8888,
         SDL_PIXELFORMAT_RGB888,
-        SDL_PIXELFORMAT_BGR888 },
+        SDL_PIXELFORMAT_BGR888,
+#ifdef __MORPHOS__
+        SDL_PIXELFORMAT_BGRA8888,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_PIXELFORMAT_RGB565,
+#endif
+      },
       0,
       0 }
 };
