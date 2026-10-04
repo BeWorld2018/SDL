@@ -26,21 +26,57 @@
 #include "../SDL_systhread.h"
 
 #include <exec/execbase.h>
+#include <exec/memory.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/threadpool.h>
 
 extern APTR threadpool;
 
+/* threadpool.library runs work items on the minimum system stack (2 KiB 68k,
+ * 32 KiB native) and tells to swap stacks when more is needed: threads get
+ * the stack size given to SDL_CreateThreadWithStackSize() or
+ * SDL_HINT_THREAD_STACK_SIZE, or MOS_THREAD_STACK_DEFAULT. */
+#define MOS_THREAD_STACK_MIN     32768
+#define MOS_THREAD_STACK_DEFAULT (1024 * 1024)
+
+static ULONG
+RunThreadOnStack(ULONG data)
+{
+	SDL_RunThread((SDL_Thread *)data);
+	return 0;
+}
+
 static void
 RunThread(APTR data, struct MsgPort *port)
 {
 	SDL_Thread *thread = data;
-	
+	ULONG stacksize = thread->stacksize ? thread->stacksize : MOS_THREAD_STACK_DEFAULT;
+	APTR stack = NULL;
+
 	BPTR lock = thread->status;
 	thread->status = 0;
 	BPTR oldDir = CurrentDir(lock);
-	SDL_RunThread(data);
+
+	if (stacksize > MOS_THREAD_STACK_MIN) {
+		stacksize = (stacksize + 15) & ~15;
+		stack = AllocVecAligned(stacksize, MEMF_ANY, 16, 0);
+	}
+	if (stack) {
+		struct StackSwapStruct sss;
+		struct PPCStackSwapArgs args;
+
+		sss.stk_Lower   = stack;
+		sss.stk_Upper   = (ULONG)stack + stacksize;
+		sss.stk_Pointer = (APTR)sss.stk_Upper;
+		args.Args[0]    = (ULONG)thread;
+		NewPPCStackSwap(&sss, (APTR)RunThreadOnStack, &args);
+		FreeVec(stack);
+	} else {
+		/* small stack asked, or no memory: run on the pool stack */
+		SDL_RunThread(thread);
+	}
+
 	UnLock(CurrentDir(oldDir));
 }
 
