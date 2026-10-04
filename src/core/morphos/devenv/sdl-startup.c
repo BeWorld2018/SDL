@@ -6,6 +6,7 @@
 
 #include <constructor.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -87,6 +88,9 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 				{
 					SDL_InitTGL((void **) &__tglContext, (struct Library **) &TinyGLBase);
 				}
+
+				/* Used by SDL_ExitProcess() */
+				SDL_SetExitPointer(exit);
 			}
 			else
 			{

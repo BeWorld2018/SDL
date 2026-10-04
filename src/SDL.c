@@ -38,6 +38,10 @@
 #include <emscripten.h>
 #endif
 
+#ifdef __MORPHOS__
+#include <proto/exec.h>
+#endif
+
 /* Initialization code for SDL */
 
 #include "SDL.h"
@@ -102,7 +106,13 @@ SDL_NORETURN void SDL_ExitProcess(int exitcode)
     _exit(exitcode);
 #elif defined(__MORPHOS__)
     extern void (*morphos_exit)(int exitcode);
-    morphos_exit(exitcode);
+    /* NULL for apps linked with an old libSDL2.a or with libSDL2-nc.a */
+    if (morphos_exit) {
+        morphos_exit(exitcode);
+    }
+    for (;;) {
+        Wait(0);
+    }
 #elif defined(HAVE__EXIT) /* Upper case _Exit() */
     _Exit(exitcode);
 #else
