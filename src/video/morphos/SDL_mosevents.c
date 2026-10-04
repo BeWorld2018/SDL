@@ -769,6 +769,10 @@ MOS_CheckScreenEvent(_THIS)
 					MOS_ShowApp(_this);
 					break;
 			}
+
+			// screennotify.library waits for the reply, and RemWorkbenchClient()
+			// fails as long as a message is not replied
+			ReplyMsg((struct Message *)snm);
 		}
 
 		if (data->WScreen)
@@ -778,29 +782,46 @@ MOS_CheckScreenEvent(_THIS)
 	}
 }
 
+// am_UserData of a queued AppMessage can name a window destroyed since
+static SDL_bool
+MOS_IsKnownWindow(SDL_VideoData *data, SDL_Window *window)
+{
+	SDL_WindowData *wd;
+
+	ForeachNode(&data->windowlist, wd)
+	{
+		if (wd->window == window)
+			return SDL_TRUE;
+	}
+
+	return SDL_FALSE;
+}
+
 static void
 MOS_CheckWBEvents(_THIS)
 {
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 	struct AppMessage *msg;
-	
+
 	while ((msg = (struct AppMessage *)GetMsg(&data->WBPort)) != NULL) {
 		D("[%s] check AppMessage\n", __FUNCTION__);
 
 		switch (msg->am_Type) {
-			case AMTYPE_APPWINDOW: 
+			case AMTYPE_APPWINDOW:
 				{
 				    SDL_Window *window = (SDL_Window *)msg->am_UserData;
 					char filename[1024];
 					struct WBArg *argptr = msg->am_ArgList;
-				    for (int i = 0; i < msg->am_NumArgs; i++) {
-						if (argptr->wa_Lock) {
-							NameFromLock(argptr->wa_Lock, filename, 1024);
-							AddPart(filename, argptr->wa_Name, 1024);
 
+					if (!MOS_IsKnownWindow(data, window))
+						break;
+
+				    for (int i = 0; i < msg->am_NumArgs; i++, argptr++) {
+						if (argptr->wa_Lock &&
+							NameFromLock(argptr->wa_Lock, filename, sizeof(filename)) &&
+							AddPart(filename, argptr->wa_Name ? (STRPTR)argptr->wa_Name : (STRPTR)"", sizeof(filename))) {
 							D("[%s] SDL_SendDropfile : '%s'\n", __FUNCTION__, filename);
 							SDL_SendDropFile(window, filename);
-							argptr++;
 						}
 					}
 					SDL_SendDropComplete(window);
@@ -815,6 +836,8 @@ MOS_CheckWBEvents(_THIS)
 				break;
 		}
 
+		// Workbench frees the message and the wa_Lock locks on reply
+		ReplyMsg((struct Message *)msg);
 	}
 }
 

@@ -136,6 +136,13 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 		// MOS_DestroyWindow() already cleared sdlwin->driverdata
 		SDL_WindowData *data = sdlwin->driverdata ? (SDL_WindowData *) sdlwin->driverdata : (SDL_WindowData *) win->UserData;
 
+		// No more drops for this window; it is added again when it reopens
+		if (data && data->appmsg) {
+			if (RemoveAppWindow(data->appmsg)) {
+				data->appmsg = NULL;
+			}
+		}
+
 		MOS_NotifyWindowClosing(data);
 		MOS_ReleaseWindowEvents(data, win);
 		MOS_CloseRequesters(data);

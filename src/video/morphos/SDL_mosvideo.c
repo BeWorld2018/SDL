@@ -50,6 +50,15 @@
 
 #include "SDL_mosevents.h"
 
+static void
+MOS_ReplyPendingMessages(struct MsgPort *port)
+{
+	struct Message *msg;
+
+	while ((msg = GetMsg(port)) != NULL)
+		ReplyMsg(msg);
+}
+
 void
 MOS_CloseDisplay(_THIS)
 {
@@ -72,8 +81,12 @@ MOS_CloseDisplay(_THIS)
 		UnlockPubScreen(NULL, data->WScreen);
 
 		if (data->ScreenNotifyHandle) {
-			while (!RemWorkbenchClient(data->ScreenNotifyHandle))
+			// The client can't be removed while a notification is not replied
+			MOS_ReplyPendingMessages(&data->ScreenNotifyPort);
+			while (!RemWorkbenchClient(data->ScreenNotifyHandle)) {
 				Delay(10);
+				MOS_ReplyPendingMessages(&data->ScreenNotifyPort);
+			}
 
 			data->ScreenNotifyHandle = NULL;
 		}
@@ -106,7 +119,7 @@ MOS_HideApp(_THIS, size_t with_app_icon)
             MOS_SetWindowOpacity(_this, wd->window, 0.0);
     }
 
-	if (with_app_icon && data->AppIcon)
+	if (with_app_icon && data->AppIcon && data->AppIconRef == NULL)
 		data->AppIconRef = AddAppIconA(0, 0, FilePart(data->FullAppName), &data->WBPort, 0, data->AppIcon, NULL);
 }
 
@@ -118,13 +131,10 @@ MOS_ShowApp(_THIS)
 	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
 	if (data->AppIconRef) {
-		struct Message *msg;
-
 		RemoveAppIcon(data->AppIconRef);
 		data->AppIconRef = NULL;
 
-		while ((msg = GetMsg(&data->WBPort)) != NULL)
-			ReplyMsg(msg);
+		MOS_ReplyPendingMessages(&data->WBPort);
 	}
 
     SDL_WindowData *wd;
@@ -172,6 +182,14 @@ MOS_DeleteDevice(SDL_VideoDevice * device)
 {
 	D("[%s]\n", __FUNCTION__);
 	SDL_VideoData *data = (SDL_VideoData *) device->driverdata;
+
+	// Workbench must not send anything more to WBPort, which is freed below.
+	// The AppWindows are already gone with their windows.
+	if (data->AppIconRef) {
+		RemoveAppIcon(data->AppIconRef);
+		data->AppIconRef = NULL;
+	}
+	MOS_ReplyPendingMessages(&data->WBPort);
 
 	FreeSignal(data->ScreenNotifyPort.mp_SigBit);
 	FreeSignal(data->BrokerPort.mp_SigBit);
