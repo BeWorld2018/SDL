@@ -179,6 +179,7 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
 {
     int retval = SDL_MUTEX_TIMEDOUT;
     struct waitnode wn;
+    BYTE sigbit = -1;
 
     if (!sem)
         return SDL_SetError("Passed a NULL semaphore");
@@ -191,7 +192,14 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
         retval = 0;
     }
     else if (timeout > 0) {
+        /* Private signal: SIGF_SINGLE belongs to ObtainSemaphore() */
+        sigbit = AllocSignal(-1);
+        if (sigbit < 0) {
+            ReleaseSemaphore(&sem->sem);
+            return SDL_SetError("No free signal");
+        }
         InitQPort(&wn.port);
+        wn.port.mp_SigBit = sigbit;
         wn.msg.mn_Node.ln_Type = NT_MESSAGE;
         wn.msg.mn_ReplyPort = &wn.port;
         ADDTAIL(&sem->waitlist, &wn);
@@ -200,7 +208,7 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
     ReleaseSemaphore(&sem->sem);
 
     /* Sem not available and we have timeout */
-    if (retval == SDL_MUTEX_TIMEDOUT && timeout > 0) {
+    if (sigbit >= 0) {
         struct timerequest req;
         struct Message *msg;
 
@@ -223,6 +231,9 @@ SDL_SemWaitTimeout(SDL_sem * sem, Uint32 timeout)
 
         AbortIO((struct IORequest *) &req);
         WaitIO((struct IORequest *) &req);
+
+        SetSignal(0, 1UL << sigbit);
+        FreeSignal(sigbit);
     }
 
     return retval;

@@ -108,6 +108,9 @@ SDL_Delay(Uint32 ms)
 	req.tr_time.tv_micro = (ms % 1000) * 1000;
 
 	DoIO((struct IORequest *)&req);
+
+	/* Don't leave SIGF_SINGLE set for ObtainSemaphore() */
+	SetSignal(0, SIGF_SINGLE);
 }
 
 #endif /* SDL_TIMER_MORPHOS || SDL_TIMERS_DISABLED */
