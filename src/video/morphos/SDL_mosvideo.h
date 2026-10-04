@@ -66,6 +66,7 @@ typedef struct SDL_VideoData
 	LONG ScreenSaverSuspendCount;
 
 	APTR ScreenNotifyHandle;
+	BYTE WBClosed;			/* windows closed for a Workbench close, see MOS_ReleaseWorkbench() */
 
 	CONST_STRPTR FullAppName;
 	struct DiskObject *AppIcon;
@@ -90,6 +91,8 @@ typedef struct SDL_VideoData
 extern void MOS_CloseDisplay(_THIS);
 extern void MOS_HideApp(_THIS, size_t with_app_icon);
 extern void MOS_ShowApp(_THIS);
+extern void MOS_ReleaseWorkbench(_THIS);
+extern void MOS_ReopenWorkbench(_THIS);
 
 /* Non-SDL functions */
 extern size_t getv(APTR obj, size_t attr);

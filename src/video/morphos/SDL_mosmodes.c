@@ -359,7 +359,8 @@ MOS_GetScreen(_THIS, BYTE fullscreen, SDL_bool support3d)
 
 	data->WScreen = screen;
 
-	if (use_wb_screen) {
+	// Still registered when the Workbench comes back after MOS_ReleaseWorkbench()
+	if (use_wb_screen && data->ScreenNotifyHandle == NULL) {
 		data->ScreenNotifyHandle = AddWorkbenchClient(&data->ScreenNotifyPort, -20);
 	}
 

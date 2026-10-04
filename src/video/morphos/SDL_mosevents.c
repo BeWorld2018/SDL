@@ -760,25 +760,28 @@ MOS_CheckScreenEvent(_THIS)
 		while ((snm = (struct ScreenNotifyMessage *)GetMsg(&data->ScreenNotifyPort)) != NULL) {
 			D("[%s] check ScreenNotifyMessage\n", __FUNCTION__);
 
-			switch ((size_t)snm->snm_Value) {
-				case FALSE:
-					MOS_HideApp(_this, FALSE);
-					break;
-
-				case TRUE:
+			if (snm->snm_Type == SCREENNOTIFY_TYPE_WORKBENCH) {
+				if (snm->snm_Value == (APTR)FALSE) {
+					MOS_ReleaseWorkbench(_this);
+				} else {
+					MOS_ReopenWorkbench(_this);
 					MOS_ShowApp(_this);
-					break;
+				}
 			}
 
-			// screennotify.library waits for the reply, and RemWorkbenchClient()
+			// CloseWorkBench() waits for the reply, and RemWorkbenchClient()
 			// fails as long as a message is not replied
 			ReplyMsg((struct Message *)snm);
 		}
 
-		if (data->WScreen)
+		if (!data->WBClosed)
 			break;
 
-		WaitPort(&data->ScreenNotifyPort);
+		// Nothing can be shown before the Workbench is open again
+		if (Wait(data->ScrNotifySig | SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) {
+			SDL_SendAppEvent(SDL_QUIT);
+			break;
+		}
 	}
 }
 

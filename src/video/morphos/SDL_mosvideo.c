@@ -79,21 +79,23 @@ MOS_CloseDisplay(_THIS)
 		}
 
 		UnlockPubScreen(NULL, data->WScreen);
+	}
 
-		if (data->ScreenNotifyHandle) {
-			// The client can't be removed while a notification is not replied
+	// Also when MOS_ReleaseWorkbench() already unlocked the Workbench
+	if (data->ScreenNotifyHandle) {
+		// The client can't be removed while a notification is not replied
+		MOS_ReplyPendingMessages(&data->ScreenNotifyPort);
+		while (!RemWorkbenchClient(data->ScreenNotifyHandle)) {
+			Delay(10);
 			MOS_ReplyPendingMessages(&data->ScreenNotifyPort);
-			while (!RemWorkbenchClient(data->ScreenNotifyHandle)) {
-				Delay(10);
-				MOS_ReplyPendingMessages(&data->ScreenNotifyPort);
-			}
-
-			data->ScreenNotifyHandle = NULL;
 		}
+
+		data->ScreenNotifyHandle = NULL;
 	}
 
 	data->CustomScreen = NULL;
 	data->WScreen = NULL;
+	data->WBClosed = FALSE;
 }
 
 size_t getv(APTR obj, size_t attr)
@@ -147,6 +149,49 @@ MOS_ShowApp(_THIS)
         }
     }
 
+}
+
+/* The Workbench is about to close (screen mode change...). CloseWorkBench()
+   fails, and Ambient waits, as long as a window is open on it or it is
+   locked: close the windows and unlock it. The SDL windows stay shown, and
+   the screennotify client stays to tell when the Workbench is open again. */
+void
+MOS_ReleaseWorkbench(_THIS)
+{
+	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+
+	if (data->CustomScreen || data->WScreen == NULL)
+		return;
+
+	D("[%s] Workbench closing\n", __FUNCTION__);
+
+	MOS_CloseWindows(_this);
+	UnlockPubScreen(NULL, data->WScreen);
+	data->WScreen = NULL;
+	data->WBClosed = TRUE;
+}
+
+/* The Workbench is open again: reopen what MOS_ReleaseWorkbench() closed */
+void
+MOS_ReopenWorkbench(_THIS)
+{
+	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+	SDL_WindowData *wd;
+
+	if (!data->WBClosed)
+		return;
+
+	D("[%s] Workbench open again\n", __FUNCTION__);
+
+	data->WBClosed = FALSE;
+	MOS_OpenWindows(_this);
+
+	// TinyGL draws into a bitmap friend of the old screen
+	ForeachNode(&data->windowlist, wd)
+	{
+		if (wd->win && wd->__tglContext)
+			MOS_GL_ResizeContext(_this, wd->window);
+	}
 }
 
 static int
