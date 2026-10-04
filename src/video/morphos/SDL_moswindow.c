@@ -1129,7 +1129,11 @@ int
 MOS_GetWindowBordersSize(_THIS, SDL_Window * window, int *top, int *left, int *bottom, int *right)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	
+
+	// Hidden or minimized: no Intuition window, SDL already set the sizes to 0
+	if (data == NULL || data->win == NULL)
+		return SDL_SetError("Window is not open");
+
 	if (top)
 		*top = data->win->BorderTop;
 	

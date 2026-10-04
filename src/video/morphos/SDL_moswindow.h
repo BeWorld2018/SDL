@@ -91,6 +91,9 @@ typedef struct
 	LONG curr_x, curr_y, curr_w, curr_h;
 	int old_w, old_h, old_x, old_y;
 
+	// Window box before MOS_MaximizeWindow(), for MOS_RestoreWindow()
+	LONG restore_x, restore_y, restore_w, restore_h;
+
 	// Flags that must be taken into account at MOS_ShowWindow()
 	Uint32 sdlflags;
 
@@ -138,6 +141,7 @@ extern void MOS_RaiseWindow(_THIS, SDL_Window * window);
 extern void MOS_MaximizeWindow(_THIS, SDL_Window * window);
 extern void MOS_MinimizeWindow(_THIS, SDL_Window * window);
 extern void MOS_RestoreWindow(_THIS, SDL_Window * window);
+extern void MOS_RestoreMinimizedWindow(_THIS, SDL_Window * window);
 extern void MOS_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered);
 extern void MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * display, SDL_bool fullscreen);
 extern int MOS_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp);
