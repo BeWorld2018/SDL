@@ -107,58 +107,76 @@ static SDL_bool
 MOS_GL_AllocBitmap(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	struct Screen *pubscr = NULL;
+	struct BitMap *fb;
+	int w = window->w, h = window->h;
 
 	MOS_GL_FreeBitMap(_this, window);
-	
-    struct BitMap *fb = data->win->RPort->BitMap;
+
+	if (data->win) {
+		fb = data->win->RPort->BitMap;
+		w = getv(data->win, WA_InnerWidth);
+		h = getv(data->win, WA_InnerHeight);
+	} else {
+		// Hidden window: draw offscreen, in the format of the screen it will open on
+		struct Screen *scr = data->videodata->WScreen;
+
+		if (scr == NULL)
+			scr = pubscr = LockPubScreen(NULL);
+		if (scr == NULL)
+			return SDL_FALSE;
+		fb = scr->RastPort.BitMap;
+	}
+
     ULONG depth = GetBitMapAttr(fb, BMA_DEPTH);
 
-	int w = getv(data->win, WA_InnerWidth);
-	int h = getv(data->win, WA_InnerHeight);
-	
 	D("[%s] AllocBitMap w=%d h=%d depth=%d\n", __FUNCTION__, w, h, (int)depth);
-    data->bitmap = AllocBitMap(w, h, depth,
+    data->bitmap = AllocBitMap(SDL_max(w, 1), SDL_max(h, 1), depth,
                                BMF_MINPLANES | BMF_DISPLAYABLE | BMF_3DTARGET,
                                fb);
+
+	if (pubscr)
+		UnlockPubScreen(NULL, pubscr);
+
     return (data->bitmap != NULL);
-	
 }
 
+// Attaches the context to a new bitmap for the window.
+// data->bitmap != NULL means data->__tglContext is attached to it.
 static SDL_bool
-MOS_GL_InitContext(_THIS, SDL_Window * window)
+MOS_GL_InitContext(_THIS, SDL_Window * window, GLContext *context)
 {
-	D("[%s]\n", __FUNCTION__);
+	D("[%s] context 0x%08lx\n", __FUNCTION__, context);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	
-	if (data->__tglContext != NULL) {
+
+	if (data->bitmap != NULL) {
 		GLADestroyContext(data->__tglContext);
-		data->__tglContext = NULL;
         MOS_GL_FreeBitMap(_this, window);
 	}
 
+	// Kept even if the attach fails, so that MOS_GL_DeleteContext() still finds it
+	data->__tglContext = context;
+
 	struct TagItem tgltags[] =
 	{
-		{TAG_IGNORE, 0},
+		{TGL_CONTEXT_BITMAP, 0},
 		{TGL_CONTEXT_STENCIL, TRUE},
 		{TAG_DONE}
-	};	
+	};
 
-	if (MOS_GL_AllocBitmap(_this, window)) {	
-		tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
-		tgltags[0].ti_Data = (IPTR)data->bitmap;
-	} else {
-		D("[%s] Failed to AllocBitmap !", __FUNCTION__);	
+	if (!MOS_GL_AllocBitmap(_this, window)) {
+		D("[%s] Failed to AllocBitmap !\n", __FUNCTION__);
 		return SDL_FALSE;
 	}
 
-	// Initialize new context
- 	int success = GLAInitializeContext(__tglContext, tgltags);
-	if (success) {
-		data->__tglContext = __tglContext;
-		return SDL_TRUE;	
+	tgltags[0].ti_Data = (IPTR)data->bitmap;
+
+	if (!GLAInitializeContext(context, tgltags)) {
+		MOS_GL_FreeBitMap(_this, window);
+		return SDL_FALSE;
 	}
 
-	return SDL_FALSE;		
+	return SDL_TRUE;
 }
 
 SDL_GLContext
@@ -166,10 +184,9 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 {
     D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = window->driverdata;
-	
+
 	GLContext *glcont = GLInit();
 	if (glcont) {
-		__tglContext = glcont;
 #ifdef TGL_CONTEXT_VERSION_53_9
 		if (SDL2Base->MyGetMaximumContextVersion)
 		{
@@ -178,30 +195,30 @@ MOS_GL_CreateContext(_THIS, SDL_Window * window)
 
 			if (contextversion == TGL_CONTEXT_VERSION_53_1)
 			{
-				TGLEnableNewExtensions(__tglContext, 0);
+				TGLEnableNewExtensions(glcont, 0);
 			}
 			else if (contextversion >= TGL_CONTEXT_VERSION_53_9)
 			{
-				TGLSetContextVersion(__tglContext, contextversion);
+				TGLSetContextVersion(glcont, contextversion);
 			}
 		}
 #endif
-		if (MOS_GL_InitContext(_this, window)) {
+		if (MOS_GL_InitContext(_this, window, glcont)) {
 			D("[%s] MOS_GL_InitContext SUCCES 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
 
-			*SDL2Base->MyGLContext = glcont;
-			
+			*SDL2Base->MyGLContext = __tglContext = glcont;
+
 			GLClearColor(glcont, 0.0f, 0.0f, 0.0f, 1.0f);
 			GLClear(glcont, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-			
+
 			return glcont;
 		} else {
 			D("[%s] MOS_GL_InitContext FAILED 0x%08lx, data->__tglContext=0x%08lx\n", __FUNCTION__, glcont, data->__tglContext);
 
-            MOS_GL_FreeBitMap(_this, window);
+			// The current context (maybe another window's) is left alone
+			data->__tglContext = NULL;
 			GLClose(glcont);
-			*SDL2Base->MyGLContext = data->__tglContext = __tglContext = NULL;
-			
+
 			SDL_SetError("Couldn't initialize TinyGL context");
 		}
 	} else {
@@ -273,7 +290,8 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-	if (!data->win || !data->__tglContext) {
+	// No bitmap: the context could not be attached (failed resize)
+	if (!data->win || !data->__tglContext || !data->bitmap) {
 		SDL_SetError("SwapWindow called with no valid GL context");
 		return -1;
 	}
@@ -303,28 +321,34 @@ MOS_GL_DeleteContext(_THIS, SDL_GLContext context)
         return;
 
     SDL_Window *sdlwin;
-    SDL_bool destroyed = SDL_FALSE;
-	
+    SDL_bool found = SDL_FALSE;
+
     for (sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
         SDL_WindowData *data = sdlwin->driverdata;
+        if (data == NULL)
+            continue;
 	     D("[%s] data->__tglContext=0x%08lx\n", __FUNCTION__, data->__tglContext);
         if (data->__tglContext == context) {
 
-            if (!destroyed) {
+            // Already detached if the last MOS_GL_InitContext() failed
+            if (data->bitmap != NULL) {
 				D("[%s] GLADestroyContext data->__tglContext=0x%08lx\n", __FUNCTION__, data->__tglContext);
-                GLADestroyContext(data->__tglContext);
-                destroyed = SDL_TRUE;
+                GLADestroyContext(context);
+				MOS_GL_FreeBitMap(_this, sdlwin);
 			}
 			data->__tglContext = NULL;
-			MOS_GL_FreeBitMap(_this, sdlwin);
+			found = SDL_TRUE;
         }
     }
 
-    if (destroyed) {
+    if (found) {
 		GLClose(context);
     }
 
-    *SDL2Base->MyGLContext = __tglContext = NULL;
+    // Another window's context may be the current one
+    if (__tglContext == context) {
+        *SDL2Base->MyGLContext = __tglContext = NULL;
+    }
 }
 
 int
@@ -333,11 +357,11 @@ MOS_GL_ResizeContext(_THIS, SDL_Window *window)
 	
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] Context=0x%08lx data->__tglContext=0x%08lx\n", __FUNCTION__, __tglContext, data->__tglContext);
-	if (data->__tglContext == NULL || data->win == NULL) {
+	if (data->__tglContext == NULL) {
 		return -1;
 	}
 
-	return (MOS_GL_InitContext(_this, window) ? 0 : -1);
+	return (MOS_GL_InitContext(_this, window, data->__tglContext) ? 0 : -1);
 }
 
 #endif /* SDL_VIDEO_DRIVER_MORPHOS */

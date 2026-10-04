@@ -864,15 +864,16 @@ MOS_DestroyWindow(_THIS, SDL_Window * window)
 {
 	D("[%s]\n", __FUNCTION__);
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-	
+
+	// Before clearing driverdata, MOS_GL_DeleteContext() looks the context up through it
+	if (data && data->__tglContext)
+		MOS_GL_DeleteContext(_this, data->__tglContext);
+
 	window->driverdata = NULL;
 
 	if (data) {
 		SDL_VideoData *videodata = (SDL_VideoData *) data->videodata;
-		
-		if (data->__tglContext)
-			MOS_GL_DeleteContext(_this, data->__tglContext);
-		
+
 		REMOVE(&data->node);
 
 		if (data->win) {
