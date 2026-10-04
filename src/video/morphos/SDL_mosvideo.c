@@ -121,7 +121,16 @@ MOS_HideApp(_THIS, size_t with_app_icon)
             MOS_SetWindowOpacity(_this, wd->window, 0.0);
     }
 
-	if (with_app_icon && data->AppIcon && data->AppIconRef == NULL)
+	if (with_app_icon)
+		MOS_ShowAppIcon(_this);
+}
+
+void
+MOS_ShowAppIcon(_THIS)
+{
+	SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+
+	if (data->AppIcon && data->AppIconRef == NULL)
 		data->AppIconRef = AddAppIconA(0, 0, FilePart(data->FullAppName), &data->WBPort, 0, data->AppIcon, NULL);
 }
 
@@ -143,7 +152,9 @@ MOS_ShowApp(_THIS)
     ForeachNode(&data->windowlist, wd)
     {
         struct Window *win = wd->win;
-        if (win) {
+        if (wd->sdlflags & SDL_WINDOW_MINIMIZED) {
+            MOS_RestoreMinimizedWindow(_this, wd->window);
+        } else if (win) {
             MOS_SetWindowOpacity(_this, wd->window, 1.0);
             MOS_WindowToFront(win);
         }

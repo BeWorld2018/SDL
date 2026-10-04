@@ -451,8 +451,6 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		if (vd->CustomScreen == NULL)
 			barheight = GetSkinInfoAttrA(di, SI_ScreenTitlebarHeight, NULL);
 
-		FreeScreenDrawInfo(scr, di);
-
 		if (!fs_desktop)
 			maxheight = scr->Height - barheight;
 		else
@@ -480,7 +478,10 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 
 			D("[%s] maximize to %ld/%ld\n", __FUNCTION__, w, h);
 		}
-		
+
+		// Used by the maximize case above
+		FreeScreenDrawInfo(scr, di);
+
 		min_w = MIN(min_w, scr->Width);
 		min_h = MIN(min_h, maxheight);
 		max_w = MIN(max_w, scr->Width);
@@ -686,14 +687,24 @@ MOS_MaximizeWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	SDL_VideoData *vd = (SDL_VideoData *) data->videodata;
-	D("[%s] wnd 0x%08lx - w=%d, h=%d\n", __FUNCTION__, data->win, data->win->MaxWidth, data->win->MaxHeight);
-	
+	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
+
 	if (data->win && window->flags & SDL_WINDOW_RESIZABLE) {
-		
+
+		// window->w/h follow the maximized size: keep the box for MOS_RestoreWindow()
+		if (!(data->sdlflags & SDL_WINDOW_MAXIMIZED)) {
+			data->restore_x = data->win->LeftEdge;
+			data->restore_y = data->win->TopEdge;
+			data->restore_w = data->win->Width;
+			data->restore_h = data->win->Height;
+		}
+
 		data->sdlflags |=  SDL_WINDOW_MAXIMIZED;
 		data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
-		
+
 		ChangeWindowBox(data->win, 0, (vd->CustomScreen == NULL ? data->win->WScreen->BarHeight + 1 : 0), data->win->MaxWidth, data->win->MaxHeight);
+
+		SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MAXIMIZED, 0, 0);
 	}
 }
 
@@ -703,23 +714,66 @@ MOS_MinimizeWindow(_THIS, SDL_Window * window)
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
 
+	if (data->sdlflags & SDL_WINDOW_MINIMIZED)
+		return;
+
 	data->sdlflags |=  SDL_WINDOW_MINIMIZED;
 	data->sdlflags &= ~SDL_WINDOW_MAXIMIZED;
 
 	MOS_HideWindow(_this, window);
+
+	// Clicking the AppIcon brings it back, see MOS_ShowApp()
+	MOS_ShowAppIcon(_this);
+
+	SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MINIMIZED, 0, 0);
+}
+
+// From MOS_RestoreWindow() and MOS_ShowApp() (AppIcon, Exchange)
+void
+MOS_RestoreMinimizedWindow(_THIS, SDL_Window * window)
+{
+	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
+
+	data->sdlflags &= ~SDL_WINDOW_MINIMIZED;
+
+	// Sent first: a fullscreen window gets its screen back here (SDL_OnWindowRestored()),
+	// MOS_OpenWindows() skips it as long as it is not shown
+	SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESTORED, 0, 0);
+
+	if (data->win == NULL && !(window->flags & SDL_WINDOW_HIDDEN))
+		MOS_ShowWindow_Internal(_this, window);
 }
 
 void
 MOS_RestoreWindow(_THIS, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+	SDL_VideoData *vd = (SDL_VideoData *) data->videodata;
+	SDL_WindowData *wd;
 	D("[%s] wnd 0x%08lx\n", __FUNCTION__, data->win);
 
-	if (data->win) {
-		data->sdlflags &= ~(SDL_WINDOW_MINIMIZED | SDL_WINDOW_MAXIMIZED);
+	if (data->sdlflags & SDL_WINDOW_MINIMIZED) {
+		MOS_RestoreMinimizedWindow(_this, window);
 
-		ChangeWindowBox(data->win, window->x, window->y, window->w, window->h);
-		MOS_WindowToFront(data->win);
+		// The AppIcon goes away with the last minimized window
+		ForeachNode(&vd->windowlist, wd)
+		{
+			if (wd->sdlflags & SDL_WINDOW_MINIMIZED)
+				return;
+		}
+		MOS_ShowApp(_this);
+
+	} else if (data->sdlflags & SDL_WINDOW_MAXIMIZED) {
+		data->sdlflags &= ~SDL_WINDOW_MAXIMIZED;
+
+		if (data->win) {
+			if (data->restore_w && data->restore_h)
+				ChangeWindowBox(data->win, data->restore_x, data->restore_y, data->restore_w, data->restore_h);
+			MOS_WindowToFront(data->win);
+		}
+
+		SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESTORED, 0, 0);
 	}
 }
 

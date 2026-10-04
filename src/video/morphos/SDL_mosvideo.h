@@ -91,6 +91,7 @@ typedef struct SDL_VideoData
 extern void MOS_CloseDisplay(_THIS);
 extern void MOS_HideApp(_THIS, size_t with_app_icon);
 extern void MOS_ShowApp(_THIS);
+extern void MOS_ShowAppIcon(_THIS);
 extern void MOS_ReleaseWorkbench(_THIS);
 extern void MOS_ReopenWorkbench(_THIS);
 
