@@ -191,9 +191,18 @@ SDL_COMPILE_TIME_ASSERT(ovl_rect, sizeof(SDL_FRect) == sizeof(SDL_Rect));
 SDL_COMPILE_TIME_ASSERT(ovl_fill, sizeof(OVL_GeometryFillQueued) == sizeof(OVL_GeometryFillData));
 SDL_COMPILE_TIME_ASSERT(ovl_copy, sizeof(OVL_GeometryCopyQueued) == sizeof(OVL_GeometryCopyData));
 
+/* floor(v) without calling floorf(), which is slow on PowerPC and called for
+   every coordinate: the bias makes the conversion truncate a positive value.
+   Exact for v above -2^22 (further left is off screen anyway), except tiny
+   negative values above -1e-9 that give 0. */
+static SDL_INLINE int OVL_Floor(double v)
+{
+    return (int)(v + 4194304.0) - 4194304;
+}
+
 static SDL_INLINE int OVL_Round(float v)
 {
-    return (int)SDL_floorf(v + 0.5f);
+    return OVL_Floor((double)v + 0.5);
 }
 
 static struct Window *OVL_GetIntuiWindow(const OVL_RenderData *data)
@@ -978,22 +987,116 @@ static void OVL_Narrow(double a, double b, int *lo, int *hi)
     }
 }
 
-/* Narrows [*lo, *hi) to the i where 0 <= p + i * dp < limit */
-static void OVL_NarrowSpan(double p, double dp, double limit, int *lo, int *hi)
+/* One pixel of a copy between 32-bit formats, the alpha byte (or the unused
+   one) rotated to the top: blends like BlitRGBtoRGBPixelAlpha() */
+SDL_FORCE_INLINE void OVL_PutPixel32(Uint8 *d, Uint32 p, Uint32 srot, Uint32 drot, SDL_bool swap,
+                                     Uint32 afill, Uint32 amod, SDL_bool blend)
 {
-    if (dp > 0.0) {
-        OVL_Narrow(SDL_ceil(-p / dp), SDL_ceil((limit - p) / dp), lo, hi);
-    } else if (dp < 0.0) {
-        OVL_Narrow(SDL_floor((limit - p) / dp) + 1.0, SDL_floor(-p / dp) + 1.0, lo, hi);
-    } else if (p < 0.0 || p >= limit) {
-        *hi = *lo;
+    Uint32 a;
+
+    p = OVL_ROTL(p, srot);
+    if (swap) {
+        p = (p & 0xFF00FF00) | ((p >> 16) & 0xFF) | ((p & 0xFF) << 16);
     }
+    p |= afill;
+    a = p >> 24;
+    if (amod != 0xFF) {
+        a = a * amod / 255;
+    }
+    if (!blend) {
+        p = (p & 0x00FFFFFF) | (a << 24);
+    } else if (a == 0) {
+        return;
+    } else if (a != 0xFF) {
+        const Uint32 q = OVL_ROTL(*(const Uint32 *)d, drot);
+        const Uint32 rb = ((q & 0xFF00FF) + (((p & 0xFF00FF) - (q & 0xFF00FF)) * a >> 8)) & 0xFF00FF;
+        const Uint32 g = ((q & 0xFF00) + (((p & 0xFF00) - (q & 0xFF00)) * a >> 8)) & 0xFF00;
+        p = rb | g | ((a + ((q >> 24) * (a ^ 0xFF) >> 8)) << 24);
+    }
+    *(Uint32 *)d = OVL_ROTL(p, (32 - drot) & 31);
+}
+
+/* One pixel of any other copy, channel by channel like SDL_Blit_Slow() */
+SDL_FORCE_INLINE void OVL_PutPixel(const OVL_Layout *dl, Uint8 *d, Uint32 sr, Uint32 sg, Uint32 sb, Uint32 sa,
+                                   SDL_BlendMode blend, SDL_bool color_mod,
+                                   Uint32 rmod, Uint32 gmod, Uint32 bmod, Uint32 amod)
+{
+    Uint32 dr, dg, db, da;
+
+    if (color_mod) {
+        sr = sr * rmod / 255;
+        sg = sg * gmod / 255;
+        sb = sb * bmod / 255;
+    }
+    if (amod != 0xFF) {
+        sa = sa * amod / 255;
+    }
+
+    switch (blend) {
+    case SDL_BLENDMODE_BLEND:
+        if (sa == 0) {
+            return;
+        }
+        if (sa == 0xFF) {
+            OVL_WriteRGBA(dl, d, sr, sg, sb, 0xFF);
+            return;
+        }
+        OVL_ReadRGBA(dl, d, &dr, &dg, &db, &da);
+        dr = sr * sa / 255 + (255 - sa) * dr / 255;
+        dg = sg * sa / 255 + (255 - sa) * dg / 255;
+        db = sb * sa / 255 + (255 - sa) * db / 255;
+        da = sa + (255 - sa) * da / 255;
+        break;
+    case SDL_BLENDMODE_ADD:
+        if (sa == 0) {
+            return;
+        }
+        OVL_ReadRGBA(dl, d, &dr, &dg, &db, &da);
+        if (sa < 0xFF) {
+            sr = sr * sa / 255;
+            sg = sg * sa / 255;
+            sb = sb * sa / 255;
+        }
+        dr = SDL_min(sr + dr, 255);
+        dg = SDL_min(sg + dg, 255);
+        db = SDL_min(sb + db, 255);
+        break;
+    case SDL_BLENDMODE_MOD:
+        OVL_ReadRGBA(dl, d, &dr, &dg, &db, &da);
+        dr = sr * dr / 255;
+        dg = sg * dg / 255;
+        db = sb * db / 255;
+        break;
+    case SDL_BLENDMODE_MUL:
+        OVL_ReadRGBA(dl, d, &dr, &dg, &db, &da);
+        dr = SDL_min((sr * dr + dr * (255 - sa)) / 255, 255);
+        dg = SDL_min((sg * dg + dg * (255 - sa)) / 255, 255);
+        db = SDL_min((sb * db + db * (255 - sa)) / 255, 255);
+        break;
+    default:
+        dr = sr;
+        dg = sg;
+        db = sb;
+        da = sa;
+        break;
+    }
+    OVL_WriteRGBA(dl, d, dr, dg, db, da);
+}
+
+/* Largest |p0 + i * di + j * dj| for 0 <= i <= ni and 0 <= j <= nj */
+static double OVL_MaxAbs(double p0, double di, double ni, double dj, double nj)
+{
+    const double a = p0 + di * ni;
+    const double b = p0 + dj * nj;
+
+    return SDL_max(SDL_max(SDL_fabs(p0), SDL_fabs(a)), SDL_max(SDL_fabs(b), SDL_fabs(a + dj * nj)));
 }
 
 /* Rotated texture copy drawn straight into the surface, where the software
    renderer goes through three temporary surfaces. Each pixel center inside
-   the rotated rectangle is mapped back into the source rectangle. dst and
-   center are in surface pixels, fractional positions are kept.
+   the rotated rectangle is mapped back into the source rectangle, stepping
+   in fixed point with additions only. dst and center are in surface pixels,
+   fractional positions are kept.
 
    Between 32-bit formats with the NONE or BLEND mode and no color
    modulation, whole pixels are handled with the alpha byte (or the unused
@@ -1007,19 +1110,22 @@ static void OVL_DrawRotated(SDL_Surface *surface, SDL_Surface *src, const SDL_Re
     const OVL_Layout sl = OVL_GetLayout(src);
     const OVL_Layout dl = OVL_GetLayout(surface);
     const SDL_bool color_mod = ((rmod & gmod & bmod) != 0xFF) ? SDL_TRUE : SDL_FALSE;
+    const SDL_bool blending = (blend == SDL_BLENDMODE_BLEND) ? SDL_TRUE : SDL_FALSE;
     const int sw = srcrect->w, sh = srcrect->h;
     const int spitch = src->pitch, dpitch = surface->pitch;
     const Uint32 srot = sl.rot, drot = dl.rot;
+    const Uint32 afill = sl.alpha ? 0 : 0xFF000000;
     const Uint32 s_r = (sl.rs + srot) & 31, s_g = (sl.gs + srot) & 31, s_b = (sl.bs + srot) & 31;
     const Uint32 d_r = (dl.rs + drot) & 31, d_g = (dl.gs + drot) & 31, d_b = (dl.bs + drot) & 31;
     const SDL_bool swap = (s_r != d_r) ? SDL_TRUE : SDL_FALSE; /* red and blue, bytes 0 and 2 */
     const SDL_bool whole = (sl.packed && dl.packed && !color_mod &&
-                            (blend == SDL_BLENDMODE_NONE || blend == SDL_BLENDMODE_BLEND) && s_g == d_g &&
+                            (blend == SDL_BLENDMODE_NONE || blending) && s_g == d_g &&
                             (swap ? (s_r == d_b && s_b == d_r) : (s_b == d_b))) ? SDL_TRUE : SDL_FALSE;
     const Uint8 *sbase;
-    double c, s, turns, ax, ay, bx, by, px, py, fu, fv, u0, v0, dudx, dudy, dvdx, dvdy, one;
-    Sint64 range;
-    Sint32 du, dv;
+    Uint8 *drow;
+    double c, s, turns, ax, ay, bx, by, px, py, fu, fv, u0, v0, dudx, dudy, dvdx, dvdy, us, vs, lim, one;
+    Sint32 ur, vr, du, dv, dur, dvr;
+    Uint32 su, sv;
     int shift, x0, x1, y0, y1, y;
 
     if (sw < 1 || sh < 1 || !(dst->w > 0.0f) || !(dst->h > 0.0f) ||
@@ -1095,147 +1201,145 @@ static void OVL_DrawRotated(SDL_Surface *surface, SDL_Surface *src, const SDL_Re
         dvdx = -s * fv;
         dvdy = c * fv;
     }
+    us = u0 + (x0 + 0.5 - px) * dudx + (y0 + 0.5 - py) * dudy;
+    vs = v0 + (x0 + 0.5 - px) * dvdx + (y0 + 0.5 - py) * dvdy;
 
-    /* Fixed point along the rows: u and u + du have to fit in 31 bits. A step
-       larger than the source only happens on spans of one pixel. */
-    range = 2 * (Sint64)SDL_max(sw, sh) + 4;
+    /* Fixed point: every u and v met in the box, one step past it included,
+       has to fit in 31 bits */
+    lim = SDL_max(OVL_MaxAbs(us, dudx, x1 - x0, dudy, y1 - y0), OVL_MaxAbs(vs, dvdx, x1 - x0, dvdy, y1 - y0));
+    lim = SDL_max(lim, (double)SDL_max(sw, sh)) + 2.0;
     shift = 16;
-    while (shift > 8 && (range << shift) > 0x7FFFFFFF) {
+    while (shift > 8 && lim * (1 << shift) >= 2147483648.0) {
         shift--;
     }
-    if ((range << shift) > 0x7FFFFFFF) {
+    if (lim * (1 << shift) >= 2147483648.0) {
         return;
     }
     one = (double)(1 << shift);
-    du = (Sint32)SDL_floor(SDL_clamp(dudx, -(sw + 1.0), sw + 1.0) * one + 0.5);
-    dv = (Sint32)SDL_floor(SDL_clamp(dvdx, -(sh + 1.0), sh + 1.0) * one + 0.5);
+    ur = (Sint32)SDL_floor(us * one + 0.5);
+    vr = (Sint32)SDL_floor(vs * one + 0.5);
+    du = (Sint32)SDL_floor(dudx * one + 0.5);
+    dv = (Sint32)SDL_floor(dvdx * one + 0.5);
+    dur = (Sint32)SDL_floor(dudy * one + 0.5);
+    dvr = (Sint32)SDL_floor(dvdy * one + 0.5);
+    su = (Uint32)sw << shift;
+    sv = (Uint32)sh << shift;
 
     sbase = (const Uint8 *)src->pixels + srcrect->y * spitch + srcrect->x * sl.bpp;
-    for (y = y0; y < y1; y++) {
-        const double qx = x0 + 0.5 - px;
-        const double qy = y + 0.5 - py;
-        const double ur = u0 + qx * dudx + qy * dudy;
-        const double vr = v0 + qx * dvdx + qy * dvdy;
-        int lo = 0, hi = x1 - x0, i;
-        Sint32 u, v;
-        Uint8 *d;
+    drow = (Uint8 *)surface->pixels + y0 * dpitch + x0 * dl.bpp;
+    for (y = y0; y < y1; y++, ur += dur, vr += dvr, drow += dpitch) {
+        Sint32 u = ur, v = vr;
+        Uint8 *d = drow;
+        int n = x1 - x0;
 
-        /* Only the pixels inside the rotated rectangle */
-        OVL_NarrowSpan(ur, dudx, sw, &lo, &hi);
-        OVL_NarrowSpan(vr, dvdx, sh, &lo, &hi);
-        if (lo >= hi) {
-            continue;
+        /* Up to the rectangle, then along it: inside a row, its pixels are
+           contiguous, and their u and v always within the source */
+        while (n > 0 && ((Uint32)u >= su || (Uint32)v >= sv)) {
+            u += du;
+            v += dv;
+            d += dl.bpp;
+            n--;
         }
-        u = (Sint32)SDL_floor((ur + lo * dudx) * one + 0.5);
-        v = (Sint32)SDL_floor((vr + lo * dvdx) * one + 0.5);
-        d = (Uint8 *)surface->pixels + y * dpitch + (x0 + lo) * dl.bpp;
-
-        if (whole) {
-            for (i = lo; i < hi; i++, u += du, v += dv, d += 4) {
-                Uint32 p, a;
+        if (whole && !linear) {
+            for (; n > 0 && (Uint32)u < su && (Uint32)v < sv; n--, u += du, v += dv, d += 4) {
+                OVL_PutPixel32(d, *(const Uint32 *)(sbase + (v >> shift) * spitch + (u >> shift) * 4),
+                               srot, drot, swap, afill, amod, blending);
+            }
+        } else if (whole) {
+            for (; n > 0 && (Uint32)u < su && (Uint32)v < sv; n--, u += du, v += dv, d += 4) {
+                OVL_PutPixel32(d, OVL_SampleLinear32(sbase, spitch, sw, sh, u, v, shift),
+                               srot, drot, swap, afill, amod, blending);
+            }
+        } else {
+            for (; n > 0 && (Uint32)u < su && (Uint32)v < sv; n--, u += du, v += dv, d += dl.bpp) {
+                Uint32 sr, sg, sb, sa;
 
                 if (linear) {
-                    p = OVL_SampleLinear32(sbase, spitch, sw, sh, u, v, shift);
+                    OVL_SampleLinear(&sl, sbase, spitch, sw, sh, u, v, shift, &sr, &sg, &sb, &sa);
                 } else {
-                    const int tx = SDL_clamp(u >> shift, 0, sw - 1);
-                    const int ty = SDL_clamp(v >> shift, 0, sh - 1);
-                    p = *(const Uint32 *)(sbase + ty * spitch + tx * 4);
+                    OVL_ReadRGBA(&sl, sbase + (v >> shift) * spitch + (u >> shift) * sl.bpp, &sr, &sg, &sb, &sa);
                 }
-                p = OVL_ROTL(p, srot);
-                if (swap) {
-                    p = (p & 0xFF00FF00) | ((p >> 16) & 0xFF) | ((p & 0xFF) << 16);
-                }
-                if (!sl.alpha) {
-                    p |= 0xFF000000;
-                }
-                a = p >> 24;
-                if (amod != 0xFF) {
-                    a = a * amod / 255;
-                }
-                if (blend == SDL_BLENDMODE_NONE) {
-                    p = (p & 0x00FFFFFF) | (a << 24);
-                } else if (a == 0) {
-                    continue;
-                } else if (a != 0xFF) {
-                    const Uint32 q = OVL_ROTL(*(const Uint32 *)d, drot);
-                    const Uint32 rb = ((q & 0xFF00FF) + (((p & 0xFF00FF) - (q & 0xFF00FF)) * a >> 8)) & 0xFF00FF;
-                    const Uint32 g = ((q & 0xFF00) + (((p & 0xFF00) - (q & 0xFF00)) * a >> 8)) & 0xFF00;
-                    p = rb | g | ((a + ((q >> 24) * (a ^ 0xFF) >> 8)) << 24);
-                }
-                *(Uint32 *)d = OVL_ROTL(p, (32 - drot) & 31);
+                OVL_PutPixel(&dl, d, sr, sg, sb, sa, blend, color_mod, rmod, gmod, bmod, amod);
             }
+        }
+    }
+}
+
+/* DRAW_MUL(inva, channel) + premultiplied color on the four channels of an
+   ARGB8888 pixel, as SDL_BlendFillRect_ARGB8888() and SDL_BlendPoint_ARGB8888()
+   do for the BLEND mode, but two channels per multiplication: each 16-bit
+   half holds one product, and (x + 1 + (x >> 8)) >> 8 is exactly x / 255
+   for x < 65535 */
+SDL_FORCE_INLINE Uint32 OVL_BlendARGB(Uint32 d, Uint32 inva, Uint32 add_rb, Uint32 add_ag)
+{
+    Uint32 rb = (d & 0x00FF00FF) * inva;
+    Uint32 ag = ((d >> 8) & 0x00FF00FF) * inva;
+
+    rb = ((rb + 0x00010001 + ((rb >> 8) & 0x00FF00FF)) >> 8) & 0x00FF00FF;
+    ag = ((ag + 0x00010001 + ((ag >> 8) & 0x00FF00FF)) >> 8) & 0x00FF00FF;
+    return (rb + add_rb) | ((ag + add_ag) << 8);
+}
+
+/* SDL_BlendFillRects() with the BLEND mode on ARGB8888, same pixels */
+static void OVL_BlendFillRectsARGB(SDL_Surface *surface, const SDL_Rect *rects, int count,
+                                   Uint32 r, Uint32 g, Uint32 b, Uint32 a)
+{
+    const Uint32 inva = 255 - a;
+    const Uint32 add_rb = ((r * a / 255) << 16) | (b * a / 255);
+    const Uint32 add_ag = (a << 16) | (g * a / 255);
+    int i;
+
+    if (a == 0) {
+        return;
+    }
+    if (a == 0xFF) {
+        SDL_FillRects(surface, rects, count, 0xFF000000 | (r << 16) | (g << 8) | b);
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        SDL_Rect rect;
+        Uint8 *row;
+        int x, y;
+
+        if (!SDL_IntersectRect(&rects[i], &surface->clip_rect, &rect)) {
             continue;
         }
-
-        for (i = lo; i < hi; i++, u += du, v += dv, d += dl.bpp) {
-            Uint32 sr, sg, sb, sa, dr, dg, db, da;
-
-            if (linear) {
-                OVL_SampleLinear(&sl, sbase, spitch, sw, sh, u, v, shift, &sr, &sg, &sb, &sa);
-            } else {
-                const int tx = SDL_clamp(u >> shift, 0, sw - 1);
-                const int ty = SDL_clamp(v >> shift, 0, sh - 1);
-                OVL_ReadRGBA(&sl, sbase + ty * spitch + tx * sl.bpp, &sr, &sg, &sb, &sa);
+        row = (Uint8 *)surface->pixels + rect.y * surface->pitch + rect.x * 4;
+        for (y = 0; y < rect.h; y++, row += surface->pitch) {
+            Uint32 *p = (Uint32 *)row;
+            for (x = 0; x < rect.w; x++) {
+                p[x] = OVL_BlendARGB(p[x], inva, add_rb, add_ag);
             }
-            if (color_mod) {
-                sr = sr * rmod / 255;
-                sg = sg * gmod / 255;
-                sb = sb * bmod / 255;
-            }
-            if (amod != 0xFF) {
-                sa = sa * amod / 255;
-            }
-
-            switch (blend) {
-            case SDL_BLENDMODE_BLEND:
-                if (sa == 0) {
-                    continue;
-                }
-                if (sa == 0xFF) {
-                    OVL_WriteRGBA(&dl, d, sr, sg, sb, 0xFF);
-                    continue;
-                }
-                OVL_ReadRGBA(&dl, d, &dr, &dg, &db, &da);
-                dr = sr * sa / 255 + (255 - sa) * dr / 255;
-                dg = sg * sa / 255 + (255 - sa) * dg / 255;
-                db = sb * sa / 255 + (255 - sa) * db / 255;
-                da = sa + (255 - sa) * da / 255;
-                break;
-            case SDL_BLENDMODE_ADD:
-                if (sa == 0) {
-                    continue;
-                }
-                OVL_ReadRGBA(&dl, d, &dr, &dg, &db, &da);
-                if (sa < 0xFF) {
-                    sr = sr * sa / 255;
-                    sg = sg * sa / 255;
-                    sb = sb * sa / 255;
-                }
-                dr = SDL_min(sr + dr, 255);
-                dg = SDL_min(sg + dg, 255);
-                db = SDL_min(sb + db, 255);
-                break;
-            case SDL_BLENDMODE_MOD:
-                OVL_ReadRGBA(&dl, d, &dr, &dg, &db, &da);
-                dr = sr * dr / 255;
-                dg = sg * dg / 255;
-                db = sb * db / 255;
-                break;
-            case SDL_BLENDMODE_MUL:
-                OVL_ReadRGBA(&dl, d, &dr, &dg, &db, &da);
-                dr = SDL_min((sr * dr + dr * (255 - sa)) / 255, 255);
-                dg = SDL_min((sg * dg + dg * (255 - sa)) / 255, 255);
-                db = SDL_min((sb * db + db * (255 - sa)) / 255, 255);
-                break;
-            default:
-                dr = sr;
-                dg = sg;
-                db = sb;
-                da = sa;
-                break;
-            }
-            OVL_WriteRGBA(&dl, d, dr, dg, db, da);
         }
+    }
+}
+
+/* SDL_BlendPoints() with the BLEND mode on ARGB8888, same pixels */
+static void OVL_BlendPointsARGB(SDL_Surface *surface, const SDL_Point *points, int count,
+                                Uint32 r, Uint32 g, Uint32 b, Uint32 a)
+{
+    const Uint32 inva = 255 - a;
+    const Uint32 add_rb = ((r * a / 255) << 16) | (b * a / 255);
+    const Uint32 add_ag = (a << 16) | (g * a / 255);
+    const SDL_Rect clip = surface->clip_rect;
+    int i;
+
+    if (a == 0) {
+        return;
+    }
+    if (a == 0xFF) {
+        SDL_DrawPoints(surface, points, count, 0xFF000000 | (r << 16) | (g << 8) | b);
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        const int x = points[i].x, y = points[i].y;
+        Uint32 *p;
+
+        if (x < clip.x || x >= clip.x + clip.w || y < clip.y || y >= clip.y + clip.h) {
+            continue;
+        }
+        p = (Uint32 *)((Uint8 *)surface->pixels + y * surface->pitch) + x;
+        *p = OVL_BlendARGB(*p, inva, add_rb, add_ag);
     }
 }
 
@@ -1248,6 +1352,7 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
     const Uint8 b = cmd->data.draw.b;
     const Uint8 a = cmd->data.draw.a;
     const SDL_BlendMode blend = cmd->data.draw.blend;
+    const SDL_bool blend_argb = (blend == SDL_BLENDMODE_BLEND && surface->format->format == SDL_PIXELFORMAT_ARGB8888) ? SDL_TRUE : SDL_FALSE;
     int i;
 
     switch (cmd->command) {
@@ -1259,12 +1364,14 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
         for (i = 0; i < count; i++) {
             const float x = fpoints[i].x;
             const float y = fpoints[i].y;
-            points[i].x = (int)SDL_floorf(xf->ox + x * xf->kx);
-            points[i].y = (int)SDL_floorf(xf->oy + y * xf->ky);
+            points[i].x = OVL_Floor(xf->ox + x * xf->kx);
+            points[i].y = OVL_Floor(xf->oy + y * xf->ky);
         }
         if (cmd->command == SDL_RENDERCMD_DRAW_POINTS) {
             if (blend == SDL_BLENDMODE_NONE) {
                 SDL_DrawPoints(surface, points, count, SDL_MapRGBA(surface->format, r, g, b, a));
+            } else if (blend_argb) {
+                OVL_BlendPointsARGB(surface, points, count, r, g, b, a);
             } else {
                 SDL_BlendPoints(surface, points, count, blend, r, g, b, a);
             }
@@ -1302,11 +1409,15 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
             }
             if (blend == SDL_BLENDMODE_NONE) {
                 SDL_DrawPoints(surface, (SDL_Point *)verts, count, SDL_MapRGBA(surface->format, r, g, b, a));
+            } else if (blend_argb) {
+                OVL_BlendPointsARGB(surface, (SDL_Point *)verts, count, r, g, b, a);
             } else {
                 SDL_BlendPoints(surface, (SDL_Point *)verts, count, blend, r, g, b, a);
             }
         } else if (blend == SDL_BLENDMODE_NONE) {
             SDL_FillRects(surface, rects, count, SDL_MapRGBA(surface->format, r, g, b, a));
+        } else if (blend_argb) {
+            OVL_BlendFillRectsARGB(surface, rects, count, r, g, b, a);
         } else {
             SDL_BlendFillRects(surface, rects, count, blend, r, g, b, a);
         }
@@ -1788,9 +1899,9 @@ static int OVL_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect *rect,
         return SDL_OutOfMemory();
     }
     for (y = 0; y < rect->h; y++) {
-        const int cy = (int)SDL_floorf((rect->y + y + 0.5f - data->area.y) * data->ky);
+        const int cy = OVL_Floor((rect->y + y + 0.5f - data->area.y) * data->ky);
         for (x = 0; x < rect->w; x++) {
-            const int cx = (int)SDL_floorf((rect->x + x + 0.5f - data->area.x) * data->kx);
+            const int cx = OVL_Floor((rect->x + x + 0.5f - data->area.x) * data->kx);
             Uint32 p = 0xFF000000 | data->clear_color;
             if (cx >= 0 && cy >= 0 && cx < comp->w && cy < comp->h &&
                 rect->x + x >= data->area.x && rect->y + y >= data->area.y) {
