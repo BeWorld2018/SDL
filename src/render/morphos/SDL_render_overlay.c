@@ -37,6 +37,10 @@
  * The overlay only takes 16-bit little endian RGB (SRCFMT_RGB16), and must be
  * detached before its Intuition window is closed: the MorphOS video driver
  * calls SDL_WindowData::overlay_closing for that.
+ *
+ * Without colour keying the hardware shows the overlay above every window
+ * (requesters, menus...): it is colorkeyed when the driver can, and the window
+ * area under it painted with the key colour.
  */
 
 #include "SDL_hints.h"
@@ -100,6 +104,8 @@ typedef struct
     int failed_w, failed_h;
     SDL_bool in_fallback;          /* last frame drawn into the window, without overlay */
     SDL_bool dims_logged;          /* real overlay size traced (debug build) */
+    SDL_bool colorkey;             /* overlay only shown where the window has key_color */
+    ULONG key_color;               /* ARGB */
 
     /* Drawing */
     SDL_Surface *comp;             /* composition surface of the default target, ARGB8888 */
@@ -260,6 +266,7 @@ static void OVL_DestroyOverlay(OVL_RenderData *data)
         data->vlayer = NULL;
     }
     data->vlayer_win = NULL;
+    data->colorkey = SDL_FALSE;
     data->bars_dirty = SDL_TRUE;
 }
 
@@ -281,7 +288,7 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     struct Screen *screen = win->WScreen;
     struct VLayerHandle *vlayer;
     ULONG features = 0, formats = 0, max_width = 0, error = 0;
-    SDL_bool double_buffer;
+    SDL_bool double_buffer, colorkey;
 
     if (data->vlayer && data->vlayer_win == win &&
         data->src_w == w && data->src_h == h && data->filter == filter) {
@@ -310,9 +317,10 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     formats = OVL_Query(screen, VSQ_SupportedFormats);
     max_width = OVL_Query(screen, VSQ_MaxWidth);
     double_buffer = (!features || (features & VSQ_FEAT_DOUBLEBUFFER)) ? SDL_TRUE : SDL_FALSE;
+    colorkey = (!features || (features & VSQ_FEAT_COLORKEYING)) ? SDL_TRUE : SDL_FALSE;
 
-    D("[%s] new %s overlay %ldx%ld, filter %ld, double buffer %ld, screen 0x%08lx %ldx%ld\n", __FUNCTION__,
-      OVL_ModeName(mode), (long)w, (long)h, (long)filter, (long)double_buffer,
+    D("[%s] new %s overlay %ldx%ld, filter %ld, double buffer %ld, color key %ld, screen 0x%08lx %ldx%ld\n", __FUNCTION__,
+      OVL_ModeName(mode), (long)w, (long)h, (long)filter, (long)double_buffer, (long)colorkey,
       (unsigned long)screen, (long)screen->Width, (long)screen->Height);
 
     if ((features && !(features & VSQ_FEAT_OVERLAY)) ||
@@ -327,6 +335,7 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
                                     VOA_SrcHeight, (ULONG)h,
                                     VOA_DoubleBuffer, (ULONG)double_buffer,
                                     VOA_UseFilter, (ULONG)filter,
+                                    VOA_UseColorKey, (ULONG)colorkey,
                                     VOA_Error, (ULONG)&error,
                                     TAG_DONE);
     if (!vlayer) {
@@ -347,6 +356,9 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     data->src_h = h;
     data->filter = filter;
     data->double_buffer = double_buffer;
+    data->colorkey = colorkey;
+    data->key_color = colorkey ? (0xFF000000 | GetVLayerAttr(vlayer, VOA_ColorKey)) : 0;
+    D("[%s] key color 0x%08lx\n", __FUNCTION__, (unsigned long)data->key_color);
     data->indents[0] = data->indents[1] = data->indents[2] = data->indents[3] = -1;
     data->bars_dirty = SDL_TRUE;
     data->dims_logged = SDL_FALSE;
@@ -406,14 +418,17 @@ static void OVL_FillWindowRect(struct Window *win, LONG x, LONG y, LONG w, LONG 
 }
 
 /* Paints the inner window area around dst with the clear color.
-   With an overlay, the area under it too: the scaler can cover a few pixels
-   less than dst on the right and the bottom, and a recreated window (fullscreen
-   switch) still shows what was on the screen there. */
+   Under a colorkeyed overlay, dst gets the key color: the overlay only shows
+   there, below the windows in front of ours. Under an overlay without colour
+   keying, the clear color too: the scaler can cover a few pixels less than dst
+   on the right and the bottom, and a recreated window (fullscreen switch)
+   still shows what was on the screen there. */
 static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Rect *dst, SDL_bool under_overlay)
 {
     const LONG inner_w = win->Width - win->BorderLeft - win->BorderRight;
     const LONG inner_h = win->Height - win->BorderTop - win->BorderBottom;
     const ULONG argb = 0xFF000000 | (data->clear_color & 0x00FFFFFF);
+    const SDL_bool keyed = (under_overlay && data->colorkey) ? SDL_TRUE : SDL_FALSE;
     LONG x0, y0, x1, y1;
 
     if (!data->bars_dirty && argb == data->bars_color) {
@@ -426,7 +441,7 @@ static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Re
         return;
     }
 
-    if (under_overlay) {
+    if (under_overlay && !keyed) {
         OVL_FillWindowRect(win, 0, 0, inner_w, inner_h, argb);
         return;
     }
@@ -444,6 +459,9 @@ static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Re
     OVL_FillWindowRect(win, 0, y1, inner_w, inner_h - y1, argb);
     OVL_FillWindowRect(win, 0, y0, x0, y1 - y0, argb);
     OVL_FillWindowRect(win, x1, y0, inner_w - x1, y1 - y0, argb);
+    if (keyed) {
+        OVL_FillWindowRect(win, x0, y0, x1 - x0, y1 - y0, data->key_color);
+    }
 }
 
 /* -------------------------------------------------------------------------

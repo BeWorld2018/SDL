@@ -29,6 +29,7 @@
 
 #include "SDL_mosvideo.h"
 #include "SDL_moswindow.h"
+#include "SDL_mosevents.h"
 #include "SDL_mosopengl.h"
 #include "SDL_mosmouse.h"
 
@@ -259,83 +260,177 @@ static void MOS_GadgetEvent(_THIS, const struct IntuiMessage *m)
 static const char porters[] = "Bruno Peloille (BeWorld)\nSzilard Biro (BSzili)\n";
 static const char bases[] = "SDL 2.0.3 sources by Ilkka Lehtoranta";
 
-static void
-MOS_AboutSDL(struct Window *window)
+struct MOS_MenuRequester
 {
+	struct Window *win;
 	struct EasyStruct es;
-	es.es_StructSize   = sizeof(struct EasyStruct);
-	es.es_Flags        = 0;
-	es.es_Title        = "SDL2";
-	es.es_TextFormat   = "SDL %ld.%ld.%ld -MorphOS-\nCompiled on " __AMIGADATE__ "\n\nSimple DirectMedia Layer is cross-platform development library designed to\nprovide low level access audio, keyboard, mouse, joysticks, and graphics hardware.\n\nSDL 2.0 is distributed under zlib license.\nThis license allows you to use SDL freely in any software.\n\nPorters:\n%s\nBased on %s\n\nwww.libsdl.org";
-	es.es_GadgetFormat = "Ok";
+	ULONG args[1];
+	char text[4096];
+};
 
-	EasyRequest(window, &es, NULL, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, (ULONG)porters, (ULONG)bases);
+static struct MOS_MenuRequester *
+MOS_NewRequester(const char *title)
+{
+	struct MOS_MenuRequester *req = SDL_calloc(1, sizeof(*req));
+
+	if (req) {
+		req->es.es_StructSize   = sizeof(struct EasyStruct);
+		req->es.es_Flags        = 0;
+		req->es.es_Title        = (UBYTE *)title;
+		req->es.es_TextFormat   = "%s";
+		req->es.es_GadgetFormat = "Ok";
+		req->args[0] = (ULONG)req->text;
+	}
+
+	return req;
 }
 
 static void
-MOS_AboutSystem(struct Window *window)
+MOS_FreeRequester(SDL_WindowData *data, int kind, BOOL answered)
 {
-	struct EasyStruct es;
-	es.es_StructSize   = sizeof(struct EasyStruct);
-	es.es_Flags        = 0;
-	es.es_Title        = "About System";
-	es.es_TextFormat   = "System: %s - Vendor: %s\n\nHas Altivec: %s\n";
-	es.es_GadgetFormat = "Ok";
+	struct MOS_MenuRequester *req = data->requesters[kind];
 
-	char System[256];
-	char Vendor[256];
+	if (req) {
+		BOOL active = (req->win->Flags & WFLG_WINDOWACTIVE) != 0;
 
-	NewGetSystemAttrs(&System,sizeof(System),SYSTEMINFOTYPE_SYSTEM,TAG_DONE);
-	NewGetSystemAttrs(&Vendor,sizeof(Vendor),SYSTEMINFOTYPE_VENDOR,TAG_DONE);
+		data->requesters[kind] = NULL;
+		FreeSysRequest(req->win);
+		SDL_free(req);
 
-	EasyRequest(window, &es, NULL, System, Vendor, ((HasAltiVec)?"Yes":"No"));
+		// The keyboard goes back to the program, like after EasyRequest()
+		if (answered && active && data->win)
+			ActivateWindow(data->win);
+	}
 }
 
 static void
-MOS_Joystick(struct Window *window)
+MOS_OpenRequester(SDL_WindowData *data, int kind, struct MOS_MenuRequester *req)
 {
-	char text1[2000] = "";
-	char text2[254] = "";
+	struct Window *win;
+
+	// Picked again: a new one in front, with fresh contents
+	MOS_FreeRequester(data, kind, FALSE);
+
+	win = BuildEasyRequestArgs(data->win, &req->es, 0, req->args);
+
+	// 0 or 1 instead of a window: it could not be opened
+	if ((ULONG)win > 1) {
+		req->win = win;
+		data->requesters[kind] = req;
+	} else {
+		D("[%s] BuildEasyRequestArgs failed\n", __FUNCTION__);
+		SDL_free(req);
+	}
+}
+
+static void
+MOS_CheckRequesters(SDL_WindowData *data)
+{
+	int kind;
+
+	for (kind = 0; kind < MOS_REQ_COUNT; kind++) {
+		struct MOS_MenuRequester *req = data->requesters[kind];
+
+		// -2 while it waits for an answer
+		if (req && SysReqHandler(req->win, NULL, FALSE) != -2)
+			MOS_FreeRequester(data, kind, TRUE);
+	}
+}
+
+void
+MOS_CloseRequesters(SDL_WindowData *data)
+{
+	int kind;
+
+	if (data) {
+		for (kind = 0; kind < MOS_REQ_COUNT; kind++)
+			MOS_FreeRequester(data, kind, FALSE);
+	}
+}
+
+static void
+MOS_AppendText(char *text, size_t size, const char *fmt, ...)
+{
+	size_t len = SDL_strlen(text);
+	va_list ap;
+
+	va_start(ap, fmt);
+	SDL_vsnprintf(text + len, size - len, fmt, ap);
+	va_end(ap);
+}
+
+static void
+MOS_AboutSDL(SDL_WindowData *data)
+{
+	struct MOS_MenuRequester *req = MOS_NewRequester("SDL2");
+
+	if (req) {
+		SDL_snprintf(req->text, sizeof(req->text), "SDL %d.%d.%d -MorphOS-\nCompiled on " __AMIGADATE__ "\n\nSimple DirectMedia Layer is cross-platform development library designed to\nprovide low level access audio, keyboard, mouse, joysticks, and graphics hardware.\n\nSDL 2.0 is distributed under zlib license.\nThis license allows you to use SDL freely in any software.\n\nPorters:\n%s\nBased on %s\n\nwww.libsdl.org",
+			SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, porters, bases);
+
+		MOS_OpenRequester(data, MOS_REQ_ABOUT, req);
+	}
+}
+
+static void
+MOS_AboutSystem(SDL_WindowData *data)
+{
+	struct MOS_MenuRequester *req = MOS_NewRequester("About System");
+
+	if (req) {
+		char System[256] = "";
+		char Vendor[256] = "";
+
+		NewGetSystemAttrs(System, sizeof(System), SYSTEMINFOTYPE_SYSTEM, TAG_DONE);
+		NewGetSystemAttrs(Vendor, sizeof(Vendor), SYSTEMINFOTYPE_VENDOR, TAG_DONE);
+
+		SDL_snprintf(req->text, sizeof(req->text), "System: %s - Vendor: %s\n\nHas Altivec: %s\n",
+			System, Vendor, HasAltiVec ? "Yes" : "No");
+
+		MOS_OpenRequester(data, MOS_REQ_SYSTEM, req);
+	}
+}
+
+static void
+MOS_Joystick(SDL_WindowData *data)
+{
+	struct MOS_MenuRequester *req = MOS_NewRequester("SDL2 Joystick/GameController");
+	char list[3072] = "";
 	int i;
     int controller_count = 0;
     char guid[64];
-	
+
+	if (req == NULL)
+		return;
+
 	SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-	
+
 	for (i = 0; i < SDL_NumJoysticks(); ++i) {
     	const char *name;
-		char text[254] = "";
 		SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(i), guid, sizeof (guid));
 		SDL_Joystick *joystick = SDL_JoystickOpen(i);
-        if (joystick != NULL) {		
+        if (joystick != NULL) {
 			if (SDL_IsGameController(i)) {
 				controller_count++;
 				name = SDL_GameControllerNameForIndex(i);
 			} else {
-				name = SDL_JoystickNameForIndex(i);	
-			}			
-		
-			snprintf(text, sizeof(text), "%d: %s (guid %s, VID 0x%.4x, PID 0x%.4x, player index = %d)\n",
+				name = SDL_JoystickNameForIndex(i);
+			}
+
+			MOS_AppendText(list, sizeof(list), "%d: %s (guid %s, VID 0x%.4x, PID 0x%.4x, player index = %d)\n",
 				i, name ? name : "Unknown", guid,
 			SDL_JoystickGetDeviceVendor(i), SDL_JoystickGetDeviceProduct(i), SDL_JoystickGetDevicePlayerIndex(i));
-			strcat(text1, text);
-			snprintf(text, sizeof(text),"    Joystick has %d axes, %d hats, %d balls, and %d buttons\n",
+			MOS_AppendText(list, sizeof(list), "    Joystick has %d axes, %d hats, %d balls, and %d buttons\n",
 			SDL_JoystickNumAxes(joystick), SDL_JoystickNumHats(joystick),
 			SDL_JoystickNumBalls(joystick), SDL_JoystickNumButtons(joystick));
-			strcat(text1, text);
 			SDL_JoystickClose(joystick);
 		}
 	}
-	
-	snprintf(text2, sizeof(text2),"There are %d game controller(s) attached (%d joystick(s))\n", controller_count, SDL_NumJoysticks());
-	struct EasyStruct es;
-	es.es_StructSize   = sizeof(struct EasyStruct);
-	es.es_Flags        = 0;
-	es.es_Title        = "SDL2 Joystick/GameController";
-	es.es_TextFormat   = "SDL %ld.%ld.%ld -MorphOS-\n\n%s\n%s";
-	es.es_GadgetFormat = "Ok";
 
-	EasyRequest(window, &es, NULL, SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, (ULONG)text2, (ULONG)text1);
+	SDL_snprintf(req->text, sizeof(req->text), "SDL %d.%d.%d -MorphOS-\n\nThere are %d game controller(s) attached (%d joystick(s))\n\n%s",
+		SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL, controller_count, SDL_NumJoysticks(), list);
+
+	MOS_OpenRequester(data, MOS_REQ_JOYSTICK, req);
 }
 
 static int 
@@ -393,7 +488,7 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
             if (item) {
                 switch ((ULONG)GTMENUITEM_USERDATA(item)) {
                 case MID_ABOUT:
-                    MOS_AboutSDL(data->win);
+                    MOS_AboutSDL(data);
                     break;
                 case MID_QUIT:
                     SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
@@ -538,7 +633,7 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
                 case MID_SHADERS_AUTO:
                     MOS_GlobalMenu(data->menu, 1, 9, 1, 0);
                     MOS_GlobalMenu(data->menu, 1, 9, 2, 0);
-                    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "");
+                    SDL_SetHint(SDL_HINT_RENDER_OPENGL_SHADERS, "");
                     MOS_setenv("SDL_RENDER_OPENGL_SHADERS", "", SDL_TRUE);
                     break;
                 case MID_SHADERS_ENABLE:
@@ -554,10 +649,11 @@ MOS_HandleMenu(_THIS, struct IntuiMessage *m)
                     MOS_setenv("SDL_RENDER_OPENGL_SHADERS", "0", SDL_TRUE);
                     break;
                 case MID_JOYSTICK:
-                    MOS_Joystick(data->win);
+                    MOS_Joystick(data);
                     break;
                 case MID_ABOUTSYS:
-                    MOS_AboutSystem(data->win);
+                    MOS_AboutSystem(data);
+                    break;
                 default:
                     break;
                 }
@@ -726,6 +822,7 @@ void
 MOS_PumpEvents(_THIS)
 {
     SDL_VideoData *data = (SDL_VideoData *)_this->driverdata;
+    SDL_WindowData *wd;
     struct IntuiMessage *m;
 
     BOOL check_mousecoord = FALSE;
@@ -746,6 +843,10 @@ MOS_PumpEvents(_THIS)
         if (wdata && check_mousecoord && wdata->win)
             MOS_UpdateWindowPointer(data, wdata, FALSE);
     }
+
+    // Requesters opened from the menu, closed once answered
+    ForeachNode(&data->windowlist, wd)
+        MOS_CheckRequesters(wd);
 
     if (sigs & data->ScrNotifySig && data->ScreenNotifyHandle)
         MOS_CheckScreenEvent(_this);

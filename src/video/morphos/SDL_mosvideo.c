@@ -100,6 +100,8 @@ MOS_HideApp(_THIS, size_t with_app_icon)
     ForeachNode(&data->windowlist, wd)
     {
         struct Window *win = wd->win;
+        // The About... requesters disappear with the program
+        MOS_CloseRequesters(wd);
         if (win)
             MOS_SetWindowOpacity(_this, wd->window, 0.0);
     }

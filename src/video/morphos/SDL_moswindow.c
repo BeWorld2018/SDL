@@ -138,6 +138,7 @@ MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
 
 		MOS_NotifyWindowClosing(data);
 		MOS_ReleaseWindowEvents(data, win);
+		MOS_CloseRequesters(data);
 
         Forbid();
 
@@ -915,6 +916,7 @@ MOS_CloseWindow(SDL_Window *window)
 
 		MOS_NotifyWindowClosing(data);
 		MOS_ReleaseWindowEvents(data, win);
+		MOS_CloseRequesters(data);
 
         if (data->menuactive == TRUE) {
             ClearMenuStrip(win);

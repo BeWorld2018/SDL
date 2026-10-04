@@ -23,7 +23,10 @@
 #ifndef _SDL_mosevents_h
 #define _SDL_mosevents_h
 
+#include "SDL_moswindow.h"
+
 extern void MOS_PumpEvents(_THIS);
 extern void MOS_GlobalMenu(struct Menu *mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check);
+extern void MOS_CloseRequesters(SDL_WindowData *data);
 
 #endif /* _SDL_mosevents_h */

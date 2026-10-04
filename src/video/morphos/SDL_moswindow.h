@@ -50,6 +50,17 @@ enum
 	MID_RMETHOD, MID_MDEF, MID_MPOINT, MID_MLINE, MID_MGEO
 };
 
+// Requesters of the window menu, one of each kind per window (SDL_mosevents.c)
+enum
+{
+	MOS_REQ_ABOUT,
+	MOS_REQ_JOYSTICK,
+	MOS_REQ_SYSTEM,
+	MOS_REQ_COUNT
+};
+
+struct MOS_MenuRequester;
+
 // Window surface of the software renderer, ARGB8888 in memory (SDL_mosframebuffer.c)
 typedef struct
 {
@@ -101,6 +112,9 @@ typedef struct
 	BYTE grab_owned;
 	// Mouse over the window (1), outside (0), unknown (-1), see MOS_UpdateWindowPointer()
 	BYTE pointer_inside;
+
+	// Open requesters of the menu (About...), closed with the Intuition window
+	struct MOS_MenuRequester *requesters[MOS_REQ_COUNT];
 
 } SDL_WindowData;
 
