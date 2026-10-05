@@ -30,6 +30,7 @@
 #include "SDL_hints.h"
 #include "SDL_timer.h"
 #include "../SDL_sysrender.h"
+#include "../SDL_yuv_sw_c.h"
 #include "../software/SDL_blendfillrect.h"
 #include "../software/SDL_blendline.h"
 #include "../software/SDL_blendpoint.h"
@@ -37,6 +38,7 @@
 #include "../software/SDL_drawpoint.h"
 #include "../software/SDL_triangle.h"
 #include "../../video/morphos/SDL_mosvideo.h"
+#include "SDL_render_overlay_altivec.h"
 
 #include <cybergraphx/cgxvideo.h>
 #include <cybergraphx/cybergraphics.h>
@@ -49,6 +51,9 @@
 #define OVL_SWITCH_FRAMES 8
 #define OVL_MAX_COMP_SIZE 4096
 #define OVL_RETRY_MS 2000
+#define OVL_UPLOAD_CHUNK 16384  /* bytes converted in RAM per copy to the overlay */
+#define OVL_MAX_SCALE_TMP (1024 * 1024) /* pixels of the scaling surface kept between copies */
+#define OVL_WRITE_TRIALS 16     /* uploads timed to choose how to write an RGB16 overlay */
 
 struct Library *CGXVideoBase = NULL;
 static int OVL_cgxvideo_users = 0;
@@ -58,6 +63,15 @@ typedef enum
     OVL_MODE_COMPOSE,
     OVL_MODE_DIRECT
 } OVL_Mode;
+
+/* Texture pixels: drawing always uses surface */
+typedef struct
+{
+    SDL_Surface *surface;          /* YUV textures: RGB copy, converted when needed */
+    SDL_SW_YUVTexture *yuv;        /* YUV textures: the pixels */
+    Uint32 version;                /* bumped whenever the pixels may change */
+    Uint32 surface_version;        /* YUV textures: version converted into surface */
+} OVL_TextureData;
 
 /* An opaque texture copy kept out of the composition surface */
 typedef struct
@@ -72,6 +86,7 @@ typedef struct
 typedef struct
 {
     struct Window *win;
+    ULONG srcfmt;
     int w, h;
     Uint32 ticks;
 } OVL_Failure;
@@ -84,6 +99,7 @@ typedef struct
     struct VLayerHandle *vlayer;
     struct Window *vlayer_win;     /* Intuition window the overlay is attached to */
     OVL_Mode mode;
+    ULONG srcfmt;                  /* SRCFMT_RGB16, or YCbCr for YUV textures in direct mode */
     int src_w, src_h;
     SDL_bool filter;
     SDL_bool double_buffer;
@@ -96,16 +112,43 @@ typedef struct
     SDL_bool dims_logged;          /* real overlay size traced (debug build) */
     SDL_bool colorkey;             /* overlay only shown where the window has key_color */
     ULONG key_color;               /* ARGB */
-    SDL_Texture *shown_texture;    /* direct mode: texture of the frame on screen */
+    struct Screen *query_screen;   /* screen VSQ_SupportedFormats was asked for */
+    ULONG query_formats;
+    SDL_bool no_yuv420;            /* planar YUV overlay failed: packed one instead */
+    SDL_bool no_yuv;               /* no YUV overlay at all: YUV textures converted to RGB16 */
+
+    /* Direct mode, frame on screen: not uploaded again while unchanged */
+    SDL_Texture *shown_texture;
     SDL_Rect shown_src;
-    Uint16 *row_buf;               /* one overlay row, converted in RAM before the copy */
-    int row_buf_w;
-    Uint64 upload_ticks;           /* time spent uploading (debug build) */
+    Uint32 shown_version;
+    SDL_bool shown_clear;          /* a clear, of shown_clear_color */
+    ULONG shown_clear_color;
+
+    /* Frame of a YUV texture already written to the overlay when updated,
+       only to be swapped, see OVL_WriteThroughYUV() */
+    SDL_Texture *pending_texture;
+    Uint32 pending_version;
+    Uint64 pending_ticks[3];       /* debug build: lock, write, unlock */
+
+    /* RGB16 uploads, see OVL_UploadRGB() */
+    Uint8 *row_buf;                /* rows converted in RAM before the copy */
+    size_t row_buf_size;
+    SDL_bool altivec;              /* rows converted straight into the overlay */
+    int write_trials;              /* uploads timed since the overlay was made */
+    Uint64 write_best[2];          /* fastest: through RAM, in place */
+    int write_method;              /* 1 to convert in place */
+
+    /* Debug build: upload times, logged once a second */
+    Uint64 upload_lock, upload_start; /* when the lock and the writes started */
+    Uint64 upload_ticks[4];        /* lock, write, unlock, swap */
     int upload_frames;
+    Uint64 upload_log;
 
     /* Drawing */
     SDL_Surface *comp;             /* composition surface of the default target, ARGB8888 */
     SDL_Surface *target;           /* surface of the target texture, NULL for the default target */
+    OVL_TextureData *target_data;
+    SDL_Surface *scale_tmp;        /* see OVL_BlitCopy() */
     SDL_Rect area;                 /* window rectangle the composition surface is shown in */
     float kx, ky;                  /* composition pixels per window pixel */
     SDL_bool comp_sized;           /* comp size fixed until the next present */
@@ -245,12 +288,18 @@ static const char *OVL_ModeName(OVL_Mode mode)
 {
     return (mode == OVL_MODE_DIRECT) ? "direct" : "composed";
 }
+
+static const char *OVL_FormatName(ULONG srcfmt)
+{
+    return (srcfmt == SRCFMT_YCbCr420) ? "YCbCr420" : (srcfmt == SRCFMT_YCbCr16) ? "YCbCr16" : "RGB16";
+}
 #endif
 
 static void OVL_DestroyOverlay(OVL_RenderData *data)
 {
     if (data->vlayer) {
-        D("[%s] %s overlay %ldx%ld\n", __FUNCTION__, OVL_ModeName(data->mode), (long)data->src_w, (long)data->src_h);
+        D("[%s] %s %s overlay %ldx%ld\n", __FUNCTION__, OVL_ModeName(data->mode), OVL_FormatName(data->srcfmt),
+          (long)data->src_w, (long)data->src_h);
         DetachVLayer(data->vlayer);
         DeleteVLayerHandle(data->vlayer);
         data->vlayer = NULL;
@@ -258,6 +307,55 @@ static void OVL_DestroyOverlay(OVL_RenderData *data)
     data->vlayer_win = NULL;
     data->colorkey = SDL_FALSE;
     data->bars_dirty = SDL_TRUE;
+    data->shown_texture = NULL;
+    data->shown_clear = SDL_FALSE;
+    data->pending_texture = NULL;
+}
+
+/* VSQ_SupportedFormats bit of an overlay format */
+static ULONG OVL_QueryFormat(ULONG srcfmt)
+{
+    switch (srcfmt) {
+    case SRCFMT_YCbCr16:
+        return VSQ_FMT_YUYV;
+    case SRCFMT_YCbCr420:
+        return VSQ_FMT_YUV420_PLANAR;
+    default:
+        return VSQ_FMT_R5G6B5_LE;
+    }
+}
+
+static SDL_bool OVL_IsPlanarYUV(Uint32 format)
+{
+    switch (format) {
+    case SDL_PIXELFORMAT_YV12:
+    case SDL_PIXELFORMAT_IYUV:
+    case SDL_PIXELFORMAT_NV12:
+    case SDL_PIXELFORMAT_NV21:
+        return SDL_TRUE;
+    default:
+        return SDL_FALSE;
+    }
+}
+
+/* Overlay format showing a texture directly: YCbCr420, then YCbCr16, then
+   RGB16 as each one fails, see OVL_SetupOverlay() */
+static ULONG OVL_OverlayFormat(OVL_RenderData *data, struct Window *win, Uint32 format)
+{
+    if (!SDL_ISPIXELFORMAT_FOURCC(format) || data->no_yuv) {
+        return SRCFMT_RGB16;
+    }
+    if (OVL_IsPlanarYUV(format) && !data->no_yuv420) {
+        if (win->WScreen != data->query_screen) {
+            data->query_screen = win->WScreen;
+            data->query_formats = OVL_Query(win->WScreen, VSQ_SupportedFormats);
+        }
+        /* Tried anyway without QueryVLayerAttr() (before cgxvideo 50) */
+        if (!data->query_formats || (data->query_formats & VSQ_FMT_YUV420_PLANAR)) {
+            return SRCFMT_YCbCr420;
+        }
+    }
+    return SRCFMT_YCbCr16;
 }
 
 static void OVL_WindowClosing(void *userdata)
@@ -269,7 +367,7 @@ static void OVL_WindowClosing(void *userdata)
     SDL_zero(data->failed);
 }
 
-static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_Mode mode,
+static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_Mode mode, ULONG srcfmt,
                                  int w, int h, SDL_bool filter, SDL_bool wait_switch)
 {
     struct Screen *screen = win->WScreen;
@@ -278,7 +376,7 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     ULONG features = 0, formats = 0, max_width = 0, error = 0;
     SDL_bool double_buffer, colorkey;
 
-    if (data->vlayer && data->vlayer_win == win &&
+    if (data->vlayer && data->vlayer_win == win && data->srcfmt == srcfmt &&
         data->src_w == w && data->src_h == h && data->filter == filter) {
         if (data->mode != mode) {
             D("[%s] %ldx%ld overlay now %s\n", __FUNCTION__, (long)w, (long)h, OVL_ModeName(mode));
@@ -303,7 +401,7 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     }
     /* Known to fail: tried again only while no overlay is shown, destroying a
        working one for that would flicker */
-    if (fail->win == win && fail->w == w && fail->h == h &&
+    if (fail->win == win && fail->srcfmt == srcfmt && fail->w == w && fail->h == h &&
         ((data->vlayer && data->vlayer_win == win) || !SDL_TICKS_PASSED(SDL_GetTicks(), fail->ticks + OVL_RETRY_MS))) {
         return SDL_FALSE;
     }
@@ -316,18 +414,18 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     double_buffer = (!features || (features & VSQ_FEAT_DOUBLEBUFFER)) ? SDL_TRUE : SDL_FALSE;
     colorkey = (!features || (features & VSQ_FEAT_COLORKEYING)) ? SDL_TRUE : SDL_FALSE;
 
-    D("[%s] new %s overlay %ldx%ld, filter %ld, double buffer %ld, color key %ld, screen 0x%08lx %ldx%ld\n", __FUNCTION__,
-      OVL_ModeName(mode), (long)w, (long)h, (long)filter, (long)double_buffer, (long)colorkey,
+    D("[%s] new %s %s overlay %ldx%ld, filter %ld, double buffer %ld, color key %ld, screen 0x%08lx %ldx%ld\n", __FUNCTION__,
+      OVL_ModeName(mode), OVL_FormatName(srcfmt), (long)w, (long)h, (long)filter, (long)double_buffer, (long)colorkey,
       (unsigned long)screen, (long)screen->Width, (long)screen->Height);
 
     if ((features && !(features & VSQ_FEAT_OVERLAY)) ||
-        (formats && !(formats & VSQ_FMT_R5G6B5_LE)) ||
+        (formats && !(formats & OVL_QueryFormat(srcfmt))) ||
         (max_width && (ULONG)w > max_width)) {
         goto failed;
     }
 
     vlayer = CreateVLayerHandleTags(screen,
-                                    VOA_SrcType, SRCFMT_RGB16,
+                                    VOA_SrcType, srcfmt,
                                     VOA_SrcWidth, (ULONG)w,
                                     VOA_SrcHeight, (ULONG)h,
                                     VOA_DoubleBuffer, (ULONG)double_buffer,
@@ -335,20 +433,21 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
                                     VOA_UseColorKey, (ULONG)colorkey,
                                     VOA_Error, (ULONG)&error,
                                     TAG_DONE);
-    if (!vlayer) {
-        goto failed;
-    }
-    if (AttachVLayerTags(vlayer, win,
-                         VOA_LeftIndent, 0, VOA_RightIndent, 0,
-                         VOA_TopIndent, 0, VOA_BottomIndent, 0,
-                         TAG_DONE) != 0) {
+    if (vlayer && AttachVLayerTags(vlayer, win,
+                                   VOA_LeftIndent, 0, VOA_RightIndent, 0,
+                                   VOA_TopIndent, 0, VOA_BottomIndent, 0,
+                                   TAG_DONE) != 0) {
         DeleteVLayerHandle(vlayer);
+        vlayer = NULL;
+    }
+    if (!vlayer) {
         goto failed;
     }
 
     data->vlayer = vlayer;
     data->vlayer_win = win;
     data->mode = mode;
+    data->srcfmt = srcfmt;
     data->src_w = w;
     data->src_h = h;
     data->filter = filter;
@@ -359,12 +458,21 @@ static SDL_bool OVL_SetupOverlay(OVL_RenderData *data, struct Window *win, OVL_M
     data->indents[0] = data->indents[1] = data->indents[2] = data->indents[3] = -1;
     data->bars_dirty = SDL_TRUE;
     data->dims_logged = SDL_FALSE;
+    data->write_trials = 0;
+    data->write_best[0] = data->write_best[1] = (Uint64)-1;
     return SDL_TRUE;
 
 failed:
     D("[%s] no %ldx%ld overlay: error %ld, features 0x%08lx, formats 0x%08lx, max width %ld\n", __FUNCTION__,
       (long)w, (long)h, (long)error, (unsigned long)features, (unsigned long)formats, (long)max_width);
+    /* YUV formats are not tried again, see OVL_OverlayFormat() */
+    if (srcfmt == SRCFMT_YCbCr420) {
+        data->no_yuv420 = SDL_TRUE;
+    } else if (srcfmt == SRCFMT_YCbCr16) {
+        data->no_yuv = SDL_TRUE;
+    }
     fail->win = win;
+    fail->srcfmt = srcfmt;
     fail->w = w;
     fail->h = h;
     fail->ticks = SDL_GetTicks();
@@ -489,6 +597,14 @@ static SDL_bool OVL_IsDirectFormat(Uint32 format)
     case SDL_PIXELFORMAT_BGRA8888:
     case SDL_PIXELFORMAT_RGB565:
     case SDL_PIXELFORMAT_RGB555:
+    /* YUV overlay */
+    case SDL_PIXELFORMAT_YV12:
+    case SDL_PIXELFORMAT_IYUV:
+    case SDL_PIXELFORMAT_NV12:
+    case SDL_PIXELFORMAT_NV21:
+    case SDL_PIXELFORMAT_YUY2:
+    case SDL_PIXELFORMAT_UYVY:
+    case SDL_PIXELFORMAT_YVYU:
         return SDL_TRUE;
     default:
         return SDL_FALSE;
@@ -503,6 +619,21 @@ static SDL_bool OVL_IsDirectFormat(Uint32 format)
 #define OVL_565_555(p)  ((((p) & 0x7FE0) << 1) | (((p) >> 4) & 0x0020) | ((p) & 0x001F))
 #define OVL_565_565(p)  (p)
 
+/* CPUs without hardware prefetching (e5500) wait for the memory on each cache
+   miss: lines are asked for ahead, OVL_PREFETCH pixels when converting rows,
+   OVL_PREFETCH_ROWS rows when drawing, 32 bytes apart for 32 or 64-byte
+   lines. dcbt and dcbtst are only hints, harmless on uncached memory. */
+#define OVL_PREFETCH 128
+#define OVL_PREFETCH_ROWS 2
+
+static SDL_INLINE void OVL_PrefetchWrite(Uint8 *p, int bytes)
+{
+    int i;
+    for (i = 0; i < bytes; i += 32) {
+        __builtin_prefetch(p + i, 1);
+    }
+}
+
 /* Two pixels per 32-bit store, in little endian order */
 #define OVL_CONVERT_PAIRS(T, PIX)                                     \
     {                                                                 \
@@ -510,6 +641,10 @@ static SDL_bool OVL_IsDirectFormat(Uint32 format)
         Uint32 *d = (Uint32 *)dst;                                    \
         for (x = 0; x + 1 < w; x += 2) {                              \
             const Uint32 p0 = s[x], p1 = s[x + 1];                    \
+            if (!(x & 7)) {                                           \
+                __builtin_prefetch(s + x + OVL_PREFETCH, 0);          \
+                __builtin_prefetch(d + OVL_PREFETCH / 2, 1);          \
+            }                                                         \
             *d++ = SDL_SwapLE32(PIX(p0) | (PIX(p1) << 16));           \
         }                                                             \
         if (x < w) {                                                  \
@@ -549,88 +684,403 @@ static void OVL_ConvertRow(Uint32 format, const void *src, Uint16 *dst, int w)
     }
 }
 
-/* The overlay is in video memory, where each store is a bus transfer: rows
-   are converted in RAM, then copied in one go by CopyMem(). */
-static SDL_bool OVL_GrowRowBuffer(OVL_RenderData *data, int w)
+#ifdef __SDL_DEBUG
+/* exec knows the address: system RAM, not video memory */
+static SDL_bool OVL_IsSystemRAM(const void *address)
 {
-    if (w > data->row_buf_w) {
-        Uint16 *buf = (Uint16 *)SDL_SIMDAlloc((size_t)w * sizeof(Uint16));
+    return TypeOfMem((APTR)address) ? SDL_TRUE : SDL_FALSE;
+}
+#endif
+
+/* Rows converted in RAM, then copied by CopyMem(): in video memory each store
+   is a bus transfer */
+static SDL_bool OVL_GrowRowBuffer(OVL_RenderData *data, size_t size)
+{
+    if (size > data->row_buf_size) {
+        Uint8 *buf = (Uint8 *)SDL_SIMDAlloc(size);
         if (!buf) {
             return SDL_FALSE;
         }
         SDL_SIMDFree(data->row_buf);
         data->row_buf = buf;
-        data->row_buf_w = w;
+        data->row_buf_size = size;
     }
     return SDL_TRUE;
 }
 
-/* Converts rect of src into the overlay and shows it */
-static SDL_bool OVL_Upload(OVL_RenderData *data, SDL_Surface *src, const SDL_Rect *rect)
+/* Locks the overlay buffer being drawn: its address and bytes per row,
+   min_modulo if the driver doesn't tell */
+static UBYTE *OVL_LockOverlay(OVL_RenderData *data, ULONG *modulo, ULONG min_modulo)
 {
     struct VLayerHandle *vlayer = data->vlayer;
-    const ULONG row_bytes = (ULONG)rect->w * 2;
-    const Uint8 *row;
     UBYTE *base;
-    ULONG modulo;
-    int y;
-#ifdef __SDL_DEBUG
-    const Uint64 start = SDL_GetPerformanceCounter();
-#endif
 
-    if (!OVL_GrowRowBuffer(data, rect->w)) {
-        return SDL_FALSE;
-    }
+    /* Whatever is written now replaces a frame left there, see OVL_WriteThroughYUV() */
+    data->pending_texture = NULL;
+#ifdef __SDL_DEBUG
+    data->upload_lock = SDL_GetPerformanceCounter();
+#endif
     if (!LockVLayer(vlayer)) {
         D("[%s] LockVLayer() failed\n", __FUNCTION__);
-        return SDL_FALSE;
+        return NULL;
     }
+#ifdef __SDL_DEBUG
+    data->upload_start = SDL_GetPerformanceCounter();
+#endif
     base = (UBYTE *)GetVLayerAttr(vlayer, VOA_BaseAddress);
-    modulo = GetVLayerAttr(vlayer, VOA_Modulo);
-    if (!modulo) {
-        modulo = row_bytes;
+    *modulo = GetVLayerAttr(vlayer, VOA_Modulo);
+    if (!*modulo) {
+        *modulo = min_modulo;
     }
     if (!base) {
         D("[%s] no VOA_BaseAddress\n", __FUNCTION__);
         UnlockVLayer(vlayer);
-        return SDL_FALSE;
+        return NULL;
     }
     if (!data->dims_logged) {
-        D("[%s] %ldx%ld overlay: VOA_Width %ld, VOA_Height %ld, VOA_Modulo %ld\n", __FUNCTION__,
-          (long)data->src_w, (long)data->src_h, (long)GetVLayerAttr(vlayer, VOA_Width),
-          (long)GetVLayerAttr(vlayer, VOA_Height), (long)modulo);
+        D("[%s] %ldx%ld %s overlay: VOA_Width %ld, VOA_Height %ld, VOA_Modulo %ld, base 0x%08lx in %s\n", __FUNCTION__,
+          (long)data->src_w, (long)data->src_h, OVL_FormatName(data->srcfmt), (long)GetVLayerAttr(vlayer, VOA_Width),
+          (long)GetVLayerAttr(vlayer, VOA_Height), (long)*modulo, (unsigned long)base,
+          OVL_IsSystemRAM(base) ? "system RAM" : "video memory");
         data->dims_logged = SDL_TRUE;
     }
+    return base;
+}
 
-    /* The whole buffer is rewritten: with double buffering, the one being
-       drawn doesn't hold the previous frame. */
-    row = (const Uint8 *)src->pixels + rect->y * src->pitch + rect->x * src->format->BytesPerPixel;
-    for (y = 0; y < rect->h; y++, row += src->pitch, base += modulo) {
-        OVL_ConvertRow(src->format->format, row, data->row_buf, rect->w);
-        CopyMem(data->row_buf, base, row_bytes);
-    }
-    UnlockVLayer(vlayer);
-
+/* Shows the buffer drawn into, once unlocked. lock, write, unlock: their
+   durations, for the debug log */
+static void OVL_SwapOverlay(OVL_RenderData *data, Uint64 lock, Uint64 write, Uint64 unlock)
+{
 #ifdef __SDL_DEBUG
-    data->upload_ticks += SDL_GetPerformanceCounter() - start;
-    if (++data->upload_frames == 120) {
-        D("[%s] %ldx%ld: %ld us per upload\n", __FUNCTION__, (long)rect->w, (long)rect->h,
-          (long)(data->upload_ticks * 1000000 / (SDL_GetPerformanceFrequency() * 120)));
-        data->upload_ticks = 0;
-        data->upload_frames = 0;
-    }
+    const Uint64 start = SDL_GetPerformanceCounter();
 #endif
 
+    data->pending_texture = NULL;
     if (data->vsync) {
         WaitTOF();
     }
     if (data->double_buffer) {
-        SwapVLayerBuffer(vlayer);
+        SwapVLayerBuffer(data->vlayer);
     }
+
+#ifdef __SDL_DEBUG
+    {
+        const Uint64 shown = SDL_GetPerformanceCounter();
+        data->upload_ticks[0] += lock;
+        data->upload_ticks[1] += write;
+        data->upload_ticks[2] += unlock;
+        data->upload_ticks[3] += shown - start;
+        /* Once a second: the log itself costs */
+        ++data->upload_frames;
+        if (shown - data->upload_log >= SDL_GetPerformanceFrequency()) {
+            const Uint64 div = SDL_GetPerformanceFrequency() * data->upload_frames;
+            if (data->upload_log) {
+                D("[%s] %ldx%ld %s, us per upload: lock %ld, write %ld, unlock %ld, %s %ld (%ld uploads)\n", __FUNCTION__,
+                  (long)data->src_w, (long)data->src_h, OVL_FormatName(data->srcfmt),
+                  (long)(data->upload_ticks[0] * 1000000 / div), (long)(data->upload_ticks[1] * 1000000 / div),
+                  (long)(data->upload_ticks[2] * 1000000 / div), data->vsync ? "WaitTOF+swap" : "swap",
+                  (long)(data->upload_ticks[3] * 1000000 / div), (long)data->upload_frames);
+            }
+            SDL_zeroa(data->upload_ticks);
+            data->upload_frames = 0;
+            data->upload_log = shown;
+        }
+    }
+#endif
     if (data->in_fallback) {
         D("[%s] back to the overlay\n", __FUNCTION__);
         data->in_fallback = SDL_FALSE;
     }
+}
+
+/* Unlocks the overlay and shows what was drawn into it */
+static void OVL_ShowOverlay(OVL_RenderData *data)
+{
+#ifdef __SDL_DEBUG
+    const Uint64 written = SDL_GetPerformanceCounter();
+#endif
+
+    UnlockVLayer(data->vlayer);
+#ifdef __SDL_DEBUG
+    OVL_SwapOverlay(data, data->upload_start - data->upload_lock, written - data->upload_start,
+                    SDL_GetPerformanceCounter() - written);
+#else
+    OVL_SwapOverlay(data, 0, 0, 0);
+#endif
+}
+
+/* Converts rect of src into an RGB16 overlay and shows it. The whole buffer
+   is rewritten: with double buffering, the one drawn doesn't hold the
+   previous frame.
+
+   The buffer may be video memory, uncached RAM, or cached RAM that some
+   drivers copy to video memory at the swap: converting in place is slow on
+   the first ones, copying needless on the last one. The first uploads of an
+   overlay try both, the fastest time of each decides. AltiVec stores of 16
+   bytes go in place anyway. */
+static SDL_bool OVL_UploadRGB(OVL_RenderData *data, SDL_Surface *src, const SDL_Rect *rect)
+{
+    const Uint32 format = src->format->format;
+    const ULONG row_bytes = (ULONG)rect->w * 2;
+    const ULONG stride = (row_bytes + 3) & ~3; /* rows 4-byte aligned in RAM, see OVL_ConvertRow() */
+    const int chunk = SDL_max(1, OVL_UPLOAD_CHUNK / (int)stride);
+    const SDL_bool timed = (data->write_trials < OVL_WRITE_TRIALS) ? SDL_TRUE : SDL_FALSE;
+    const Uint8 *row = (const Uint8 *)src->pixels + rect->y * src->pitch + rect->x * src->format->BytesPerPixel;
+    UBYTE *base;
+    ULONG modulo;
+    Uint64 start = 0;
+    int y, n, i, method;
+
+    base = OVL_LockOverlay(data, &modulo, row_bytes);
+    if (!base) {
+        return SDL_FALSE;
+    }
+
+    if (data->altivec && OVL_IsAltiVecFormat(format)) {
+        for (y = 0; y < rect->h; y++, row += src->pitch, base += modulo) {
+            OVL_ConvertRowAltiVec(format, row, base, rect->w);
+        }
+        OVL_ShowOverlay(data);
+        return SDL_TRUE;
+    }
+
+    method = timed ? (data->write_trials & 1) : data->write_method;
+    if (method == 1 && (((uintptr_t)base | modulo) & 3)) {
+        method = 0; /* OVL_ConvertRow() stores 32 bits */
+    }
+    if (timed) {
+        start = SDL_GetPerformanceCounter();
+    }
+
+    if (method == 1) {
+        for (y = 0; y < rect->h; y++, row += src->pitch, base += modulo) {
+            OVL_ConvertRow(format, row, (Uint16 *)base, rect->w);
+        }
+    } else {
+        if (!OVL_GrowRowBuffer(data, (size_t)stride * SDL_min(chunk, rect->h))) {
+            UnlockVLayer(data->vlayer);
+            return SDL_FALSE;
+        }
+        /* Rows are converted a few at a time, copied at once when the
+           overlay rows follow each other too. */
+        for (y = 0; y < rect->h; y += n) {
+            n = SDL_min(chunk, rect->h - y);
+            for (i = 0; i < n; i++, row += src->pitch) {
+                OVL_ConvertRow(format, row, (Uint16 *)(data->row_buf + i * stride), rect->w);
+            }
+            if (modulo == stride) {
+                CopyMem(data->row_buf, base, stride * n);
+                base += stride * n;
+            } else {
+                for (i = 0; i < n; i++, base += modulo) {
+                    CopyMem(data->row_buf + i * stride, base, row_bytes);
+                }
+            }
+        }
+    }
+
+    if (timed) {
+        const Uint64 ticks = SDL_GetPerformanceCounter() - start;
+        data->write_best[method] = SDL_min(data->write_best[method], ticks);
+        if (++data->write_trials == OVL_WRITE_TRIALS) {
+            data->write_method = (data->write_best[1] < data->write_best[0]) ? 1 : 0;
+            D("[%s] %ldx%ld written %s\n", __FUNCTION__, (long)rect->w, (long)rect->h,
+              data->write_method ? "in place" : "through RAM");
+        }
+    }
+    OVL_ShowOverlay(data);
+    return SDL_TRUE;
+}
+
+/* Copies rows of one plane, at once if they follow each other on both sides */
+static void OVL_CopyPlane(const Uint8 *src, int src_pitch, UBYTE *dst, ULONG dst_pitch, int w, int h)
+{
+    int y;
+
+    if (src_pitch == w && dst_pitch == (ULONG)w) {
+        CopyMem((APTR)src, dst, (ULONG)w * h);
+        return;
+    }
+    for (y = 0; y < h; y++, src += src_pitch, dst += dst_pitch) {
+        CopyMem((APTR)src, dst, (ULONG)w);
+    }
+}
+
+/* Copies rect of a YUV texture into a YCbCr overlay and shows it. x and w
+   are even, and y and h too for 4:2:0 textures, see OVL_TryDirectCopy().
+
+   SRCFMT_YCbCr16 is packed Y0 U Y1 V (YUY2). SRCFMT_YCbCr420 is planar, Y
+   then U then V, with VOA_Modulo counting two bytes per pixel, as mplayer
+   uses it. */
+static SDL_bool OVL_UploadYUV(OVL_RenderData *data, SDL_Texture *texture, const SDL_Rect *rect)
+{
+    const SDL_SW_YUVTexture *yuv = ((const OVL_TextureData *)texture->driverdata)->yuv;
+    const Uint32 format = texture->format;
+    const int w = rect->w, h = rect->h;
+    const int pitch = yuv->pitches[0];
+    Uint32 *row;
+    UBYTE *base;
+    ULONG modulo;
+    int x, y;
+
+    if (!OVL_GrowRowBuffer(data, (size_t)w * 2)) {
+        return SDL_FALSE;
+    }
+    row = (Uint32 *)data->row_buf;
+    base = OVL_LockOverlay(data, &modulo, (ULONG)w * 2);
+    if (!base) {
+        return SDL_FALSE;
+    }
+
+    if (!OVL_IsPlanarYUV(format)) {
+        /* Packed 4:2:2, 32-bit aligned: pitch is a multiple of 4 and x even */
+        const Uint8 *src = yuv->planes[0] + rect->y * pitch + rect->x * 2;
+
+        if (format == SDL_PIXELFORMAT_YUY2) {
+            OVL_CopyPlane(src, pitch, base, modulo, w * 2, h);
+        } else {
+            for (y = 0; y < h; y++, src += pitch, base += modulo) {
+                const Uint32 *s = (const Uint32 *)src;
+                if (format == SDL_PIXELFORMAT_UYVY) {
+                    for (x = 0; x < w / 2; x++) {
+                        const Uint32 p = s[x];
+                        row[x] = ((p & 0x00FF00FF) << 8) | ((p >> 8) & 0x00FF00FF);
+                    }
+                } else { /* YVYU */
+                    for (x = 0; x < w / 2; x++) {
+                        const Uint32 p = s[x];
+                        row[x] = (p & 0xFF00FF00) | ((p >> 16) & 0xFF) | ((p & 0xFF) << 16);
+                    }
+                }
+                CopyMem(row, base, (ULONG)w * 2);
+            }
+        }
+    } else {
+        /* 4:2:0: planes U then V for IYUV, V then U for YV12, interleaved
+           UV for NV12 and VU for NV21 */
+        const SDL_bool nv = (format == SDL_PIXELFORMAT_NV12 || format == SDL_PIXELFORMAT_NV21) ? SDL_TRUE : SDL_FALSE;
+        const int step = nv ? 2 : 1;
+        const int cpitch = yuv->pitches[1];
+        const int cw = w / 2;
+        const Uint8 *ysrc = yuv->planes[0] + rect->y * pitch + rect->x;
+        const Uint8 *c1 = yuv->planes[1] + (rect->y / 2) * cpitch + (rect->x / 2) * step;
+        const Uint8 *c2 = nv ? c1 + 1 : yuv->planes[2] + (rect->y / 2) * cpitch + rect->x / 2;
+        const SDL_bool u_first = (format == SDL_PIXELFORMAT_IYUV || format == SDL_PIXELFORMAT_NV12) ? SDL_TRUE : SDL_FALSE;
+        const Uint8 *u = u_first ? c1 : c2;
+        const Uint8 *v = u_first ? c2 : c1;
+
+        if (data->srcfmt == SRCFMT_YCbCr420) {
+            const ULONG ypitch = modulo / 2, upitch = ypitch / 2;
+            UBYTE *ubase = base + ypitch * data->src_h;
+            UBYTE *vbase = ubase + upitch * (data->src_h / 2);
+
+            OVL_CopyPlane(ysrc, pitch, base, ypitch, w, h);
+            if (!nv) {
+                OVL_CopyPlane(u, cpitch, ubase, upitch, cw, h / 2);
+                OVL_CopyPlane(v, cpitch, vbase, upitch, cw, h / 2);
+            } else {
+                Uint8 *ubuf = data->row_buf, *vbuf = data->row_buf + cw;
+                for (y = 0; y < h / 2; y++, u += cpitch, v += cpitch, ubase += upitch, vbase += upitch) {
+                    for (x = 0; x < cw; x++) {
+                        ubuf[x] = u[2 * x];
+                        vbuf[x] = v[2 * x];
+                    }
+                    CopyMem(ubuf, ubase, (ULONG)cw);
+                    CopyMem(vbuf, vbase, (ULONG)cw);
+                }
+            }
+        } else {
+            /* Packed: each chroma row serves two rows */
+            for (y = 0; y < h; y++, ysrc += pitch, base += modulo) {
+                const Uint8 *us = u + (y / 2) * cpitch;
+                const Uint8 *vs = v + (y / 2) * cpitch;
+                for (x = 0; x < cw; x++) {
+                    row[x] = ((Uint32)ysrc[2 * x] << 24) | ((Uint32)us[x * step] << 16) |
+                             ((Uint32)ysrc[2 * x + 1] << 8) | vs[x * step];
+                }
+                CopyMem(row, base, (ULONG)w * 2);
+            }
+        }
+    }
+    OVL_ShowOverlay(data);
+    return SDL_TRUE;
+}
+
+/* Surface to draw the texture from, YUV converted to RGB if it changed */
+static SDL_Surface *OVL_GetSurface(SDL_Texture *texture)
+{
+    OVL_TextureData *td = (OVL_TextureData *)texture->driverdata;
+
+    if (td->yuv && td->surface_version != td->version) {
+        SDL_ConvertPixels(texture->w, texture->h, texture->format, td->yuv->planes[0], td->yuv->pitches[0],
+                          td->surface->format->format, td->surface->pixels, td->surface->pitch);
+        td->surface_version = td->version;
+    }
+    return td->surface;
+}
+
+/* YUV textures go through their RGB copy without a YUV overlay */
+static SDL_bool OVL_UploadTexture(OVL_RenderData *data, SDL_Texture *texture, const SDL_Rect *rect)
+{
+    const OVL_TextureData *td = (const OVL_TextureData *)texture->driverdata;
+
+    if (td->yuv && data->srcfmt != SRCFMT_RGB16) {
+        return OVL_UploadYUV(data, texture, rect);
+    }
+    return OVL_UploadRGB(data, OVL_GetSurface(texture), rect);
+}
+
+/* Fills the whole overlay with one color, whatever its format, and shows it */
+static SDL_bool OVL_FillOverlay(OVL_RenderData *data, ULONG argb)
+{
+    const int w = data->src_w, h = data->src_h;
+    const int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
+    /* BT.601, studio range */
+    const Uint32 Y = (Uint32)(16 + ((66 * r + 129 * g + 25 * b + 128) >> 8));
+    const Uint32 U = (Uint32)(128 + ((-38 * r - 74 * g + 112 * b + 128) >> 8));
+    const Uint32 V = (Uint32)(128 + ((112 * r - 94 * g - 18 * b + 128) >> 8));
+    Uint32 *row;
+    UBYTE *base;
+    ULONG modulo;
+    int x, y;
+
+    if (!OVL_GrowRowBuffer(data, (size_t)w * 2 + 4)) {
+        return SDL_FALSE;
+    }
+    row = (Uint32 *)data->row_buf;
+    base = OVL_LockOverlay(data, &modulo, (ULONG)w * 2);
+    if (!base) {
+        return SDL_FALSE;
+    }
+
+    /* One row in RAM, copied to every row of the overlay, see OVL_GrowRowBuffer() */
+    if (data->srcfmt == SRCFMT_YCbCr420) {
+        const ULONG ypitch = modulo / 2, upitch = ypitch / 2;
+        UBYTE *chroma = base + ypitch * h;
+
+        SDL_memset(data->row_buf, (int)Y, w);
+        for (y = 0; y < h; y++, base += ypitch) {
+            CopyMem(data->row_buf, base, (ULONG)w);
+        }
+        SDL_memset(data->row_buf, (int)U, w / 2);
+        for (y = 0; y < h / 2; y++, chroma += upitch) {
+            CopyMem(data->row_buf, chroma, (ULONG)(w / 2));
+        }
+        SDL_memset(data->row_buf, (int)V, w / 2);
+        for (y = 0; y < h / 2; y++, chroma += upitch) {
+            CopyMem(data->row_buf, chroma, (ULONG)(w / 2));
+        }
+    } else {
+        const Uint32 pair = (data->srcfmt == SRCFMT_YCbCr16) ? ((Y << 24) | (U << 16) | (Y << 8) | V) :
+                                                               ((Uint32)OVL_PackRGB(r, g, b) * 0x10001);
+        for (x = 0; x < (w + 1) / 2; x++) {
+            row[x] = pair;
+        }
+        for (y = 0; y < h; y++, base += modulo) {
+            CopyMem(row, base, (ULONG)w * 2);
+        }
+    }
+    OVL_ShowOverlay(data);
     return SDL_TRUE;
 }
 
@@ -639,11 +1089,6 @@ static SDL_bool OVL_Upload(OVL_RenderData *data, SDL_Surface *src, const SDL_Rec
 static SDL_bool OVL_PresentClear(OVL_RenderData *data, struct Window *win)
 {
     const ULONG argb = 0xFF000000 | (data->clear_color & 0x00FFFFFF);
-    const Uint16 pixel = OVL_PackRGB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
-    const ULONG row_bytes = (ULONG)data->src_w * 2;
-    UBYTE *base;
-    ULONG modulo;
-    int x, y;
 
     if (!data->vlayer) {
         if (win->RPort) {
@@ -656,35 +1101,24 @@ static SDL_bool OVL_PresentClear(OVL_RenderData *data, struct Window *win)
         }
         return SDL_TRUE;
     }
-    if (data->mode != OVL_MODE_DIRECT || data->vlayer_win != win ||
-        !OVL_GrowRowBuffer(data, data->src_w) || !LockVLayer(data->vlayer)) {
+    if (data->mode != OVL_MODE_DIRECT || data->vlayer_win != win) {
         return SDL_FALSE;
     }
-    base = (UBYTE *)GetVLayerAttr(data->vlayer, VOA_BaseAddress);
-    modulo = GetVLayerAttr(data->vlayer, VOA_Modulo);
-    if (!modulo) {
-        modulo = row_bytes;
-    }
-    if (!base) {
-        UnlockVLayer(data->vlayer);
-        return SDL_FALSE;
-    }
-    /* One row in RAM, copied to every row of the overlay, see OVL_GrowRowBuffer() */
-    for (x = 0; x < data->src_w; x++) {
-        data->row_buf[x] = pixel;
-    }
-    for (y = 0; y < data->src_h; y++, base += modulo) {
-        CopyMem(data->row_buf, base, row_bytes);
-    }
-    UnlockVLayer(data->vlayer);
 
     OVL_PaintBars(data, win, &data->shown, SDL_TRUE);
-    if (data->vsync) {
-        WaitTOF();
+    if (data->shown_clear && data->shown_clear_color == argb && !data->in_fallback) {
+        /* Already on screen */
+        if (data->vsync) {
+            WaitTOF();
+        }
+        return SDL_TRUE;
     }
-    if (data->double_buffer) {
-        SwapVLayerBuffer(data->vlayer);
+    if (!OVL_FillOverlay(data, argb)) {
+        return SDL_FALSE;
     }
+    data->shown_texture = NULL;
+    data->shown_clear = SDL_TRUE;
+    data->shown_clear_color = argb;
     return SDL_TRUE;
 }
 
@@ -873,21 +1307,24 @@ static void OVL_SetupXform(const OVL_RenderData *data, SDL_Surface *surface, SDL
     }
 }
 
-static void OVL_PrepTextureForCopy(const SDL_RenderCommand *cmd)
+static SDL_Surface *OVL_PrepTextureForCopy(const SDL_RenderCommand *cmd)
 {
     const Uint8 r = cmd->data.draw.r;
     const Uint8 g = cmd->data.draw.g;
     const Uint8 b = cmd->data.draw.b;
     const Uint8 a = cmd->data.draw.a;
-    SDL_Surface *surface = (SDL_Surface *)cmd->data.draw.texture->driverdata;
+    SDL_Surface *surface = OVL_GetSurface(cmd->data.draw.texture);
 
     SDL_SetSurfaceColorMod(surface, r, g, b);
     SDL_SetSurfaceAlphaMod(surface, a);
     SDL_SetSurfaceBlendMode(surface, cmd->data.draw.blend);
+    return surface;
 }
 
+/* tmp_cache keeps the scaling surface of a clipped copy for the next one,
+   the same sprite usually */
 static void OVL_BlitCopy(SDL_Surface *src, const SDL_Rect *srcrect, SDL_Surface *surface,
-                         const SDL_Rect *dstrect, SDL_ScaleMode scaleMode)
+                         const SDL_Rect *dstrect, SDL_ScaleMode scaleMode, SDL_Surface **tmp_cache)
 {
     SDL_Rect s = *srcrect;
     SDL_Rect d = *dstrect;
@@ -902,7 +1339,16 @@ static void OVL_BlitCopy(SDL_Surface *src, const SDL_Rect *srcrect, SDL_Surface 
 
     /* Don't scale and clip in one go, it may lose proportion */
     if (d.x < 0 || d.y < 0 || d.x + d.w > surface->w || d.y + d.h > surface->h) {
-        SDL_Surface *tmp = SDL_CreateRGBSurfaceWithFormat(0, d.w, d.h, 0, src->format->format);
+        const SDL_bool keep = ((size_t)d.w * d.h <= OVL_MAX_SCALE_TMP) ? SDL_TRUE : SDL_FALSE;
+        SDL_Surface *tmp = keep ? *tmp_cache : NULL;
+
+        if (!tmp || tmp->w != d.w || tmp->h != d.h || tmp->format->format != src->format->format) {
+            if (keep) {
+                SDL_FreeSurface(*tmp_cache);
+                *tmp_cache = NULL;
+            }
+            tmp = SDL_CreateRGBSurfaceWithFormat(0, d.w, d.h, 0, src->format->format);
+        }
         if (tmp) {
             SDL_Rect r;
             SDL_BlendMode blendmode;
@@ -924,7 +1370,11 @@ static void OVL_BlitCopy(SDL_Surface *src, const SDL_Rect *srcrect, SDL_Surface 
             SDL_SetSurfaceAlphaMod(tmp, alphaMod);
             SDL_SetSurfaceBlendMode(tmp, blendmode);
             SDL_BlitSurface(tmp, NULL, surface, &d);
-            SDL_FreeSurface(tmp);
+            if (keep) {
+                *tmp_cache = tmp;
+            } else {
+                SDL_FreeSurface(tmp);
+            }
         }
     } else {
         SDL_PrivateUpperBlitScaled(src, &s, surface, &d, scaleMode);
@@ -1290,10 +1740,18 @@ static void OVL_DrawRotated(SDL_Surface *surface, SDL_Surface *src, const SDL_Re
 
     sbase = (const Uint8 *)src->pixels + srcrect->y * spitch + srcrect->x * sl.bpp;
     drow = (Uint8 *)surface->pixels + y0 * dpitch + x0 * dl.bpp;
+    /* Rows of the box ahead, see OVL_PREFETCH_ROWS */
+    for (y = y0; y < y0 + OVL_PREFETCH_ROWS && y < y1; y++) {
+        OVL_PrefetchWrite(drow + (y - y0) * dpitch, (x1 - x0) * dl.bpp);
+    }
     for (y = y0; y < y1; y++, ur += dur, vr += dvr, drow += dpitch) {
         Sint32 u = ur, v = vr;
         Uint8 *d = drow;
         int n = x1 - x0;
+
+        if (y + OVL_PREFETCH_ROWS < y1) {
+            OVL_PrefetchWrite(drow + OVL_PREFETCH_ROWS * dpitch, (x1 - x0) * dl.bpp);
+        }
 
         /* Up to the rectangle, then along it: inside a row, its pixels are
            contiguous, and their u and v always within the source */
@@ -1368,8 +1826,14 @@ static void OVL_BlendFillRectsARGB(SDL_Surface *surface, const SDL_Rect *rects, 
             continue;
         }
         row = (Uint8 *)surface->pixels + rect.y * surface->pitch + rect.x * 4;
+        for (y = 0; y < OVL_PREFETCH_ROWS && y < rect.h; y++) {
+            OVL_PrefetchWrite(row + y * surface->pitch, rect.w * 4);
+        }
         for (y = 0; y < rect.h; y++, row += surface->pitch) {
             Uint32 *p = (Uint32 *)row;
+            if (y + OVL_PREFETCH_ROWS < rect.h) {
+                OVL_PrefetchWrite(row + OVL_PREFETCH_ROWS * surface->pitch, rect.w * 4);
+            }
             for (x = 0; x < rect.w; x++) {
                 p[x] = OVL_BlendARGB(p[x], inva, add_rb, add_ag);
             }
@@ -1406,7 +1870,8 @@ static void OVL_BlendPointsARGB(SDL_Surface *surface, const SDL_Point *points, i
     }
 }
 
-static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_RenderCommand *cmd, void *vertices)
+static void OVL_Draw(OVL_RenderData *data, SDL_Surface *surface, const OVL_Xform *xf,
+                     const SDL_RenderCommand *cmd, void *vertices)
 {
     Uint8 *verts = (Uint8 *)vertices + cmd->data.draw.first;
     const int count = (int)cmd->data.draw.count;
@@ -1493,8 +1958,7 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
         SDL_Rect dst;
 
         OVL_MapFRect(xf, &copy->dst, &dst);
-        OVL_PrepTextureForCopy(cmd);
-        OVL_BlitCopy((SDL_Surface *)texture->driverdata, &copy->src, surface, &dst, texture->scaleMode);
+        OVL_BlitCopy(OVL_PrepTextureForCopy(cmd), &copy->src, surface, &dst, texture->scaleMode, &data->scale_tmp);
         break;
     }
 
@@ -1511,7 +1975,7 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
         dst.h = copy->dst.h * copy->scale_y * xf->ky;
         center.x = copy->center.x * copy->scale_x * xf->kx;
         center.y = copy->center.y * copy->scale_y * xf->ky;
-        OVL_DrawRotated(surface, (SDL_Surface *)texture->driverdata, &copy->src, &dst, &center,
+        OVL_DrawRotated(surface, OVL_GetSurface(texture), &copy->src, &dst, &center,
                         copy->angle, copy->flip, (texture->scaleMode != SDL_ScaleModeNearest) ? SDL_TRUE : SDL_FALSE,
                         blend, r, g, b, a);
         break;
@@ -1523,6 +1987,7 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
         if (texture) {
             OVL_GeometryCopyQueued *queued = (OVL_GeometryCopyQueued *)verts;
             OVL_GeometryCopyData *ptr = (OVL_GeometryCopyData *)verts; /* converted in place */
+            SDL_Surface *src;
 
             for (i = 0; i < count; i++) {
                 const float x = queued[i].dst.x;
@@ -1531,9 +1996,9 @@ static void OVL_Draw(SDL_Surface *surface, const OVL_Xform *xf, const SDL_Render
                 ptr[i].dst.y = (int)(xf->oy + y * xf->ky);
                 trianglepoint_2_fixedpoint(&ptr[i].dst);
             }
-            OVL_PrepTextureForCopy(cmd);
+            src = OVL_PrepTextureForCopy(cmd);
             for (i = 0; i + 2 < count; i += 3, ptr += 3) {
-                SDL_SW_BlitTriangle((SDL_Surface *)texture->driverdata,
+                SDL_SW_BlitTriangle(src,
                                     &(ptr[0].src), &(ptr[1].src), &(ptr[2].src),
                                     surface,
                                     &(ptr[0].dst), &(ptr[1].dst), &(ptr[2].dst),
@@ -1580,14 +2045,14 @@ static void OVL_Materialize(OVL_RenderData *data)
     }
     if (data->direct.texture) {
         SDL_Texture *texture = data->direct.texture;
-        SDL_Surface *src = (SDL_Surface *)texture->driverdata;
+        SDL_Surface *src = OVL_GetSurface(texture);
 
         data->direct.texture = NULL;
         SDL_SetSurfaceColorMod(src, 255, 255, 255);
         SDL_SetSurfaceAlphaMod(src, 255);
         SDL_SetSurfaceBlendMode(src, SDL_BLENDMODE_NONE);
         SDL_SetClipRect(comp, NULL);
-        OVL_BlitCopy(src, &data->direct.src, comp, &data->direct.comp_dst, texture->scaleMode);
+        OVL_BlitCopy(src, &data->direct.src, comp, &data->direct.comp_dst, texture->scaleMode, &data->scale_tmp);
     }
     data->composed = SDL_TRUE;
 }
@@ -1598,7 +2063,7 @@ static SDL_bool OVL_TryDirectCopy(OVL_RenderData *data, const SDL_RenderCommand 
                                   const SDL_Rect *viewport, SDL_bool clipping, const OVL_Xform *xf)
 {
     SDL_Texture *texture = cmd->data.draw.texture;
-    SDL_Surface *src = (SDL_Surface *)texture->driverdata;
+    const OVL_TextureData *td = (const OVL_TextureData *)texture->driverdata;
     const SDL_BlendMode blend = cmd->data.draw.blend;
     SDL_Rect dst;
     int out_w, out_h, x1, y1;
@@ -1609,11 +2074,16 @@ static SDL_bool OVL_TryDirectCopy(OVL_RenderData *data, const SDL_RenderCommand 
     if ((cmd->data.draw.r & cmd->data.draw.g & cmd->data.draw.b & cmd->data.draw.a) != 0xFF) {
         return SDL_FALSE;
     }
-    if (!(blend == SDL_BLENDMODE_NONE || (blend == SDL_BLENDMODE_BLEND && !src->format->Amask))) {
+    if (!(blend == SDL_BLENDMODE_NONE || (blend == SDL_BLENDMODE_BLEND && !SDL_ISPIXELFORMAT_ALPHA(texture->format)))) {
         return SDL_FALSE;
     }
-    if (!OVL_IsDirectFormat(src->format->format) || SDL_MUSTLOCK(src) ||
+    if (!OVL_IsDirectFormat(texture->format) || SDL_MUSTLOCK(td->surface) ||
         copy->src.w < 1 || copy->src.h < 1) {
+        return SDL_FALSE;
+    }
+    /* YUV overlays take chroma pairs, and 4:2:0 row pairs */
+    if (td->yuv && (((copy->src.x | copy->src.w) & 1) ||
+                    (OVL_IsPlanarYUV(texture->format) && ((copy->src.y | copy->src.h) & 1)))) {
         return SDL_FALSE;
     }
 
@@ -1650,8 +2120,13 @@ static void OVL_ShowAgain(OVL_RenderData *data, struct Window *win)
     OVL_SetGeometry(data, win, &data->shown);
 
     if (data->mode == OVL_MODE_DIRECT) {
+        /* shown_* always match the overlay, see OVL_DestroyOverlay() */
         if (data->shown_texture) {
-            OVL_Upload(data, (SDL_Surface *)data->shown_texture->driverdata, &data->shown_src);
+            if (OVL_UploadTexture(data, data->shown_texture, &data->shown_src)) {
+                data->shown_version = ((const OVL_TextureData *)data->shown_texture->driverdata)->version;
+            }
+        } else if (data->shown_clear) {
+            OVL_FillOverlay(data, data->shown_clear_color);
         }
     } else if (data->comp && !data->composed &&
                data->comp->w == data->src_w && data->comp->h == data->src_h) {
@@ -1660,7 +2135,7 @@ static void OVL_ShowAgain(OVL_RenderData *data, struct Window *win)
         all.x = all.y = 0;
         all.w = data->comp->w;
         all.h = data->comp->h;
-        OVL_Upload(data, data->comp, &all);
+        OVL_UploadRGB(data, data->comp, &all);
     }
 }
 
@@ -1705,33 +2180,158 @@ static int OVL_GetOutputSize(SDL_Renderer *renderer, int *w, int *h)
 
 static int OVL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
-    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, texture->w, texture->h, 0, texture->format);
+    OVL_TextureData *td = (OVL_TextureData *)SDL_calloc(1, sizeof(*td));
+    Uint32 format = texture->format;
 
-    if (!surface) {
+    if (!td) {
+        return SDL_OutOfMemory();
+    }
+    if (SDL_ISPIXELFORMAT_FOURCC(format)) {
+        td->yuv = SDL_SW_CreateYUVTexture(format, texture->w, texture->h);
+        if (!td->yuv) {
+            SDL_free(td);
+            return -1;
+        }
+        /* Drawn from an RGB copy, see OVL_GetSurface(): RGB565 like the
+           overlay, converted to it directly by SDL_ConvertPixels() */
+        format = SDL_PIXELFORMAT_RGB565;
+    }
+    td->surface = SDL_CreateRGBSurfaceWithFormat(0, texture->w, texture->h, 0, format);
+    if (!td->surface) {
+        SDL_SW_DestroyYUVTexture(td->yuv);
+        SDL_free(td);
         return -1;
     }
-    SDL_SetSurfaceColorMod(surface, texture->color.r, texture->color.g, texture->color.b);
-    SDL_SetSurfaceAlphaMod(surface, texture->color.a);
-    SDL_SetSurfaceBlendMode(surface, texture->blendMode);
-    texture->driverdata = surface;
+    td->version = 1;
+    SDL_SetSurfaceColorMod(td->surface, texture->color.r, texture->color.g, texture->color.b);
+    SDL_SetSurfaceAlphaMod(td->surface, texture->color.a);
+    SDL_SetSurfaceBlendMode(td->surface, texture->blendMode);
+    texture->driverdata = td;
     return 0;
+}
+
+/* The texture pixels are about to change */
+static OVL_TextureData *OVL_TouchTexture(SDL_Renderer *renderer, SDL_Texture *texture)
+{
+    OVL_RenderData *data = (OVL_RenderData *)renderer->driverdata;
+    OVL_TextureData *td = (OVL_TextureData *)texture->driverdata;
+
+    /* The copy kept out of comp needs the pixels as they were */
+    if (texture == data->direct.texture) {
+        OVL_Materialize(data);
+    }
+    td->version++;
+    return td;
+}
+
+/* Full update of a YUV 4:2:0 texture shown directly by a YCbCr420 overlay:
+   each row is read once, written to the texture and to the overlay buffer,
+   the next present only swaps. At video sizes, one pass less over memory.
+   The texture stays complete for anything else. SDL_FALSE if not that case. */
+static SDL_bool OVL_WriteThroughYUV(OVL_RenderData *data, SDL_Texture *texture,
+                                    const Uint8 *Yplane, int Ypitch,
+                                    const Uint8 *Uplane, int Upitch,
+                                    const Uint8 *Vplane, int Vpitch)
+{
+    OVL_TextureData *td = (OVL_TextureData *)texture->driverdata;
+    SDL_SW_YUVTexture *yuv = td->yuv;
+    const int w = texture->w, h = texture->h;
+    const SDL_bool iyuv = (texture->format == SDL_PIXELFORMAT_IYUV) ? SDL_TRUE : SDL_FALSE;
+    Uint8 *ty, *tu, *tv;
+    UBYTE *base, *ubase, *vbase;
+    ULONG modulo, ypitch, cpitch;
+    int y;
+#ifdef __SDL_DEBUG
+    Uint64 written;
+#endif
+
+    /* shown_src is the whole texture, the overlay its size, see OVL_PresentDirect() */
+    if (!data->vlayer || data->mode != OVL_MODE_DIRECT || data->srcfmt != SRCFMT_YCbCr420 ||
+        data->in_fallback || data->composed || texture != data->shown_texture ||
+        data->shown_src.x || data->shown_src.y || data->shown_src.w != w || data->shown_src.h != h ||
+        (!iyuv && texture->format != SDL_PIXELFORMAT_YV12)) {
+        return SDL_FALSE;
+    }
+    base = OVL_LockOverlay(data, &modulo, (ULONG)w * 2);
+    if (!base) {
+        return SDL_FALSE;
+    }
+    ypitch = modulo / 2; /* see OVL_UploadYUV() */
+    cpitch = ypitch / 2;
+    ubase = base + ypitch * h;
+    vbase = ubase + cpitch * (h / 2);
+    ty = yuv->planes[0];
+    tu = iyuv ? yuv->planes[1] : yuv->planes[2];
+    tv = iyuv ? yuv->planes[2] : yuv->planes[1];
+
+    /* The row just copied to the texture is in the cache for the overlay */
+    for (y = 0; y < h; y++, Yplane += Ypitch, ty += yuv->pitches[0], base += ypitch) {
+        SDL_memcpy(ty, Yplane, w);
+        CopyMem((APTR)Yplane, base, (ULONG)w);
+    }
+    for (y = 0; y < h / 2; y++) {
+        SDL_memcpy(tu, Uplane, w / 2);
+        CopyMem((APTR)Uplane, ubase, (ULONG)(w / 2));
+        SDL_memcpy(tv, Vplane, w / 2);
+        CopyMem((APTR)Vplane, vbase, (ULONG)(w / 2));
+        Uplane += Upitch;
+        Vplane += Vpitch;
+        tu += yuv->pitches[1];
+        tv += yuv->pitches[1];
+        ubase += cpitch;
+        vbase += cpitch;
+    }
+
+#ifdef __SDL_DEBUG
+    written = SDL_GetPerformanceCounter();
+#endif
+    UnlockVLayer(data->vlayer);
+#ifdef __SDL_DEBUG
+    data->pending_ticks[0] = data->upload_start - data->upload_lock;
+    data->pending_ticks[1] = written - data->upload_start;
+    data->pending_ticks[2] = SDL_GetPerformanceCounter() - written;
+#endif
+    data->pending_texture = texture;
+    data->pending_version = td->version;
+    return SDL_TRUE;
+}
+
+static SDL_bool OVL_IsWholeTexture(const SDL_Texture *texture, const SDL_Rect *rect)
+{
+    return (rect->x == 0 && rect->y == 0 && rect->w == texture->w && rect->h == texture->h) ? SDL_TRUE : SDL_FALSE;
 }
 
 static int OVL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                              const SDL_Rect *rect, const void *pixels, int pitch)
 {
-    OVL_RenderData *data = (OVL_RenderData *)renderer->driverdata;
-    SDL_Surface *surface = (SDL_Surface *)texture->driverdata;
+    OVL_TextureData *td = OVL_TouchTexture(renderer, texture);
+    SDL_Surface *surface = td->surface;
     const size_t length = (size_t)rect->w * surface->format->BytesPerPixel;
     const Uint8 *src = (const Uint8 *)pixels;
     Uint8 *dst;
     int row;
 
-    if (texture == data->direct.texture) {
-        OVL_Materialize(data);
+    if (td->yuv) {
+        /* Planes one after the other, as SDL_SW_UpdateYUVTexture() takes them */
+        if ((texture->format == SDL_PIXELFORMAT_IYUV || texture->format == SDL_PIXELFORMAT_YV12) &&
+            OVL_IsWholeTexture(texture, rect)) {
+            const int cpitch = (pitch + 1) / 2;
+            const Uint8 *p1 = src + rect->h * pitch;
+            const Uint8 *p2 = p1 + ((rect->h + 1) / 2) * cpitch;
+            const SDL_bool iyuv = (texture->format == SDL_PIXELFORMAT_IYUV) ? SDL_TRUE : SDL_FALSE;
+            if (OVL_WriteThroughYUV((OVL_RenderData *)renderer->driverdata, texture, src, pitch,
+                                    iyuv ? p1 : p2, cpitch, iyuv ? p2 : p1, cpitch)) {
+                return 0;
+            }
+        }
+        return SDL_SW_UpdateYUVTexture(td->yuv, rect, pixels, pitch);
     }
 
     dst = (Uint8 *)surface->pixels + rect->y * surface->pitch + rect->x * surface->format->BytesPerPixel;
+    if (rect->x == 0 && rect->w == surface->w && pitch == surface->pitch) {
+        SDL_memcpy(dst, src, (size_t)pitch * (rect->h - 1) + length);
+        return 0;
+    }
     for (row = 0; row < rect->h; ++row) {
         SDL_memcpy(dst, src, length);
         src += pitch;
@@ -1740,16 +2340,38 @@ static int OVL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     return 0;
 }
 
+static int OVL_UpdateTextureYUV(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *rect,
+                                const Uint8 *Yplane, int Ypitch,
+                                const Uint8 *Uplane, int Upitch,
+                                const Uint8 *Vplane, int Vpitch)
+{
+    OVL_TextureData *td = OVL_TouchTexture(renderer, texture);
+
+    if (OVL_IsWholeTexture(texture, rect) &&
+        OVL_WriteThroughYUV((OVL_RenderData *)renderer->driverdata, texture, Yplane, Ypitch, Uplane, Upitch, Vplane, Vpitch)) {
+        return 0;
+    }
+    return SDL_SW_UpdateYUVTexturePlanar(td->yuv, rect, Yplane, Ypitch, Uplane, Upitch, Vplane, Vpitch);
+}
+
+static int OVL_UpdateTextureNV(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *rect,
+                               const Uint8 *Yplane, int Ypitch,
+                               const Uint8 *UVplane, int UVpitch)
+{
+    OVL_TextureData *td = OVL_TouchTexture(renderer, texture);
+
+    return SDL_SW_UpdateNVTexturePlanar(td->yuv, rect, Yplane, Ypitch, UVplane, UVpitch);
+}
+
 static int OVL_LockTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_Rect *rect, void **pixels, int *pitch)
 {
-    OVL_RenderData *data = (OVL_RenderData *)renderer->driverdata;
-    SDL_Surface *surface = (SDL_Surface *)texture->driverdata;
+    OVL_TextureData *td = OVL_TouchTexture(renderer, texture);
+    SDL_Surface *surface = td->surface;
 
-    if (texture == data->direct.texture) {
-        OVL_Materialize(data);
+    if (td->yuv) {
+        return SDL_SW_LockYUVTexture(td->yuv, rect, pixels, pitch);
     }
-
     *pixels = (Uint8 *)surface->pixels + rect->y * surface->pitch + rect->x * surface->format->BytesPerPixel;
     *pitch = surface->pitch;
     return 0;
@@ -1770,7 +2392,8 @@ static int OVL_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
     if (texture && texture == data->direct.texture) {
         OVL_Materialize(data);
     }
-    data->target = texture ? (SDL_Surface *)texture->driverdata : NULL;
+    data->target_data = texture ? (OVL_TextureData *)texture->driverdata : NULL;
+    data->target = texture ? data->target_data->surface : NULL;
     return 0;
 }
 
@@ -1902,6 +2525,10 @@ static int OVL_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, v
     if (!surface) {
         return -1;
     }
+    /* Drawn into, the target texture changes */
+    if (!to_comp) {
+        data->target_data->version++;
+    }
 
     for (; cmd; cmd = cmd->next) {
         switch (cmd->command) {
@@ -1954,7 +2581,7 @@ static int OVL_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, v
                 OVL_Materialize(data);
             }
             SDL_SetClipRect(surface, &xf.clip);
-            OVL_Draw(surface, &xf, cmd, vertices);
+            OVL_Draw(data, surface, &xf, cmd, vertices);
             break;
 
         default:
@@ -2015,19 +2642,43 @@ static int OVL_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect *rect,
 static SDL_bool OVL_PresentDirect(OVL_RenderData *data, struct Window *win)
 {
     SDL_Texture *texture = data->direct.texture;
+    const OVL_TextureData *td = (const OVL_TextureData *)texture->driverdata;
+    const SDL_Rect *src = &data->direct.src;
     const SDL_bool filter = (texture->scaleMode != SDL_ScaleModeNearest) ? SDL_TRUE : SDL_FALSE;
-    const SDL_bool wait_switch = (data->vlayer && data->mode == OVL_MODE_COMPOSE) ? SDL_TRUE : SDL_FALSE;
+    SDL_bool wait_switch = (data->vlayer && data->mode == OVL_MODE_COMPOSE) ? SDL_TRUE : SDL_FALSE;
+    ULONG srcfmt = OVL_OverlayFormat(data, win, texture->format);
 
-    if (!OVL_SetupOverlay(data, win, OVL_MODE_DIRECT, data->direct.src.w, data->direct.src.h, filter, wait_switch)) {
-        return SDL_FALSE;
+    while (!OVL_SetupOverlay(data, win, OVL_MODE_DIRECT, srcfmt, src->w, src->h, filter, wait_switch)) {
+        /* That YUV format just failed: the next one right away */
+        const ULONG next = OVL_OverlayFormat(data, win, texture->format);
+        if (next == srcfmt) {
+            return SDL_FALSE;
+        }
+        srcfmt = next;
+        wait_switch = SDL_FALSE;
     }
     OVL_SetGeometry(data, win, &data->direct.dst);
     OVL_PaintBars(data, win, &data->direct.dst, SDL_TRUE);
-    if (!OVL_Upload(data, (SDL_Surface *)texture->driverdata, &data->direct.src)) {
+
+    /* Same pixels as the frame on screen: the overlay keeps showing it */
+    if (texture == data->shown_texture && td->version == data->shown_version &&
+        SDL_memcmp(src, &data->shown_src, sizeof(*src)) == 0 && !data->in_fallback) {
+        if (data->vsync) {
+            WaitTOF();
+        }
+        return SDL_TRUE;
+    }
+    if (texture == data->pending_texture && td->version == data->pending_version &&
+        SDL_memcmp(src, &data->shown_src, sizeof(*src)) == 0) {
+        /* Already written when updated, see OVL_WriteThroughYUV() */
+        OVL_SwapOverlay(data, data->pending_ticks[0], data->pending_ticks[1], data->pending_ticks[2]);
+    } else if (!OVL_UploadTexture(data, texture, src)) {
         return SDL_FALSE;
     }
     data->shown_texture = texture;
-    data->shown_src = data->direct.src;
+    data->shown_src = *src;
+    data->shown_version = td->version;
+    data->shown_clear = SDL_FALSE;
     return SDL_TRUE;
 }
 
@@ -2040,10 +2691,12 @@ static void OVL_PresentComposed(OVL_RenderData *data, struct Window *win)
     all.w = comp->w;
     all.h = comp->h;
 
-    if (OVL_SetupOverlay(data, win, OVL_MODE_COMPOSE, comp->w, comp->h, data->compose_filter, SDL_FALSE)) {
+    if (OVL_SetupOverlay(data, win, OVL_MODE_COMPOSE, SRCFMT_RGB16, comp->w, comp->h, data->compose_filter, SDL_FALSE)) {
         OVL_SetGeometry(data, win, &data->area);
         OVL_PaintBars(data, win, &data->area, SDL_TRUE);
-        if (OVL_Upload(data, comp, &all)) {
+        if (OVL_UploadRGB(data, comp, &all)) {
+            data->shown_texture = NULL;
+            data->shown_clear = SDL_FALSE;
             return;
         }
     }
@@ -2106,6 +2759,7 @@ static int OVL_RenderPresent(SDL_Renderer *renderer)
 static void OVL_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
     OVL_RenderData *data = (OVL_RenderData *)renderer->driverdata;
+    OVL_TextureData *td = (OVL_TextureData *)texture->driverdata;
 
     if (texture == data->direct.texture) {
         OVL_Materialize(data);
@@ -2113,7 +2767,14 @@ static void OVL_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
     if (texture == data->shown_texture) {
         data->shown_texture = NULL;
     }
-    SDL_FreeSurface((SDL_Surface *)texture->driverdata);
+    if (texture == data->pending_texture) {
+        data->pending_texture = NULL;
+    }
+    if (td) {
+        SDL_FreeSurface(td->surface);
+        SDL_SW_DestroyYUVTexture(td->yuv);
+        SDL_free(td);
+    }
     texture->driverdata = NULL;
 }
 
@@ -2132,6 +2793,7 @@ static void OVL_DestroyRenderer(SDL_Renderer *renderer)
     }
     OVL_DestroyOverlay(data);
     SDL_FreeSurface(data->comp);
+    SDL_FreeSurface(data->scale_tmp);
     SDL_SIMDFree(data->row_buf);
     SDL_free(data);
     renderer->driverdata = NULL;
@@ -2192,6 +2854,7 @@ static int OVL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32
     data->bars_dirty = SDL_TRUE;
     data->win_left = data->win_top = -32768;
     data->vsync = (flags & SDL_RENDERER_PRESENTVSYNC) ? SDL_TRUE : SDL_FALSE;
+    data->altivec = SDL_HasAltiVec();
     /* Nearest by default, like textures */
     hint = SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY);
     data->compose_filter = (hint && (*hint == '1' || *hint == '2' ||
@@ -2201,6 +2864,8 @@ static int OVL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32
     renderer->GetOutputSize = OVL_GetOutputSize;
     renderer->CreateTexture = OVL_CreateTexture;
     renderer->UpdateTexture = OVL_UpdateTexture;
+    renderer->UpdateTextureYUV = OVL_UpdateTextureYUV;
+    renderer->UpdateTextureNV = OVL_UpdateTextureNV;
     renderer->LockTexture = OVL_LockTexture;
     renderer->UnlockTexture = OVL_UnlockTexture;
     renderer->SetTextureScaleMode = OVL_SetTextureScaleMode;
@@ -2230,9 +2895,9 @@ static int OVL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32
     wd->overlay_closing = OVL_WindowClosing;
     wd->overlay_userdata = data;
 
-    D("[%s] cgxvideo.library %ld.%ld, window %ldx%ld, vsync %ld, composed filter %ld\n", __FUNCTION__,
+    D("[%s] cgxvideo.library %ld.%ld, window %ldx%ld, vsync %ld, composed filter %ld, altivec %ld\n", __FUNCTION__,
       (long)CGXVideoBase->lib_Version, (long)CGXVideoBase->lib_Revision,
-      (long)window->w, (long)window->h, (long)data->vsync, (long)data->compose_filter);
+      (long)window->w, (long)window->h, (long)data->vsync, (long)data->compose_filter, (long)data->altivec);
     return 0;
 }
 
@@ -2241,7 +2906,7 @@ SDL_RenderDriver MOS_OVERLAY_RenderDriver = {
     {
      "overlay",
      SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE,
-     8,
+     15,
      {
       SDL_PIXELFORMAT_ARGB8888,
       SDL_PIXELFORMAT_ABGR8888,
@@ -2250,7 +2915,14 @@ SDL_RenderDriver MOS_OVERLAY_RenderDriver = {
       SDL_PIXELFORMAT_RGB888,
       SDL_PIXELFORMAT_BGR888,
       SDL_PIXELFORMAT_RGB565,
-      SDL_PIXELFORMAT_RGB555
+      SDL_PIXELFORMAT_RGB555,
+      SDL_PIXELFORMAT_YV12,
+      SDL_PIXELFORMAT_IYUV,
+      SDL_PIXELFORMAT_NV12,
+      SDL_PIXELFORMAT_NV21,
+      SDL_PIXELFORMAT_YUY2,
+      SDL_PIXELFORMAT_UYVY,
+      SDL_PIXELFORMAT_YVYU
      },
      0,
      0}

@@ -1,0 +1,16 @@
+# Makefile to build ovlprobe for MorphOS
+
+CC      = ppc-morphos-gcc-9
+STRIP   = ppc-morphos-strip
+# Same code generation as sdl2.library, and no memcpy/memset calls in place
+# of the memory test loops
+CFLAGS  = -noixemul -mcpu=750 -mtune=7450 -O3 -ffast-math -Wall -fno-tree-loop-distribute-patterns
+
+all: ovlprobe
+
+ovlprobe: ovlprobe.c
+	$(CC) $(CFLAGS) -o $@.db $< -lm
+	$(STRIP) -o $@ $@.db
+
+clean:
+	rm -f ovlprobe ovlprobe.db

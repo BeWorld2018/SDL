@@ -10,6 +10,11 @@ and prints frames per second and milliseconds per frame:
   sprites     opaque background + alpha blended 32x32 sprites
   primitives  alpha blended rectangles, lines and points
   rotate      background + rotated and scaled sprites (RenderCopyEx)
+  yuv         1 IYUV texture updated with SDL_UpdateYUVTexture() and copied
+              per frame (video players, FMV)
+  static      same opaque copy every frame, nothing changes (menus, frame
+              skipping emulators): measures what a renderer saves when the
+              frame doesn't change
 
 Build (cross compiler):  make -f Makefile.mos
 
@@ -25,15 +30,27 @@ Usage:  renderbench [options] [renderer...]
   -seconds N     duration of each scene (default 5)
   -items N       sprites, rectangles... per frame (default 200)
   -scene NAME    only run this scene, can be repeated
+  -format NAME   format of the streaming texture: RGB888 (default), BGR888,
+                 ARGB8888, ABGR8888, RGBA8888, BGRA8888, RGB565, RGB555
+  -linemethod N  SDL_HINT_RENDER_LINE_METHOD: 1 points (SDL default),
+                 2 lines, 3 geometry
+  -noshaders     OpenGL renderer without shaders
 
 ESC skips the current renderer, closing the window stops everything.
 
-The renderer, vsync, batching and filtering hints are set with
-SDL_HINT_OVERRIDE, so the ENV: variables saved by the SDL window menu don't
-change what is measured.
+The renderer, vsync, batching, filtering, shader and line method hints are
+set with SDL_HINT_OVERRIDE, so the ENV: variables saved by the SDL window
+menu don't change what is measured.
 
 Examples:
   renderbench                          all renderers, all scenes
   renderbench -fullscreen overlay      overlay only, fullscreen
   renderbench -vsync -scene stream     check vsync pacing (expect the refresh rate)
   renderbench -logical 640x480 -items 500
+  renderbench -scene stream -format BGRA8888 opengl
+                                       texture in the format of most MorphOS
+                                       screens, like games using the window format
+  renderbench -scene primitives -linemethod 3 opengl
+  renderbench -noshaders opengl
+  renderbench -scene yuv -scene static overlay
+                                       YUV overlay and unchanged frames

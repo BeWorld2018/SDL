@@ -32,7 +32,7 @@ const char *version_tag = "$VER: renderbench 1.0 (4.10.2026)";
 #endif
 
 #define MAX_RENDERERS 8
-#define NUM_SCENES    5
+#define NUM_SCENES    7
 #define SPRITE_SIZE   32
 #define TILE_SIZE     16
 #define MAP_SIZE      64
@@ -50,6 +50,8 @@ static const SceneInfo scene_info[NUM_SCENES] = {
     { "sprites",    "opaque background + alpha blended 32x32 sprites" },
     { "primitives", "alpha blended rectangles, lines and points" },
     { "rotate",     "background + rotated and scaled sprites (RenderCopyEx)" },
+    { "yuv",        "1 IYUV texture updated and copied per frame (video players)" },
+    { "static",     "same opaque copy every frame, nothing changes (menus, frame skipping)" },
 };
 
 typedef struct
@@ -77,6 +79,15 @@ static SDL_bool linear = SDL_FALSE;
 static int seconds = 5;
 static int num_items = 200;
 static SDL_bool scene_enabled[NUM_SCENES];
+static Uint32 stream_format = SDL_PIXELFORMAT_RGB888;
+static const char *line_method = NULL;  /* SDL_HINT_RENDER_LINE_METHOD, NULL for SDL's default */
+static SDL_bool shaders = SDL_TRUE;     /* SDL_HINT_RENDER_OPENGL_SHADERS */
+
+/* Formats accepted by -format */
+static const Uint32 stream_formats[] = {
+    SDL_PIXELFORMAT_RGB888, SDL_PIXELFORMAT_BGR888, SDL_PIXELFORMAT_ARGB8888, SDL_PIXELFORMAT_ABGR8888,
+    SDL_PIXELFORMAT_RGBA8888, SDL_PIXELFORMAT_BGRA8888, SDL_PIXELFORMAT_RGB565, SDL_PIXELFORMAT_RGB555
+};
 
 static const char *renderer_names[MAX_RENDERERS];
 static int num_renderers = 0;
@@ -86,8 +97,11 @@ static SDL_bool quit_all = SDL_FALSE;
 /* Per renderer state */
 static SDL_Window *window;
 static SDL_Renderer *renderer;
-static SDL_Texture *stream_texture, *background, *sprite, *tiles;
-static Uint32 *stream_source;           /* (2 * w) x (2 * h) image scrolled into the stream texture */
+static SDL_Texture *stream_texture, *background, *sprite, *tiles, *yuv_texture;
+static Uint8 *stream_source;            /* (2 * w) x (2 * h) image scrolled into the stream texture */
+static int stream_bpp;
+static Uint8 *yuv_source;               /* same image in IYUV, scrolled into yuv_texture */
+static int yuv_w, yuv_h;                /* scene size rounded down to even */
 static Uint8 tile_map[MAP_SIZE][MAP_SIZE];
 static Item *items;
 static int scene_w, scene_h;            /* drawing area: logical size, or window size */
@@ -126,9 +140,12 @@ static SDL_bool CreateTextures(void)
     Uint32 *pixels;
     int x, y, i;
 
-    /* Plasma for the streaming texture */
-    stream_source = (Uint32 *)SDL_malloc((size_t)sw * sh * sizeof(Uint32));
-    if (!stream_source) {
+    /* Plasma for the streaming texture, converted to its format */
+    pixels = (Uint32 *)SDL_malloc((size_t)sw * sh * sizeof(Uint32));
+    stream_bpp = SDL_BYTESPERPIXEL(stream_format);
+    stream_source = (Uint8 *)SDL_malloc((size_t)sw * sh * stream_bpp);
+    if (!pixels || !stream_source) {
+        SDL_free(pixels);
         return SDL_FALSE;
     }
     for (y = 0; y < sh; y++) {
@@ -137,10 +154,23 @@ static SDL_bool CreateTextures(void)
             const int r = (int)(128 + 127 * sin(v * 3.14159));
             const int g = (int)(128 + 127 * sin(v * 3.14159 + 2.094));
             const int b = (int)(128 + 127 * sin(v * 3.14159 + 4.188));
-            stream_source[y * sw + x] = 0xFF000000 | (r << 16) | (g << 8) | b;
+            pixels[y * sw + x] = 0xFF000000 | (r << 16) | (g << 8) | b;
         }
     }
-    stream_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, scene_w, scene_h);
+    SDL_ConvertPixels(sw, sh, SDL_PIXELFORMAT_RGB888, pixels, sw * 4, stream_format, stream_source, sw * stream_bpp);
+
+    /* Same plasma in IYUV, sw and sh are even */
+    yuv_source = (Uint8 *)SDL_malloc((size_t)sw * sh * 3 / 2);
+    if (!yuv_source) {
+        SDL_free(pixels);
+        return SDL_FALSE;
+    }
+    SDL_ConvertPixels(sw, sh, SDL_PIXELFORMAT_RGB888, pixels, sw * 4, SDL_PIXELFORMAT_IYUV, yuv_source, sw);
+    SDL_free(pixels);
+    stream_texture = SDL_CreateTexture(renderer, stream_format, SDL_TEXTUREACCESS_STREAMING, scene_w, scene_h);
+    yuv_w = SDL_max(scene_w & ~1, 2);
+    yuv_h = SDL_max(scene_h & ~1, 2);
+    yuv_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, yuv_w, yuv_h);
 
     /* Background: gradient with a grid */
     pixels = (Uint32 *)SDL_malloc((size_t)scene_w * scene_h * sizeof(Uint32));
@@ -210,7 +240,7 @@ static SDL_bool CreateTextures(void)
         return SDL_FALSE;
     }
     (void)i;
-    return (stream_texture && background && sprite && tiles) ? SDL_TRUE : SDL_FALSE;
+    return (stream_texture && background && sprite && tiles && yuv_texture) ? SDL_TRUE : SDL_FALSE;
 }
 
 static void DestroyTextures(void)
@@ -227,9 +257,14 @@ static void DestroyTextures(void)
     if (tiles) {
         SDL_DestroyTexture(tiles);
     }
-    stream_texture = background = sprite = tiles = NULL;
+    if (yuv_texture) {
+        SDL_DestroyTexture(yuv_texture);
+    }
+    stream_texture = background = sprite = tiles = yuv_texture = NULL;
     SDL_free(stream_source);
     stream_source = NULL;
+    SDL_free(yuv_source);
+    yuv_source = NULL;
     SDL_free(items);
     items = NULL;
 }
@@ -289,7 +324,7 @@ static void DrawStream(int frame)
 
     if (SDL_LockTexture(stream_texture, NULL, &pixels, &pitch) == 0) {
         for (y = 0; y < scene_h; y++) {
-            SDL_memcpy((Uint8 *)pixels + y * pitch, &stream_source[(y + oy) * sw + ox], scene_w * 4);
+            SDL_memcpy((Uint8 *)pixels + y * pitch, stream_source + ((size_t)(y + oy) * sw + ox) * stream_bpp, scene_w * stream_bpp);
         }
         SDL_UnlockTexture(stream_texture);
     }
@@ -394,6 +429,33 @@ static void DrawRotate(int frame)
     (void)frame;
 }
 
+static void DrawYUV(int frame)
+{
+    const int sw = scene_w * 2, sh = scene_h * 2;
+    /* Even offsets, on chroma samples like a decoder's output */
+    const int ox = (int)((sin(frame * 0.013) + 1.0) * 0.5 * scene_w) & ~1;
+    const int oy = (int)((cos(frame * 0.017) + 1.0) * 0.5 * scene_h) & ~1;
+    const Uint8 *y_plane = yuv_source;
+    const Uint8 *u_plane = y_plane + (size_t)sw * sh;
+    const Uint8 *v_plane = u_plane + (size_t)(sw / 2) * (sh / 2);
+
+    SDL_UpdateYUVTexture(yuv_texture, NULL,
+                         y_plane + (size_t)oy * sw + ox, sw,
+                         u_plane + (size_t)(oy / 2) * (sw / 2) + ox / 2, sw / 2,
+                         v_plane + (size_t)(oy / 2) * (sw / 2) + ox / 2, sw / 2);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, yuv_texture, NULL, NULL);
+}
+
+static void DrawStatic(int frame)
+{
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, background, NULL, NULL);
+    (void)frame;
+}
+
 static void DrawScene(int scene, int frame)
 {
     switch (scene) {
@@ -411,6 +473,12 @@ static void DrawScene(int scene, int frame)
         break;
     case 4:
         DrawRotate(frame);
+        break;
+    case 5:
+        DrawYUV(frame);
+        break;
+    case 6:
+        DrawStatic(frame);
         break;
     }
 }
@@ -609,6 +677,10 @@ static void Usage(const char *argv0)
            "  -seconds N     duration of each scene (default 5)\n"
            "  -items N       sprites, rectangles... per frame (default 200)\n"
            "  -scene NAME    only run this scene, can be repeated\n"
+           "  -format NAME   format of the streaming texture: RGB888 (default), BGR888, ARGB8888,\n"
+           "                 ABGR8888, RGBA8888, BGRA8888, RGB565, RGB555\n"
+           "  -linemethod N  SDL_HINT_RENDER_LINE_METHOD: 1 points (SDL default), 2 lines, 3 geometry\n"
+           "  -noshaders     OpenGL renderer without shaders (SDL_HINT_RENDER_OPENGL_SHADERS=0)\n"
            "Scenes:\n", argv0);
     for (i = 0; i < NUM_SCENES; i++) {
         printf("  %-10s %s\n", scene_info[i].name, scene_info[i].description);
@@ -654,6 +726,26 @@ int main(int argc, char *argv[])
         } else if (SDL_strcmp(arg, "-items") == 0 && next && SDL_atoi(next) > 0) {
             num_items = SDL_atoi(next);
             i++;
+        } else if (SDL_strcmp(arg, "-format") == 0 && next) {
+            Uint32 found = SDL_PIXELFORMAT_UNKNOWN;
+            int f;
+            for (f = 0; f < (int)SDL_arraysize(stream_formats); f++) {
+                /* name without "SDL_PIXELFORMAT_" */
+                if (SDL_strcasecmp(next, SDL_GetPixelFormatName(stream_formats[f]) + 16) == 0) {
+                    found = stream_formats[f];
+                }
+            }
+            if (found == SDL_PIXELFORMAT_UNKNOWN) {
+                Usage(argv[0]);
+                return 1;
+            }
+            stream_format = found;
+            i++;
+        } else if (SDL_strcmp(arg, "-linemethod") == 0 && next && next[0] >= '0' && next[0] <= '3' && !next[1]) {
+            line_method = next;
+            i++;
+        } else if (SDL_strcmp(arg, "-noshaders") == 0) {
+            shaders = SDL_FALSE;
         } else if (SDL_strcmp(arg, "-scene") == 0 && next) {
             int found = -1;
             for (scene = 0; scene < NUM_SCENES; scene++) {
@@ -690,6 +782,10 @@ int main(int argc, char *argv[])
     SDL_SetHintWithPriority(SDL_HINT_RENDER_BATCHING, batching ? "1" : "0", SDL_HINT_OVERRIDE);
     SDL_SetHintWithPriority(SDL_HINT_RENDER_SCALE_QUALITY, linear ? "linear" : "nearest", SDL_HINT_OVERRIDE);
     SDL_SetHintWithPriority(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "letterbox", SDL_HINT_OVERRIDE);
+    SDL_SetHintWithPriority(SDL_HINT_RENDER_OPENGL_SHADERS, shaders ? "1" : "0", SDL_HINT_OVERRIDE);
+    if (line_method) {
+        SDL_SetHintWithPriority(SDL_HINT_RENDER_LINE_METHOD, line_method, SDL_HINT_OVERRIDE);
+    }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL_Init: %s\n", SDL_GetError());
@@ -705,6 +801,8 @@ int main(int argc, char *argv[])
     printf("window %dx%d%s, logical %dx%d, %d items, vsync %s, batching %s, %s filtering, %d s per scene\n",
            window_w, window_h, fullscreen ? " fullscreen" : "", logical_w, logical_h, num_items,
            vsync ? "on" : "off", batching ? "on" : "off", linear ? "linear" : "nearest", seconds);
+    printf("stream texture %s, line method %s, opengl shaders %s\n", SDL_GetPixelFormatName(stream_format) + 16,
+           line_method ? line_method : "default", shaders ? "on" : "off");
     fflush(stdout);
 
     for (i = 0; i < num_renderers && !quit_all; i++) {
