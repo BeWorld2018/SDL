@@ -32,6 +32,12 @@ struct Library *SDL2Base;
 struct Library *TinyGLBase;
 GLContext      *__tglContext;
 
+/* exit() exists only in programs (libnix startup). Shared libraries linked
+   with -nostartfiles (sdl2_image, sdl2_mixer...) pull this object for the
+   varargs wrappers but have no exit(): weak reference, NULL there.
+   SDL_ExitProcess() already handles a NULL exit pointer. */
+extern void exit(int) __attribute__((weak));
+
 void __SDL2_OpenLibError(ULONG version, const char *name, ULONG revision)
 {
 	struct Library *MUIMasterBase = OpenLibrary("muimaster.library", 0);
@@ -90,7 +96,8 @@ static CONSTRUCTOR_P(init_SDL2Base, 100)
 				}
 
 				/* Used by SDL_ExitProcess() */
-				SDL_SetExitPointer(exit);
+				if (exit)
+					SDL_SetExitPointer(exit);
 			}
 			else
 			{
