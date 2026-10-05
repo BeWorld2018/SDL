@@ -24,23 +24,6 @@
 
 /* MorphOS renderer showing its output through a cgxvideo.library overlay
  * (VLayer), selected with SDL_HINT_RENDER_DRIVER = "overlay".
- *
- * Drawing uses the rasterizer of the "software" renderer, but into a
- * composition surface at the logical resolution of the renderer instead of
- * the window resolution: the overlay hardware scales it to the window.
- *
- * Most 2D games draw the whole frame into one streaming texture and copy it
- * to the screen. When a frame is only clears plus one opaque texture copy,
- * the texture goes straight to the overlay and nothing is composed; the
- * hardware then also does the aspect ratio correction.
- *
- * The overlay only takes 16-bit little endian RGB (SRCFMT_RGB16), and must be
- * detached before its Intuition window is closed: the MorphOS video driver
- * calls SDL_WindowData::overlay_closing for that.
- *
- * Without colour keying the hardware shows the overlay above every window
- * (requesters, menus...): it is colorkeyed when the driver can, and the window
- * area under it painted with the key colour.
  */
 
 #include "SDL_cpuinfo.h"
@@ -63,14 +46,8 @@
 #include <proto/cybergraphics.h>
 #include <proto/cgxvideo.h>
 
-/* Frames in a row that could go straight to the overlay before a composed
-   overlay is recreated for them: recreating it can flicker. */
 #define OVL_SWITCH_FRAMES 8
-
 #define OVL_MAX_COMP_SIZE 4096
-
-/* An overlay that couldn't be created is tried again after this delay, as
-   long as none is shown: another program (video player...) may release it. */
 #define OVL_RETRY_MS 2000
 
 struct Library *CGXVideoBase = NULL;
@@ -174,8 +151,6 @@ typedef struct
     float scale_y;
 } OVL_CopyExData;
 
-/* Pixel layout for rotated copies: 8888 formats are read with shifts, 16-bit
-   ones through SDL_GetRGBA() and SDL_MapRGBA() */
 typedef struct
 {
     const SDL_PixelFormat *format;
@@ -183,10 +158,9 @@ typedef struct
     SDL_bool packed;
     SDL_bool alpha;
     Uint32 rs, gs, bs, as;
-    Uint32 rot;                    /* left rotation putting alpha, or the unused byte, on top */
+    Uint32 rot;
 } OVL_Layout;
 
-/* Queued geometry, converted in place to the triangle rasterizer format */
 typedef struct
 {
     SDL_FPoint dst;
@@ -218,10 +192,6 @@ SDL_COMPILE_TIME_ASSERT(ovl_rect, sizeof(SDL_FRect) == sizeof(SDL_Rect));
 SDL_COMPILE_TIME_ASSERT(ovl_fill, sizeof(OVL_GeometryFillQueued) == sizeof(OVL_GeometryFillData));
 SDL_COMPILE_TIME_ASSERT(ovl_copy, sizeof(OVL_GeometryCopyQueued) == sizeof(OVL_GeometryCopyData));
 
-/* floor(v) without calling floorf(), which is slow on PowerPC and called for
-   every coordinate: the bias makes the conversion truncate a positive value.
-   Exact for v above -2^22 (further left is off screen anyway), except tiny
-   negative values above -1e-9 that give 0. */
 static SDL_INLINE int OVL_Floor(double v)
 {
     return (int)(v + 4194304.0) - 4194304;
@@ -262,7 +232,6 @@ static void OVL_CloseCGXVideo(void)
     }
 }
 
-/* Supported features and formats, 0 when the driver doesn't tell */
 static ULONG OVL_Query(struct Screen *screen, ULONG attr)
 {
     if (!screen || CGXVideoBase->lib_Version < 50) {
@@ -291,9 +260,6 @@ static void OVL_DestroyOverlay(OVL_RenderData *data)
     data->bars_dirty = SDL_TRUE;
 }
 
-/* Called by the video driver right before it closes the Intuition window
-   (fullscreen switch, iconification...). The next present creates a new
-   overlay, possibly on another screen. */
 static void OVL_WindowClosing(void *userdata)
 {
     OVL_RenderData *data = (OVL_RenderData *)userdata;
@@ -421,6 +387,13 @@ static void OVL_SetGeometry(OVL_RenderData *data, struct Window *win, const SDL_
     indents[2] = SDL_max(0, inner_w - (dst->x + dst->w));
     indents[3] = SDL_max(0, inner_h - (dst->y + dst->h));
 
+    if (indents[2] > 0 || win->BorderRight > 0) {
+        indents[2]--;
+    }
+    if (indents[3] > 0 || win->BorderBottom > 0) {
+        indents[3]--;
+    }
+
     if (SDL_memcmp(indents, data->indents, sizeof(indents)) != 0) {
         D("[%s] window %ldx%ld, overlay at %ld,%ld %ldx%ld\n", __FUNCTION__, (long)inner_w, (long)inner_h,
           (long)dst->x, (long)dst->y, (long)dst->w, (long)dst->h);
@@ -430,7 +403,6 @@ static void OVL_SetGeometry(OVL_RenderData *data, struct Window *win, const SDL_
         return;
     }
 
-    /* Also set again when the window moved, not all drivers follow it */
     data->win_left = left;
     data->win_top = top;
     SetVLayerAttrTags(data->vlayer,
@@ -449,12 +421,6 @@ static void OVL_FillWindowRect(struct Window *win, LONG x, LONG y, LONG w, LONG 
     }
 }
 
-/* Paints the inner window area around dst with the clear color.
-   Under a colorkeyed overlay, dst gets the key color: the overlay only shows
-   there, below the windows in front of ours. Under an overlay without colour
-   keying, the clear color too: the scaler can cover a few pixels less than dst
-   on the right and the bottom, and a recreated window (fullscreen switch)
-   still shows what was on the screen there. */
 static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Rect *dst, SDL_bool under_overlay)
 {
     const LONG inner_w = win->Width - win->BorderLeft - win->BorderRight;
@@ -463,8 +429,6 @@ static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Re
     const SDL_bool keyed = (under_overlay && data->colorkey) ? SDL_TRUE : SDL_FALSE;
     LONG x0, y0, x1, y1;
 
-    /* Back from the fallback, the frame drawn into the window covers dst:
-       the key color must be painted again */
     if (!data->bars_dirty && argb == data->bars_color && under_overlay == data->bars_under) {
         return;
     }
@@ -485,6 +449,12 @@ static void OVL_PaintBars(OVL_RenderData *data, struct Window *win, const SDL_Re
     y0 = SDL_max(0, dst->y);
     x1 = SDL_min(inner_w, dst->x + dst->w);
     y1 = SDL_min(inner_h, dst->y + dst->h);
+    if (keyed && win->BorderRight == 0) {
+        x1 = SDL_min(x1, inner_w - 1);
+    }
+    if (keyed && win->BorderBottom == 0) {
+        y1 = SDL_min(y1, inner_h - 1);
+    }
 
     if (x1 <= x0 || y1 <= y0) {
         OVL_FillWindowRect(win, 0, 0, inner_w, inner_h, argb);
@@ -2002,9 +1972,6 @@ static int OVL_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect *rect,
     Uint32 *tmp;
     int x, y, retval;
 
-    /* NOTE: The rect is already adjusted according to the viewport by
-     * SDL_RenderReadPixels.
-     */
     if (data->target) {
         SDL_Surface *surface = data->target;
         if (rect->x < 0 || rect->x + rect->w > surface->w ||
@@ -2111,12 +2078,11 @@ static int OVL_RenderPresent(SDL_Renderer *renderer)
     int retval = 0;
 
     if (!win) {
-        retval = -1; /* hidden or iconified: SDL waits like vsync instead */
+        retval = -1;
     } else if (data->clear_pending && !data->direct.texture && !data->composed && OVL_PresentClear(data, win)) {
         /* nothing else drawn */
     } else if (!(data->direct.texture && !data->composed && OVL_PresentDirect(data, win))) {
         if (!data->direct.texture || data->composed) {
-            /* Really composed: the frames that could go direct must follow each other */
             data->switch_count = 0;
         }
         if (!data->comp) {
@@ -2242,7 +2208,7 @@ static int OVL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32
     renderer->QueueSetViewport = OVL_QueueNoOp;
     renderer->QueueSetDrawColor = OVL_QueueNoOp;
     renderer->QueueDrawPoints = OVL_QueueDrawPoints;
-    renderer->QueueDrawLines = OVL_QueueDrawPoints; /* lines and points queue vertices the same way. */
+    renderer->QueueDrawLines = OVL_QueueDrawPoints;
     renderer->QueueFillRects = OVL_QueueFillRects;
     renderer->QueueCopy = OVL_QueueCopy;
     renderer->QueueCopyEx = OVL_QueueCopyEx;
@@ -2259,7 +2225,6 @@ static int OVL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32
     }
     renderer->driverdata = data;
 
-    /* The frame is analysed at present time, no need to run commands earlier */
     renderer->always_batch = SDL_TRUE;
 
     wd->overlay_closing = OVL_WindowClosing;
@@ -2292,5 +2257,3 @@ SDL_RenderDriver MOS_OVERLAY_RenderDriver = {
 };
 
 #endif /* SDL_VIDEO_RENDER_MOS_OVERLAY */
-
-/* vi: set ts=4 sw=4 expandtab: */
