@@ -18,18 +18,22 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
+
+#ifndef SDL_render_overlay_altivec_h_
+#define SDL_render_overlay_altivec_h_
+
 #include "SDL_internal.h"
 
-#ifndef _SDL_mosevents_h
-#define _SDL_mosevents_h
+/* AltiVec part of the overlay renderer, compiled on its own with -maltivec:
+   only called when SDL_HasAltiVec(). */
 
-extern void MOS_PumpEvents(SDL_VideoDevice *_this);
-extern int MOS_WaitEventTimeout(SDL_VideoDevice *_this, Sint64 timeoutNS);
-extern void MOS_SendWakeupEvent(SDL_VideoDevice *_this, SDL_Window *window);
-extern void MOS_GlobalMenu(struct Menu *mymenu, UWORD menu, UWORD item, UWORD sub, UWORD check);
-extern void MOS_UpdatePointerIfNeeded(SDL_VideoData *vd, SDL_WindowData *wdata);
-extern void MOS_ClearPointerIfApplied(void);
+/* Formats OVL_ConvertRowAltiVec() takes */
+extern bool OVL_IsAltiVecFormat(SDL_PixelFormat format);
 
-extern void MOS_FocusAndWarpIfNeeded(SDL_VideoDevice *_this, SDL_WindowData *data);
-extern void MOS_InvalidatePointerCacheForWindow(struct Window *win);
-#endif /* _SDL_mosevents_h */
+/* Converts w pixels of src to RGB565 little endian at dst, any alignment:
+   16-byte stores, so dst can be the overlay itself */
+extern void OVL_ConvertRowAltiVec(SDL_PixelFormat format, const Uint8 *src, Uint8 *dst, int w);
+
+#endif /* SDL_render_overlay_altivec_h_ */
+
+/* vi: set ts=4 sw=4 expandtab: */

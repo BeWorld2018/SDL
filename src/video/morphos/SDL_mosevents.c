@@ -45,6 +45,7 @@
 #include <proto/dos.h>
 #include <proto/commodities.h>
 #include <proto/exec.h>
+#include <exec/lists.h>
 #include <proto/locale.h>
 
 void AHIAUD_Mute(ULONG mute);
@@ -409,20 +410,30 @@ MOS_HandleMenu(SDL_VideoDevice *_this, struct IntuiMessage *m)
 					case MID_RRAUTO:
 						MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
 						MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
 						MOS_setenv("SDL3_HINT_RENDER_DRIVER", "", true);
 						break;
 					case MID_RRGL:
 						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+						MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 						MOS_setenv("SDL3_HINT_RENDER_DRIVER", "opengl", true);
 						break;
 					case MID_RRSOFT:
 						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
 						MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 3, 3, 0);
 						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 						MOS_setenv("SDL3_HINT_RENDER_DRIVER", "software", true);
+						break;
+					case MID_RROVL:
+						MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
+						MOS_GlobalMenu(data->menu, 1, 3, 1, 0);
+						MOS_GlobalMenu(data->menu, 1, 3, 2, 0);
+						SDL_SetHint(SDL_HINT_RENDER_DRIVER, "overlay");
+						MOS_setenv("SDL3_HINT_RENDER_DRIVER", "overlay", true);
 						break;
 					case MID_RVAUTO:
 						MOS_GlobalMenu(data->menu, 1, 4, 1, 0);
@@ -826,4 +837,98 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
         data->break_prev = brk;
     }
 
+}
+
+/* timer.device opened by SDL.c */
+extern struct timerequest GlobalTimeReq;
+
+/*
+ * Sleep until an Intuition/Workbench/commodity/screen notify message,
+ * a MOS_SendWakeupEvent() or the timeout (in ns, -1 = no timeout).
+ * Returns 1 when woken up by an event, 0 on timeout, -1 to let SDL poll.
+ */
+int MOS_WaitEventTimeout(SDL_VideoDevice *_this, Sint64 timeoutNS)
+{
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+    const ULONG evsigs = data->ScrNotifySig | data->BrokerSig | data->WBSig | data->WinSig;
+    ULONG waitmask, got, ready = 0;
+    bool timer_sent = false;
+
+    /* The signals belong to the task which created the video device */
+    if (!data->WakeupSig || FindTask(NULL) != data->mainTask) {
+        return -1;
+    }
+
+    /* MOS_PumpEvents() reads the signals without clearing them: clear them
+       here, or Wait() would return at once forever. Messages which arrived
+       before are found by looking at the ports. */
+    SetSignal(0, evsigs);
+    if (!IsMsgPortEmpty(&data->userPort))         ready |= data->WinSig;
+    if (!IsMsgPortEmpty(&data->appMsgPort))       ready |= data->WBSig;
+    if (!IsMsgPortEmpty(&data->BrokerPort))       ready |= data->BrokerSig;
+    if (!IsMsgPortEmpty(&data->ScreenNotifyPort)) ready |= data->ScrNotifySig;
+    if (ready) {
+        /* MOS_PumpEvents() only reads the ports whose signal is set */
+        SetSignal(ready, ready);
+        return 1;
+    }
+    if (timeoutNS == 0) {
+        return 0;
+    }
+
+    waitmask = evsigs | data->WakeupSig;
+    if (data->break_armed) {
+        /* break signals already set (and not handled) would wake us at once */
+        waitmask |= BREAKMASK & ~SetSignal(0, 0);
+    }
+
+    if (timeoutNS > 0) {
+        struct timerequest *req = &data->timerReq;
+        Uint64 us = ((Uint64)timeoutNS + 999ULL) / 1000ULL;
+
+        if (!GlobalTimeReq.tr_node.io_Device || !GlobalTimeReq.tr_node.io_Unit) {
+            return -1;
+        }
+        if (us == 0) {
+            us = 1;
+        }
+        req->tr_node.io_Device = GlobalTimeReq.tr_node.io_Device;
+        req->tr_node.io_Unit = GlobalTimeReq.tr_node.io_Unit;
+        req->tr_node.io_Command = TR_ADDREQUEST;
+        req->tr_time.tv_secs = (ULONG)(us / 1000000ULL);
+        req->tr_time.tv_micro = (ULONG)(us % 1000000ULL);
+        SetSignal(0, data->TimerSig);
+        SendIO((struct IORequest *)req);
+        waitmask |= data->TimerSig;
+        timer_sent = true;
+    }
+
+    got = Wait(waitmask);
+
+    if (timer_sent) {
+        if (!CheckIO((struct IORequest *)&data->timerReq)) {
+            AbortIO((struct IORequest *)&data->timerReq);
+        }
+        WaitIO((struct IORequest *)&data->timerReq);
+        SetSignal(0, data->TimerSig);
+    }
+
+    /* Wait() cleared the received signals: set them again, MOS_PumpEvents()
+       tests them with SetSignal(0, 0) */
+    if (got & (evsigs | BREAKMASK)) {
+        SetSignal(got & (evsigs | BREAKMASK), got & (evsigs | BREAKMASK));
+    }
+
+    return (got & (evsigs | BREAKMASK | data->WakeupSig)) ? 1 : 0;
+}
+
+/* Called from any thread (SDL timers, audio, SDL_PushEvent()...) */
+void MOS_SendWakeupEvent(SDL_VideoDevice *_this, SDL_Window *window)
+{
+    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+
+    (void)window;
+    if (data && data->mainTask && data->WakeupSig) {
+        Signal(data->mainTask, data->WakeupSig);
+    }
 }

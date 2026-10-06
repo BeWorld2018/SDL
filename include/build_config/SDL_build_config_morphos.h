@@ -240,6 +240,8 @@
 #define SDL_VIDEO_DRIVER_MORPHOS 1
 
 #define SDL_VIDEO_RENDER_OGL 1
+/* cgxvideo.library overlay renderer, src/render/morphos */
+#define SDL_VIDEO_RENDER_MOS_OVERLAY 1
 
 /* Enable OpenGL support */
 #define SDL_VIDEO_OPENGL 1

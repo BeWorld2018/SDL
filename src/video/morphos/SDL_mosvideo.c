@@ -59,6 +59,13 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 		// to force software renderer use framebuffer and not opengl
         SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
     }
+
+	if (!SDL_GetHint(SDL_HINT_INVALID_PARAM_CHECKS)) {
+		// Quick checks only: the full ones look every object up in a locked
+		// hash table at each call, ~1.6 us per call on a 1.6 GHz e5500
+		// (renderbench tiles 530 -> 764 fps). An application can set "2" again.
+		SDL_SetHint(SDL_HINT_INVALID_PARAM_CHECKS, "1");
+	}
 	
 	char *val = MOS_getenv("SDL3_THREAD_PRIORITY_POLICY");
 	if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
@@ -66,7 +73,7 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	}
 	val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
 	if (val && strlen(val)>0) {	
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : "software"));
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : (strcmp(val, "overlay")==0 ? "overlay" : "software")));
 	}
 	val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 	if (val && strlen(val)>0) {
@@ -114,6 +121,11 @@ static void MOS_DeleteDevice(SDL_VideoDevice *_this)
         MOS_FreePortSignal(&data->BrokerPort);
         MOS_FreePortSignal(&data->appMsgPort);
         MOS_FreePortSignal(&data->userPort);
+        MOS_FreePortSignal(&data->timerPort);
+        if (data->wakeupBit != -1) {
+            FreeSignal(data->wakeupBit);
+            data->wakeupBit = -1;
+        }
 
         /* 4) Icon + name */
         if (data->AppIcon) {
@@ -246,6 +258,8 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
     data->BrokerPort.mp_SigBit       = -1;
     data->appMsgPort.mp_SigBit       = -1;
     data->userPort.mp_SigBit         = -1;
+    data->timerPort.mp_SigBit        = -1;
+    data->wakeupBit                  = -1;
 
     data->inputPort = NULL;
     data->inputReq  = NULL;
@@ -299,6 +313,20 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
     data->WBSig        = (ULONG)1u << (ULONG)data->appMsgPort.mp_SigBit;
     data->WinSig       = (ULONG)1u << (ULONG)data->userPort.mp_SigBit;
 
+    /* SDL_WaitEventTimeout() support: optional, SDL polls without it */
+    data->mainTask = FindTask(NULL);
+    data->wakeupBit = AllocSignal(-1);
+    if (data->wakeupBit != -1 && MOS_InitPort(&data->timerPort)) {
+        data->WakeupSig = (ULONG)1u << (ULONG)data->wakeupBit;
+        data->TimerSig  = (ULONG)1u << (ULONG)data->timerPort.mp_SigBit;
+        data->timerReq.tr_node.io_Message.mn_Node.ln_Type = NT_REPLYMSG;
+        data->timerReq.tr_node.io_Message.mn_ReplyPort = &data->timerPort;
+        data->timerReq.tr_node.io_Message.mn_Length = sizeof(struct timerequest);
+    } else {
+        data->WakeupSig = 0;
+        data->TimerSig  = 0;
+    }
+
     NEWLIST(&data->windowlist);
 
     data->FullAppName = MOS_GetTaskName();
@@ -327,6 +355,10 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
 
     device->SuspendScreenSaver = MOS_SuspendScreenSaver;
     device->PumpEvents = MOS_PumpEvents;
+    if (data->WakeupSig && data->TimerSig) {
+        device->WaitEventTimeout = MOS_WaitEventTimeout;
+        device->SendWakeupEvent = MOS_SendWakeupEvent;
+    }
 
     device->CreateSDLWindow = MOS_CreateWindow;
     device->SetWindowTitle = MOS_SetWindowTitle;

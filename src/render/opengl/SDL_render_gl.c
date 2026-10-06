@@ -444,6 +444,30 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
         *format = GL_RGBA;
         *type = GL_UNSIGNED_BYTE; // previously GL_UNSIGNED_INT_8_8_8_8_REV, seeing if this is better in modern times.
         break;
+#ifdef __MORPHOS__
+    /* On big endian, BGRA32 and RGBA32 are BGRA8888 and RGBA8888: the packed
+       formats of most games and emulators (ARGB8888, XRGB8888...) would be
+       converted by SDL at every update, as the SDL2 port didn't. They go as
+       they are, as in SDL2, renderbench stream 169 fps against 268. */
+    case SDL_PIXELFORMAT_ARGB8888:
+    case SDL_PIXELFORMAT_XRGB8888:
+        *internalFormat = GL_RGBA8;
+        *format = GL_BGRA;
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+        break;
+    case SDL_PIXELFORMAT_ABGR8888:
+    case SDL_PIXELFORMAT_XBGR8888:
+        *internalFormat = GL_RGBA8;
+        *format = GL_RGBA;
+        *type = GL_UNSIGNED_INT_8_8_8_8_REV;
+        break;
+    // Half the bytes to upload, for games and emulators working in 16-bit
+    case SDL_PIXELFORMAT_RGB565:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_SHORT_5_6_5;
+        break;
+#endif
     case SDL_PIXELFORMAT_INDEX8:
     case SDL_PIXELFORMAT_YV12:
     case SDL_PIXELFORMAT_IYUV:
@@ -761,7 +785,11 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
 
     if (texture->format == SDL_PIXELFORMAT_INDEX8) {
         data->shader = SHADER_PALETTE_NEAREST;
-    } else if (texture->format == SDL_PIXELFORMAT_RGBA32 || texture->format == SDL_PIXELFORMAT_BGRA32) {
+    } else if (texture->format == SDL_PIXELFORMAT_RGBA32 || texture->format == SDL_PIXELFORMAT_BGRA32
+#ifdef __MORPHOS__
+               || texture->format == SDL_PIXELFORMAT_ARGB8888 || texture->format == SDL_PIXELFORMAT_ABGR8888
+#endif
+               ) {
         data->shader = SHADER_RGBA;
     } else {
         data->shader = SHADER_RGB;
@@ -2149,11 +2177,27 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     data->shaders = GL_CreateShaderContext();
     SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL shaders: %s",
                 data->shaders ? "ENABLED" : "DISABLED");
+#ifdef __MORPHOS__
+    /* After the formats above: the default and closest formats SDL picks
+       don't change. See convert_format(). */
+    if (bgra_supported) {
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB8888);
+    }
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGB565); // no padding byte: no shader needed
+#endif
     if (GL_SupportsShader(data->shaders, SHADER_RGB)) {
         if (bgra_supported) {
             SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRX32);
         }
         SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBX32);
+#ifdef __MORPHOS__
+        // The padding byte is ignored by SHADER_RGB, as for BGRX32 and RGBX32
+        if (bgra_supported) {
+            SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XRGB8888);
+        }
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XBGR8888);
+#endif
     } else {
 		D("OpenGL RGB shaders not supported");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL RGB shaders not supported");

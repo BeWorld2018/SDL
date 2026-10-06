@@ -9,7 +9,7 @@
 #   - Dialog support (MorphOS backend)
 #   - AltiVec optimizations
 #	- Multi-monitor supported
-#	- Software and OpenGL renderers supported
+#	- Software, OpenGL and overlay (cgxvideo.library) renderers supported
 #	- LoadObject via DLL
 #
 # Notes:
@@ -73,6 +73,7 @@ SOURCES = \
 	$(wildcard ./src/render/*.c) \
 	$(wildcard ./src/render/software/*.c) \
 	$(wildcard ./src/render/opengl/*.c) \
+	$(wildcard ./src/render/morphos/*.c) \
 	$(wildcard ./src/sensor/*.c) \
 	$(wildcard ./src/sensor/dummy/*.c) \
 	$(wildcard ./src/stdlib/*.c) \
@@ -131,4 +132,8 @@ install: all
 # ALTIVEC
 src/video/SDL_blit_N.o: src/video/SDL_blit_N.c
 	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c src/video/SDL_blit_N.c
+
+# Only called when SDL_HasAltiVec()
+./src/render/morphos/SDL_render_overlay_altivec.o: ./src/render/morphos/SDL_render_overlay_altivec.c ./src/render/morphos/SDL_render_overlay_altivec.h
+	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $<
 

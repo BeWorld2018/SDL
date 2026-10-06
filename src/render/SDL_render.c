@@ -126,6 +126,9 @@ static const SDL_RenderDriver *render_drivers[] = {
 #ifdef SDL_VIDEO_RENDER_OGL
     &GL_RenderDriver,
 #endif
+#ifdef SDL_VIDEO_RENDER_MOS_OVERLAY
+    &MOS_OVERLAY_RenderDriver,
+#endif
 #ifdef SDL_VIDEO_RENDER_OGL_ES2
     &GLES2_RenderDriver,
 #endif

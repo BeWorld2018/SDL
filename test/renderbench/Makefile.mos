@@ -1,0 +1,15 @@
+# Makefile to build renderbench for MorphOS, from the SDL3 tree
+
+CC      = ppc-morphos-gcc-9
+STRIP   = ppc-morphos-strip
+CFLAGS  = -noixemul -O2 -Wall -I../../include
+LIBS    = -noixemul -L../.. -lSDL3 -lGL -lm
+
+all: renderbench
+
+renderbench: renderbench.c
+	$(CC) $(CFLAGS) -o $@.db $< $(LIBS)
+	$(STRIP) -o $@ $@.db
+
+clean:
+	rm -f renderbench renderbench.db

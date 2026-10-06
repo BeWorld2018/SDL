@@ -40,7 +40,7 @@ enum
 	MID_OPTIONS,
 	MID_MUTE,
 	MID_PRIORITY,
-	MID_RRENDER, MID_RRAUTO, MID_RRGL, MID_RRSOFT,
+	MID_RRENDER, MID_RRAUTO, MID_RRGL, MID_RRSOFT, MID_RROVL,
 	MID_RVSYNC, MID_RVAUTO, MID_RVENABLE, MID_RVDISABLE
 };
 
@@ -82,7 +82,10 @@ struct SDL_WindowData
 	BOOL wasMaximized; /* Remember state when going to fullscreen mode, or back */
 	SDL_DisplayID pending_jump_display;
 	bool warp_pending;
-	
+
+	// Set by the overlay renderer: called right before the Intuition window is closed
+	void (*overlay_closing)(void *userdata);
+	void *overlay_userdata;
 };
 
 /* SDL functions */

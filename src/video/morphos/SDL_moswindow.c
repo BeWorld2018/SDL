@@ -60,6 +60,7 @@ struct NewMenu SDL_NewMenu[] =
 	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRAUTO },
 	{ NM_SUB, (char *)"OpenGL", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRGL },
 	{ NM_SUB, (char *)"Software", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RRSOFT },
+	{ NM_SUB, (char *)"Overlay", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RROVL },
 	{ NM_ITEM, (char *)"HINT RENDER VSYNC", 0, 0, 0, (APTR)MID_RVSYNC },
 	{ NM_SUB, (char *)"Default", 0, (CHECKED | CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVAUTO },
 	{ NM_SUB, (char *)"Enabled", 0, (CHECKIT | MENUTOGGLE), 0, (APTR)MID_RVENABLE },
@@ -164,6 +165,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
 							MOS_GlobalMenu(data->menu, 1, 3, 1, (strcmp(val, "opengl")==0 ? 1 : 0));
 							MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "software")==0 ? 1 : 0));
+							MOS_GlobalMenu(data->menu, 1, 3, 3, (strcmp(val, "overlay")==0 ? 1 : 0));
 						}
 						val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 						if (val && strlen(val)>0) {
@@ -199,8 +201,14 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 		
 		if ((window->flags & SDL_WINDOW_EXTERNAL) == 0) {
 			SDL_WindowData *data = (SDL_WindowData *) window->internal;
-			
+
 			struct IntuiMessage *msg, *tmp;
+
+			// The overlay renderer must detach its overlay before the window goes away
+			if (data && data->overlay_closing) {
+				data->overlay_closing(data->overlay_userdata);
+			}
+
 			Forbid();
 
 			if (data->grabbed) {

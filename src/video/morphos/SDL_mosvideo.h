@@ -29,6 +29,10 @@
 #include <libraries/commodities.h>
 #endif
 
+#ifndef DEVICES_TIMER_H
+#include <devices/timer.h>
+#endif
+
 #define BREAKMASK (SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_D | SIGBREAKF_CTRL_E | SIGBREAKF_CTRL_F)
 
 /* Private display data */
@@ -77,6 +81,15 @@ typedef struct SDL_VideoData
 	bool 					app_hidden;
 	bool 					in_hide_show;
 	bool					displays_dirty;
+
+	/* SDL_WaitEventTimeout() support (MOS_WaitEventTimeout).
+	   Kept at the end of the structure: Makefile.mos has no header
+	   dependencies, objects built before still find the other fields. */
+	struct MsgPort			timerPort;	/* own signal: SDL_Delay()'s port uses SIGB_SINGLE */
+	struct timerequest		timerReq;
+	struct Task				*mainTask;	/* task owning the signals */
+	LONG					wakeupBit;	/* -1 if not allocated */
+	ULONG					TimerSig, WakeupSig;
 	
 } SDL_VideoData;
 

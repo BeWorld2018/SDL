@@ -384,6 +384,7 @@ extern SDL_RenderDriver PSP_RenderDriver;
 extern SDL_RenderDriver SW_RenderDriver;
 extern SDL_RenderDriver VITA_GXM_RenderDriver;
 extern SDL_RenderDriver GPU_RenderDriver;
+extern SDL_RenderDriver MOS_OVERLAY_RenderDriver;
 
 // Clean up any renderers at shutdown
 extern void SDL_QuitRender(void);
