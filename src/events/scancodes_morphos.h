@@ -69,12 +69,12 @@ static SDL_Scancode const morphos_scancode_table[] = {
     /*  40 */    SDL_SCANCODE_L,
     /*  41 */    SDL_SCANCODE_SEMICOLON,
     /*  42 */    SDL_SCANCODE_APOSTROPHE,
-    /*  43 */    SDL_SCANCODE_INTERNATIONAL1,
+    /*  43 */    SDL_SCANCODE_NONUSHASH,        /* ISO key next to Return (#~) */
     /*  44 */    SDL_SCANCODE_UNKNOWN,
     /*  45 */    SDL_SCANCODE_KP_4,
     /*  46 */    SDL_SCANCODE_KP_5,
     /*  47 */    SDL_SCANCODE_KP_6,
-    /*  48 */    SDL_SCANCODE_INTERNATIONAL2,
+    /*  48 */    SDL_SCANCODE_NONUSBACKSLASH,   /* ISO key left of Z (<>) */
     /*  49 */    SDL_SCANCODE_Z,
     /*  50 */    SDL_SCANCODE_X,
     /*  51 */    SDL_SCANCODE_C,

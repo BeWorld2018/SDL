@@ -63,6 +63,21 @@ MOS_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_Pix
                             void **pixels, int *pitch)
 {
 	D("");
+	{
+		/* As on the other platforms, no window surface while a hardware
+		   renderer or a GL context owns the window: only the software
+		   renderer draws into it. Without OLDFB, data->bitmap would also
+		   be the TinyGL context's bitmap. */
+		SDL_Renderer *renderer = SDL_GetRenderer(window);
+		SDL_WindowData *wd = (SDL_WindowData *) window->internal;
+
+		if (renderer && SDL_strcmp(SDL_GetRendererName(renderer), SDL_SOFTWARE_RENDERER) != 0) {
+			return SDL_SetError("Window already has a %s renderer", SDL_GetRendererName(renderer));
+		}
+		if (wd && wd->__tglContext) {
+			return SDL_SetError("Window has an OpenGL context");
+		}
+	}
 #ifdef OLDFB
 
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;

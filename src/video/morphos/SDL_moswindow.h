@@ -86,6 +86,10 @@ struct SDL_WindowData
 	// Set by the overlay renderer: called right before the Intuition window is closed
 	void (*overlay_closing)(void *userdata);
 	void *overlay_userdata;
+
+	// Inner size last asked to Intuition (MOS_SetWindowBox), waited for by MOS_SyncWindow
+	bool box_pending;
+	int box_pending_w, box_pending_h;
 };
 
 /* SDL functions */
@@ -95,6 +99,7 @@ extern bool MOS_SetWindowIcon(SDL_VideoDevice *_this, SDL_Window * window, SDL_S
 extern bool MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_SetWindowMinMaxSize(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window);
+extern bool MOS_SyncWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_ShowWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_HideWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_RaiseWindow(SDL_VideoDevice *_this, SDL_Window * window);

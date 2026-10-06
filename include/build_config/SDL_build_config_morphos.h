@@ -116,7 +116,7 @@
 #define HAVE_STRNCASECMP 1
 //#define HAVE_VSSCANF 1
 /* #undef HAVE_SNPRINTF */
-#define HAVE_VSNPRINTF 1
+/* #undef HAVE_VSNPRINTF: libnix vsnprintf rounds %f beyond 17 digits, SDL's own is exact */
 #define HAVE_M_PI /**/
 #define HAVE_ACOS 1
 #define HAVE_ACOSF 1

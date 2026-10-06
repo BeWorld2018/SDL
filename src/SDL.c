@@ -89,6 +89,8 @@ struct Library       *TimerBase = NULL;
 
 struct Library        *ThreadPoolBase = NULL;
 APTR                   threadpool = NULL;
+// Task that created the pool (the main thread): not one of its workers
+struct Task           *threadpool_owner = NULL;
 
 static void MorphOS_OpenTimer(void)
 {
@@ -162,6 +164,8 @@ void MorphOS_OpenThreadPool(void)
     if (!threadpool) {
         CloseLibrary(ThreadPoolBase);
         ThreadPoolBase = NULL;
+    } else {
+        threadpool_owner = FindTask(NULL);
     }
 }
 
@@ -170,6 +174,7 @@ static void MorphOS_CloseThreadPool(void)
     if (threadpool) {
         DeleteThreadPool(threadpool);
         threadpool = NULL;
+        threadpool_owner = NULL;
     }
 
     if (ThreadPoolBase) {

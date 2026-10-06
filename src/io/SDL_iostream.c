@@ -403,6 +403,16 @@ static BPTR SDLCALL morphos_file_open(const char *filename, const char *mode)
 
 	D("filename '%s' mode '%s' accessMode %ld", filename, mode, accessMode);
 
+    // "x" (C11 exclusive create, "wx", "w+x"): fail if the file exists
+    if (SDL_strchr(mode, 'x') != NULL) {
+        BPTR lock = Lock(filename, SHARED_LOCK);
+        if (lock) {
+            UnLock(lock);
+            SDL_SetError("Failed to open file: '%s' already exists", filename);
+            return 0;
+        }
+    }
+
     BPTR bptr = Open(filename, accessMode);
     
     if (!bptr) {

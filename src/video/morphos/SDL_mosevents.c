@@ -132,7 +132,7 @@ MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 			if (rawkey < sizeof(morphos_scancode_table) / sizeof(morphos_scancode_table[0])) {
 				s = morphos_scancode_table[rawkey];
 				if (m->Code < 128) {
-					SDL_SendKeyboardKey(0, SDL_GLOBAL_KEYBOARD_ID, 0, s, true);
+					SDL_SendKeyboardKey(0, SDL_GLOBAL_KEYBOARD_ID, rawkey, s, true);
 
 					if (SDL_TextInputActive(data->window)) {
 						char text[5] = {0};
@@ -143,7 +143,7 @@ MOS_DispatchRawKey(struct IntuiMessage *m, const SDL_WindowData *data)
 						}
 					}
 				} else {
-					SDL_SendKeyboardKey(0, SDL_GLOBAL_KEYBOARD_ID, 0, s, false);
+					SDL_SendKeyboardKey(0, SDL_GLOBAL_KEYBOARD_ID, rawkey, s, false);
 				}
 			}
 			break;

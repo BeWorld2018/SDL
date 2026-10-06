@@ -70,7 +70,7 @@ MOS_SyncKeyModifiers(SDL_VideoDevice *_this)
     }
 }
 
-static SDL_Keycode MOS_MapRawKey(SDL_VideoDevice *_this, int code)
+static SDL_Keycode MOS_MapRawKey(SDL_VideoDevice *_this, int code, UWORD qualifier)
 {
     struct InputEvent ie;
     
@@ -79,20 +79,31 @@ static SDL_Keycode MOS_MapRawKey(SDL_VideoDevice *_this, int code)
     ie.ie_Class = IECLASS_RAWKEY;
     ie.ie_SubClass = 0;
     ie.ie_Code = code;
-    ie.ie_Qualifier = 0;
+    ie.ie_Qualifier = qualifier;
     ie.ie_EventAddress = NULL;
 
     const WORD res = MapRawKey(&ie, buffer, sizeof(buffer), NULL);
     if (res == 1) {
-        return buffer[0];
+        return (unsigned char)buffer[0];  // ISO-8859-1 = first 256 Unicode code points
 	}
 	
-	D("(code %u) returned %d", code, res);
+	if (!qualifier) {
+		D("(code %u) returned %d", code, res);
+	}
     return 0;
 }
 
 static void MOS_UpdateKeymap(SDL_VideoDevice *_this)
 {
+    static const struct {
+        SDL_Keymod modstate;
+        UWORD qualifier;
+    } layers[] = {
+        { SDL_KMOD_NONE, 0 },
+        { SDL_KMOD_SHIFT, IEQUALIFIER_LSHIFT },
+        { SDL_KMOD_CAPS, IEQUALIFIER_CAPSLOCK },
+        { SDL_KMOD_SHIFT | SDL_KMOD_CAPS, IEQUALIFIER_LSHIFT | IEQUALIFIER_CAPSLOCK },
+    };
     SDL_Keymap *keymap = SDL_CreateKeymap(true);
 
     for (int i = 0; i < SDL_arraysize(morphos_scancode_table); i++) {
@@ -103,7 +114,14 @@ static void MOS_UpdateKeymap(SDL_VideoDevice *_this)
             continue;
         }
 
-        SDL_SetKeymapEntry(keymap, scancode, 0, MOS_MapRawKey(_this, i));
+        // Shifted layers too: SDL_GetKeyFromName() (the name is the shifted
+        // letter) and the french_numbers keycode option look the key up there
+        for (int l = 0; l < SDL_arraysize(layers); l++) {
+            const SDL_Keycode key = MOS_MapRawKey(_this, i, layers[l].qualifier);
+            if (key || layers[l].modstate == SDL_KMOD_NONE) {
+                SDL_SetKeymapEntry(keymap, scancode, layers[l].modstate, key);
+            }
+        }
     }
 
     SDL_SetKeymap(keymap, false);

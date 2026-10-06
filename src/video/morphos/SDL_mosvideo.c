@@ -365,6 +365,7 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
     device->SetWindowIcon = MOS_SetWindowIcon;
     device->SetWindowPosition = MOS_SetWindowPosition;
     device->SetWindowSize = MOS_SetWindowSize;
+    device->SyncWindow = MOS_SyncWindow;
     device->SetWindowMinimumSize = MOS_SetWindowMinMaxSize;
     device->SetWindowMaximumSize = MOS_SetWindowMinMaxSize;
     device->ShowWindow = MOS_ShowWindow;

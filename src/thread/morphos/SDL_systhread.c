@@ -32,6 +32,7 @@
 #include <proto/threadpool.h>
 
 extern APTR threadpool;
+extern struct Task *threadpool_owner;
 extern void MorphOS_OpenThreadPool(void);
 
 static void RunThread(APTR data, struct MsgPort *port)
@@ -65,8 +66,20 @@ void SDL_SYS_SetupThread(const char *name)
 
 SDL_ThreadID SDL_GetCurrentThreadID(void)
 {
+    struct Task *task;
+
     if (!threadpool) {
         MorphOS_OpenThreadPool();
+    }
+
+    /* GetCurrentWorkItem() is for the pool's workers: called from the main
+       task it was seen reading a bogus pointer (illegal accesses in
+       threadpool.library, events_mainThreadCallbacks).
+       The main task uses its Task address instead, which can't collide
+       with a work item number. */
+    task = FindTask(NULL);
+    if (!threadpool || task == threadpool_owner) {
+        return (SDL_ThreadID)(IPTR)task;
     }
 
     return (SDL_ThreadID)GetCurrentWorkItem(threadpool);

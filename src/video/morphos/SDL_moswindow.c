@@ -186,11 +186,37 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 	}
 }
 
-static void 
+/* Intuition applies SetAttrs() size changes asynchronously (input.device):
+   wait for the inner size asked by MOS_SetWindowBox(), at most 200 ms (it
+   may have been clamped to the window limits or the screen) */
+static void
+MOS_WaitWindowBox(SDL_WindowData *data, struct Window *syswin)
+{
+	if (data && syswin && data->box_pending) {
+		int i;
+
+		for (i = 0; i < 10; i++) {
+			const int w = syswin->Width - syswin->BorderLeft - syswin->BorderRight;
+			const int h = syswin->Height - syswin->BorderTop - syswin->BorderBottom;
+			if (w == data->box_pending_w && h == data->box_pending_h) {
+				break;
+			}
+			Delay(1);
+		}
+		data->box_pending = false;
+	}
+}
+
+static void
 MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window *win)
 {
 	D("");
-	
+
+	// Don't close the window while input.device still has a resize to do on it
+	if (window && (window->flags & SDL_WINDOW_EXTERNAL) == 0) {
+		MOS_WaitWindowBox((SDL_WindowData *) window->internal, win);
+	}
+
 	if (SDL_GetKeyboardFocus() == window)
 		SDL_SetKeyboardFocus(NULL);
 
@@ -222,6 +248,11 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 					ReplyMsg(&msg->ExecMessage);
 				}
 			}
+			// Detach the shared port: CloseWindow() can still send messages
+			// (IDCMP_INACTIVEWINDOW...) that would point to the freed window
+			win->UserPort = NULL;
+			ModifyIDCMP(win, 0);
+
 			MOS_RemoveAppWindow(data);
 			MOS_RemoveAppIcon(data);
 			MOS_RemoveMenuObject(data);
@@ -301,7 +332,9 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 				D("Ignored for native window");
 			}
 		}
-		
+		// Also when the system window is already gone (failed re-creation)
+		MOS_RemoveAppIcon(data);
+
 		SDL_free(data->window_title);
 		SDL_free(data);
 		window->internal = NULL;
@@ -492,11 +525,13 @@ MOS_SetWindowPosition(SDL_VideoDevice *_this, SDL_Window * window)
 			return true;
 		}
 
+		// Move only (w/h 0 = unchanged): window->w may still be the old size while
+		// a SDL_SetWindowSize()/restore is in flight, it would cancel it
 		SDL_Rect r;
 		r.x = local_x;
 		r.y = local_y;
-		r.w = window->w;
-		r.h = window->h;
+		r.w = 0;
+		r.h = 0;
 
 		MOS_SetWindowBox(_this, window, &r);
 		if (target_did && current_did && (target_did != current_did)) {
@@ -583,26 +618,46 @@ MOS_SetWindowSize(SDL_VideoDevice *_this, SDL_Window * window)
 	D("");
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
+	if (window->flags & SDL_WINDOW_MAXIMIZED) {
+		// Maximized: the new size applies when the window is restored
+		window->floating.w = window->pending.w;
+		window->floating.h = window->pending.h;
+		return;
+	}
+
 	if (data->win) {
 		int width = 0, height = 0;
 		MOS_GetWindowSize(data->win, &width, &height);
 		if (width != window->pending.w || height != window->pending.h) {
-			SDL_DisplayID current_did = SDL_GetDisplayForWindow(window);
-			SDL_Rect bounds;
-			SDL_zero(bounds);
-			SDL_GetDisplayBounds(current_did, &bounds);
-			const int local_x = window->pending.x - bounds.x;
-			const int local_y = window->pending.y - bounds.y;
-			
+			// Keep the window where it is: only the inner size changes
 			SDL_Rect r;
-			r.x = (window->pending.x != 0 ? local_x :  window->windowed.x);
-			r.y = (window->pending.y != 0 ? local_y :  window->windowed.y);
+			r.x = data->win->LeftEdge;
+			r.y = data->win->TopEdge;
 			r.w = window->pending.w;
 			r.h = window->pending.h;
 
-			MOS_SetWindowBox(_this, window, &r);			
+			// Restore/maximize before IDCMP_CHANGEWINDOW comes back use the new size
+			window->floating.w = window->pending.w;
+			window->floating.h = window->pending.h;
+
+			MOS_SetWindowBox(_this, window, &r);
 		}
 	}
+}
+
+bool
+MOS_SyncWindow(SDL_VideoDevice *_this, SDL_Window * window)
+{
+	SDL_WindowData *data = (SDL_WindowData *) window->internal;
+
+	if (data) {
+		MOS_WaitWindowBox(data, data->win);
+	}
+
+	// IDCMP_CHANGEWINDOW -> SDL_EVENT_WINDOW_RESIZED / MOVED
+	MOS_PumpEvents(_this);
+
+	return true;
 }
 
 void
@@ -669,8 +724,11 @@ MOS_GetIDCMPFlags(SDL_Window * window, bool fullscreen)
 						| IDCMP_INACTIVEWINDOW;
 	
 	if (!fullscreen) {
+		// IDCMP_CHANGEWINDOW also for borderless windows: SDL_SetWindowSize(),
+		// maximize and restore are only reported (SDL_EVENT_WINDOW_RESIZED) through it
+		IDCMPFlags |= IDCMP_CHANGEWINDOW;
 		if (!(window->flags & SDL_WINDOW_BORDERLESS)) {
-			IDCMPFlags |= IDCMP_CLOSEWINDOW | IDCMP_GADGETUP | IDCMP_CHANGEWINDOW | IDCMP_MENUPICK;
+			IDCMPFlags |= IDCMP_CLOSEWINDOW | IDCMP_GADGETUP | IDCMP_MENUPICK;
 		}
 		if (window->flags & SDL_WINDOW_RESIZABLE) {
 			IDCMPFlags |= IDCMP_NEWSIZE;
@@ -942,9 +1000,28 @@ void
 MOS_IconifyWindow(SDL_VideoDevice *_this, bool with_appicon, SDL_Window * window)
 {
 	SDL_VideoData *videodata = (SDL_VideoData *) _this->internal;
-	SDL_WindowData *data = window->internal;
+	SDL_WindowData *data;
 
-	if (window->flags & SDL_WINDOW_MINIMIZED) {
+	// Commodities "Hide": all the windows
+	if (!window) {
+		SDL_WindowData *wd, *next;
+		ForeachNodeSafe(&videodata->windowlist, wd, next) {
+			if (wd->window && (wd->window->flags & SDL_WINDOW_EXTERNAL) == 0) {
+				MOS_IconifyWindow(_this, with_appicon, wd->window);
+			}
+		}
+		return;
+	}
+
+	data = window->internal;
+	if (!data) {
+		return;
+	}
+
+	// SDL can drop SDL_WINDOW_MINIMIZED (SHOWN, MAXIMIZED events) while the
+	// icon is still there: a second icon would overwrite the pointer and stay
+	// on Ambient after the program quits
+	if (data->appIcon || (window->flags & SDL_WINDOW_MINIMIZED)) {
 		D("Window '%s' is already iconified", window->title);
 	} else if ((window->flags & SDL_WINDOW_FULLSCREEN)) {
 		D("Window '%s' is into fullscreen", window->title);
@@ -970,9 +1047,22 @@ void
 MOS_UniconifyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	D("");
-	SDL_WindowData *data = window->internal;
+	SDL_WindowData *data;
 
-	if (data->appIcon) {
+	// Commodities "Show": all the windows
+	if (!window) {
+		SDL_VideoData *videodata = (SDL_VideoData *) _this->internal;
+		SDL_WindowData *wd, *next;
+		ForeachNodeSafe(&videodata->windowlist, wd, next) {
+			if (wd->window && wd->appIcon) {
+				MOS_UniconifyWindow(_this, wd->window);
+			}
+		}
+		return;
+	}
+
+	data = window->internal;
+	if (data && data->appIcon) {
 		MOS_RemoveAppIcon(data);
 		MOS_ShowWindow(_this, window);
         SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESTORED, 0, 0);	
@@ -1010,7 +1100,13 @@ MOS_SetWindowBox(SDL_VideoDevice *_this, SDL_Window * window, SDL_Rect * rect)
 			rect->w == 0 ? TAG_IGNORE : WA_InnerWidth, rect->w,
 			rect->h == 0 ? TAG_IGNORE : WA_InnerHeight, rect->h,
 			TAG_DONE);
-			
+
+		if (rect->w > 0 && rect->h > 0) {
+			data->box_pending = true;
+			data->box_pending_w = rect->w;
+			data->box_pending_h = rect->h;
+		}
+
 		//if (data->__tglContext && (rect->w > 0 && rect->h > 0)) {
 		//	MOS_GL_ResizeContext(_this, window);
 		//}
