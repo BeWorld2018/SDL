@@ -136,8 +136,14 @@ static void MorphOS_CloseTimer(void)
 
 static APTR MorphOS_GetR2(void)
 {
+#ifdef BUILD_SDL3_LIBRARY
+    // sdl3.library is -mresident32: this opener's data is at r13
+    register APTR r13 asm("r13");
+    return r13;
+#else
     register APTR r2 asm("r2");
     return r2;
+#endif
 }
 
 void MorphOS_OpenThreadPool(void)
@@ -183,6 +189,19 @@ static void MorphOS_CloseThreadPool(void)
     }
 }
 
+#ifdef BUILD_SDL3_LIBRARY
+// sdl3.library runs no .ctors/.dtors: MOS_Startup()/MOS_Cleanup() call these for each opener
+void MorphOS_LibStartup(void)
+{
+    MorphOS_OpenTimer();
+}
+
+void MorphOS_LibCleanup(void)
+{
+    MorphOS_CloseThreadPool();
+    MorphOS_CloseTimer();
+}
+#else
 __attribute__((constructor))
 static void MorphOS_TimerCtor(void)
 {
@@ -195,6 +214,7 @@ static void MorphOS_TimerDtor(void)
     MorphOS_CloseThreadPool();
     MorphOS_CloseTimer();
 }
+#endif
 #endif
 
 #ifdef SDL_BUILD_MAJOR_VERSION
@@ -232,6 +252,15 @@ SDL_NORETURN void SDL_ExitProcess(int exitcode)
     emscripten_cancel_main_loop();   // this should "kill" the app.
     emscripten_force_exit(exitcode); // this should "kill" the app.
     exit(exitcode);
+#elif defined(SDL_PLATFORM_MORPHOS) && defined(BUILD_SDL3_LIBRARY)
+    // exit() of the program, given by the -lSDL3 glue (NULL in the sdl3_* libraries)
+    extern void (*morphos_exit)(int exitcode);
+    if (morphos_exit) {
+        morphos_exit(exitcode);
+    }
+    for (;;) {
+        Wait(0);
+    }
 #elif defined(SDL_PLATFORM_HAIKU)  // Haiku has _Exit, but it's not marked noreturn.
     _exit(exitcode);
 #elif defined(HAVE__EXIT) // Upper case _Exit()

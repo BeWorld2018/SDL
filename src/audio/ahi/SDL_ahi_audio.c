@@ -33,6 +33,13 @@ static bool MOS_QueryAHICaps(MOS_AHICaps *caps)
     ULONG maxch = 2;
     ULONG bits = 16;
 
+#ifdef BUILD_SDL3_LIBRARY
+    // sdl3.library opens ahi.device (AHI_NO_UNIT) itself, optional
+    if (!AHIBase) {
+        return false;
+    }
+#endif
+
     if (!AHI_GetAudioAttrs(
             AHI_DEFAULT_ID,
             NULL,

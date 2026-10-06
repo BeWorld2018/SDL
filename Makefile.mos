@@ -1,139 +1,206 @@
-# Makefile for building SDL3 (MorphOS)
+# Makefile for building sdl3.library (MorphOS shared library)
 #
-# Features enabled in this build:
-#   - Native thread
-#   - MorphOS timer backend
-#   - AHI audio backend
-#   - OpenGL video supported
-#   - Gamepad support: sensors library / hotplug supported
-#   - Dialog support (MorphOS backend)
-#   - AltiVec optimizations
-#	- Multi-monitor supported
-#	- Software, OpenGL and overlay (cgxvideo.library) renderers supported
-#	- LoadObject via DLL
+#   make -f Makefile.mos             sdl3.library + the -lSDL3 glue, then checklvo
+#   make -f Makefile.mos lib         the -lSDL3 glue only (src/core/morphos/devenv)
+#   make -f Makefile.mos glue        regenerate fd/clib/stubs from SDL_dynapi_procs.h
+#                                    (after an SDL update), then proto/ppcinline
+#   make -f Makefile.mos headers     proto/ppcinline from the fd (cvinclude.pl)
+#   make -f Makefile.mos checklvo    every jump table entry vs the fd (run by "all")
+#   make -f Makefile.mos tests       test/libtest: testautomation & co against the library
+#   make -f Makefile.mos sdk         install headers, fd/proto and glue libs in /gg/usr/local
+#                                    (libSDL3.a there is the sdl3.library glue, not the static lib)
+#   make -f Makefile.mos install     copy sdl3.library to LIBS: (on MorphOS)
+#   make -f Makefile.mos dump        disassemble sdl3.library.db to sdl3.library.s
+#   make -f Makefile.mos clean
 #
-# Notes:
-#   - "install" copies headers and static libs to /gg/usr/local
+# Glue libraries (src/core/morphos/devenv/lib):
+#   libSDL3.a              programs: opens sdl3.library, varargs wrappers
+#   libb32/libSDL3.a       -mresident32 code (sdl3_image.library, ...)
+#   libb32/libSDL3-nc.a    -mresident32, opens nothing (SDL3Base set by hand)
 #
-# Known issues:
-#   - MessageBox: no window parent support
-#   - testcolorspace: incorrect color readback with OpenGL renderer
+# No header dependency tracking: after a header change, delete the objects
+# concerned (or make clean).
 
+# Tools
+CC      = ppc-morphos-gcc-9
 AR      = ppc-morphos-ar
 RANLIB  = ppc-morphos-ranlib
-CC      = ppc-morphos-gcc-9
-CXX     = ppc-morphos-g++-9
 STRIP   = ppc-morphos-strip
+NM      = ppc-morphos-nm
+OBJDUMP = ppc-morphos-objdump
+CVI     = /gg/bin/cvinclude.pl
+PYTHON  = python3
 
-AMIGADATE = $(shell date +"%-d.%m.%Y")
+PREFIX  = /gg/usr/local
 
-DEFINES =  -DAROS_ALMOST_COMPATIBLE -D__AMIGADATE__=\"$(AMIGADATE)\"
-CFLAGS  =  -noixemul -O2 -Wall -fno-math-errno -Wshadow -fcommon -I./include -I./include/build_config -I./include/SDL3 -I./src $(DEFINES)
+# Flags
+AMIGADATE = $(shell date +"%-d.%-m.%Y")
 
-TARGET_STATIC  = libSDL3.a
-TESTLIB_STATIC = libSDL3_test.a
+DEFINES = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL3_LIBRARY -D__AMIGADATE__=\"$(AMIGADATE)\"
+INCLUDE = -I./include -I./include/build_config -I./include/SDL3 -I./src
+CFLAGS  = -noixemul -O2 -Wall -fno-math-errno -Wshadow -fcommon -mresident32 $(INCLUDE) $(DEFINES)
+ALTIVEC = -fvec -maltivec -faltivec -mabi=altivec
 
+# Outputs
+LIBRARY  = sdl3.library
+INTERNAL = libSDL3_lib.a
+MAP      = sdl3.map
+
+# Sources
 SOURCES = \
-	$(wildcard ./src/*.c) \
-	$(wildcard ./src/atomic/*.c) \
-	$(wildcard ./src/audio/*.c) \
-	$(wildcard ./src/audio/ahi/*.c) \
-	$(wildcard ./src/audio/dummy/*.c) \
-	$(wildcard ./src/camera/*.c) \
-	$(wildcard ./src/cpuinfo/*.c) \
-	$(wildcard ./src/dialog/*.c) \
-	$(wildcard ./src/dialog/morphos/*.c) \
-	$(wildcard ./src/events/*.c) \
-	./src/filesystem/SDL_filesystem.c \
-	$(wildcard ./src/filesystem/posix/*.c) \
-	$(wildcard ./src/filesystem/morphos/*.c) \
-	./src/gpu/SDL_gpu.c \
-	$(wildcard ./src/haptic/*.c) \
-	$(wildcard ./src/haptic/dummy/*.c) \
-	$(wildcard ./src/io/*.c) \
-	./src/io/generic/SDL_asyncio_generic.c \
-	$(wildcard ./src/joystick/*.c) \
-	$(wildcard ./src/joystick/dummy/*.c) \
-	$(wildcard ./src/joystick/morphos/*.c) \
-	$(wildcard ./src/joystick/virtual/*.c) \
-	$(wildcard ./src/libm/*.c) \
-	$(wildcard ./src/loadso/morphos/*.c) \
-	$(wildcard ./src/loadso/morphos/libdll/*.c) \
-	$(wildcard ./src/locale/*.c) \
-	$(wildcard ./src/locale/morphos/*.c) \
-	./src/main/generic/SDL_sysmain_callbacks.c \
-	./src/main/SDL_main_callbacks.c \
-	./src/main/SDL_runapp.c \
-	$(wildcard ./src/misc/*.c) \
-	$(wildcard ./src/misc/morphos/*.c) \
-	$(wildcard ./src/power/*.c) \
-	$(wildcard ./src/power/morphos/*.c) \
-	$(wildcard ./src/process/*.c) \
-	$(wildcard ./src/process/dummy/*.c) \
-	$(wildcard ./src/render/*.c) \
-	$(wildcard ./src/render/software/*.c) \
-	$(wildcard ./src/render/opengl/*.c) \
-	$(wildcard ./src/render/morphos/*.c) \
-	$(wildcard ./src/sensor/*.c) \
-	$(wildcard ./src/sensor/dummy/*.c) \
-	$(wildcard ./src/stdlib/*.c) \
-	./src/storage/SDL_storage.c \
-	./src/storage/generic/SDL_genericstorage.c \
-	$(wildcard ./src/thread/*.c) \
-	./src/time/SDL_time.c \
-	./src/time/unix/SDL_systime.c \
-	$(wildcard ./src/timer/*.c) \
-	$(wildcard ./src/timer/morphos/*.c) \
-	$(wildcard ./src/thread/morphos/*.c) \
-	./src/thread/generic/SDL_syscond.c \
-	./src/thread/generic/SDL_systls.c \
-	./src/thread/generic/SDL_sysrwlock.c \
-	./src/tray/SDL_tray_utils.c \
-	./src/tray/dummy/SDL_tray.c \
-	$(wildcard ./src/video/*.c) \
-	$(wildcard ./src/video/morphos/*.c) \
-	$(wildcard ./src/video/dummy/*.c) \
-	$(wildcard ./src/video/yuv2rgb/*.c)
+	$(wildcard src/*.c) \
+	$(wildcard src/atomic/*.c) \
+	$(wildcard src/audio/*.c) \
+	$(wildcard src/audio/ahi/*.c) \
+	$(wildcard src/audio/dummy/*.c) \
+	$(wildcard src/camera/*.c) \
+	$(wildcard src/cpuinfo/*.c) \
+	$(wildcard src/dialog/*.c) \
+	$(wildcard src/dialog/morphos/*.c) \
+	$(wildcard src/events/*.c) \
+	src/filesystem/SDL_filesystem.c \
+	$(wildcard src/filesystem/posix/*.c) \
+	$(wildcard src/filesystem/morphos/*.c) \
+	src/gpu/SDL_gpu.c \
+	$(wildcard src/haptic/*.c) \
+	$(wildcard src/haptic/dummy/*.c) \
+	$(wildcard src/io/*.c) \
+	src/io/generic/SDL_asyncio_generic.c \
+	$(wildcard src/joystick/*.c) \
+	$(wildcard src/joystick/dummy/*.c) \
+	$(wildcard src/joystick/morphos/*.c) \
+	$(wildcard src/joystick/virtual/*.c) \
+	$(wildcard src/libm/*.c) \
+	$(wildcard src/loadso/morphos/*.c) \
+	$(wildcard src/loadso/morphos/libdll/*.c) \
+	$(wildcard src/locale/*.c) \
+	$(wildcard src/locale/morphos/*.c) \
+	src/main/generic/SDL_sysmain_callbacks.c \
+	src/main/SDL_main_callbacks.c \
+	src/main/SDL_runapp.c \
+	$(wildcard src/misc/*.c) \
+	$(wildcard src/misc/morphos/*.c) \
+	$(wildcard src/power/*.c) \
+	$(wildcard src/power/morphos/*.c) \
+	$(wildcard src/process/*.c) \
+	$(wildcard src/process/dummy/*.c) \
+	$(wildcard src/render/*.c) \
+	$(wildcard src/render/software/*.c) \
+	$(wildcard src/render/opengl/*.c) \
+	$(wildcard src/render/morphos/*.c) \
+	$(wildcard src/sensor/*.c) \
+	$(wildcard src/sensor/dummy/*.c) \
+	$(wildcard src/stdlib/*.c) \
+	src/storage/SDL_storage.c \
+	src/storage/generic/SDL_genericstorage.c \
+	$(wildcard src/thread/*.c) \
+	$(wildcard src/thread/morphos/*.c) \
+	src/thread/generic/SDL_syscond.c \
+	src/thread/generic/SDL_systls.c \
+	src/thread/generic/SDL_sysrwlock.c \
+	src/time/SDL_time.c \
+	src/time/unix/SDL_systime.c \
+	$(wildcard src/timer/*.c) \
+	$(wildcard src/timer/morphos/*.c) \
+	src/tray/SDL_tray_utils.c \
+	src/tray/dummy/SDL_tray.c \
+	$(wildcard src/video/*.c) \
+	$(wildcard src/video/morphos/*.c) \
+	$(wildcard src/video/dummy/*.c) \
+	$(wildcard src/video/yuv2rgb/*.c)
 
-TESTLIB_SOURCES = $(wildcard ./src/test/*.c)
+CORESOURCES = $(wildcard src/core/morphos/*.c)
 
-OBJECTS = $(SOURCES:.c=.o)
-TESTLIB_OBJECTS = $(TESTLIB_SOURCES:.c=.o)
-ALL_OBJECTS = $(OBJECTS) $(TESTLIB_OBJECTS)
+OBJECTS     = $(SOURCES:.c=.o)
+COREOBJECTS = $(CORESOURCES:.c=.o)
 
-all: $(TARGET_STATIC) $(TESTLIB_STATIC)
+.PHONY: all lib glue headers checklvo tests sdk install clean dump
+
+all: $(LIBRARY) lib checklvo
 	@echo All done
-	
-$(TESTLIB_STATIC): $(TESTLIB_OBJECTS)
-	@echo Creating $@
-	$(AR) crvs $@ $^
-	$(RANLIB) $@
 
-$(TARGET_STATIC): $(OBJECTS)
+# Compilation
+
+%.o: %.c
+	@echo Compiling $<
+	@$(CC) -o $@ -c $< $(CFLAGS)
+
+# AltiVec code (the overlay one is only called when SDL_HasAltiVec())
+src/video/SDL_blit_N.o: CFLAGS += $(ALTIVEC)
+src/render/morphos/SDL_render_overlay_altivec.o: CFLAGS += $(ALTIVEC)
+src/render/morphos/SDL_render_overlay_altivec.o: src/render/morphos/SDL_render_overlay_altivec.h
+
+# The library base runs before r13 is set up: never -mresident32
+src/core/morphos/SDL_library.o: CFLAGS = -noixemul -O2 -Wall -fno-strict-aliasing $(DEFINES)
+src/core/morphos/SDL_library.o: src/core/morphos/SDL_library.h src/core/morphos/SDL_stubs.h src/core/morphos/SDL_mosversion.h
+
+src/core/morphos/SDL_stubs.o: src/core/morphos/SDL_stubs.h
+
+# Library
+
+$(INTERNAL): $(OBJECTS)
 	@echo Creating $@
-	$(AR) crvs $@ $^
-	$(RANLIB) $@
+	@rm -f $@
+	@$(AR) crs $@ $^
+	@$(RANLIB) $@
+
+$(LIBRARY): $(INTERNAL) $(COREOBJECTS)
+	@echo Linking $@
+	@$(CC) -noixemul -nostartfiles -mresident32 -Wl,-Map=$(MAP) $(COREOBJECTS) -o $@.db -L. -lSDL3_lib -lGL -lm
+	@echo Stripping $@
+	@$(STRIP) -o $@ --remove-section=.comment $@.db
+
+# -lSDL3 glue libraries
+lib: src/core/morphos/sdk/fd/sdl3_lib.fd
+	@$(MAKE) --no-print-directory -C src/core/morphos/devenv
+
+checklvo: $(LIBRARY)
+	@$(PYTHON) build-scripts/check_morphos_lvo.py $(LIBRARY).db
+
+# After an SDL update: regenerates sdk/fd/sdl3_lib.fd, sdk/clib/sdl3_protos.h
+# and SDL_stubs.h. Functions are classified against what the objects define,
+# unbuilt platform functions keep their slot as ##private. SDL_library.o and
+# SDL_stubs.o are deleted so that they get rebuilt with the new stubs.
+glue: $(INTERNAL)
+	$(NM) -g --defined-only $(INTERNAL) | awk 'NF == 3 && ($$2 == "T" || $$2 == "W") { print $$3 }' | sort -u > sdl3_defined.txt
+	$(PYTHON) build-scripts/gen_morphos_lib.py --defined sdl3_defined.txt
+	@rm -f sdl3_defined.txt src/core/morphos/SDL_library.o src/core/morphos/SDL_stubs.o
+	@$(MAKE) --no-print-directory -f Makefile.mos headers
+
+headers:
+	@echo Creating proto/ppcinline headers
+	@mkdir -p src/core/morphos/sdk/proto src/core/morphos/sdk/ppcinline
+	@$(CVI) --fd=src/core/morphos/sdk/fd/sdl3_lib.fd --clib=src/core/morphos/sdk/clib/sdl3_protos.h --proto=src/core/morphos/sdk/proto/sdl3.h
+	@$(CVI) --fd=src/core/morphos/sdk/fd/sdl3_lib.fd --clib=src/core/morphos/sdk/clib/sdl3_protos.h --inline=src/core/morphos/sdk/ppcinline/sdl3.h
+	@$(PYTHON) build-scripts/gen_morphos_lib.py --fix-inline src/core/morphos/sdk/ppcinline/sdl3.h
+
+tests: all
+	@$(MAKE) --no-print-directory -C test/libtest -f Makefile.mos
+
+# Installation
+
+sdk: all
+	mkdir -p $(PREFIX)/include/SDL3 $(PREFIX)/lib/libb32
+	mkdir -p $(addprefix $(PREFIX)/include/,fd clib proto ppcinline)
+	cp -f include/SDL3/*.h $(PREFIX)/include/SDL3
+	cp -f src/core/morphos/sdk/fd/sdl3_lib.fd $(PREFIX)/include/fd/
+	cp -f src/core/morphos/sdk/clib/sdl3_protos.h $(PREFIX)/include/clib/
+	cp -f src/core/morphos/sdk/proto/sdl3.h $(PREFIX)/include/proto/
+	cp -f src/core/morphos/sdk/ppcinline/sdl3.h $(PREFIX)/include/ppcinline/
+	cp -f src/core/morphos/devenv/lib/libSDL3.a $(PREFIX)/lib/libSDL3.a
+	cp -f src/core/morphos/devenv/lib/libb32/libSDL3.a $(PREFIX)/lib/libb32/libSDL3.a
+	cp -f src/core/morphos/devenv/lib/libb32/libSDL3-nc.a $(PREFIX)/lib/libb32/libSDL3-nc.a
+
+install: all
+	cp $(LIBRARY) LIBS:
+	-flushlib $(LIBRARY)
+
+# Misc
 
 clean:
 	@echo Cleaning
-	@rm -f $(TARGET_STATIC) $(TESTLIB_STATIC) $(ALL_OBJECTS) $(DEPS)
+	@rm -f $(LIBRARY) $(LIBRARY).db $(LIBRARY).s $(MAP) $(INTERNAL) $(OBJECTS) $(COREOBJECTS)
+	@$(MAKE) --no-print-directory -C src/core/morphos/devenv clean
 
-install: all
-	mkdir -p /gg/usr/local/lib
-	mkdir -p /gg/usr/local/include/SDL3
-	cp -f $(TARGET_STATIC) /gg/usr/local/lib
-	cp -f $(TESTLIB_STATIC) /gg/usr/local/lib
-	cp -f include/SDL3/*.h /gg/usr/local/include/SDL3
-
-%.o : %.c
-	@echo Compiling $<
-	$(CC) -o $@ -c $< $(CFLAGS)
-
-# ALTIVEC
-src/video/SDL_blit_N.o: src/video/SDL_blit_N.c
-	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c src/video/SDL_blit_N.c
-
-# Only called when SDL_HasAltiVec()
-./src/render/morphos/SDL_render_overlay_altivec.o: ./src/render/morphos/SDL_render_overlay_altivec.c ./src/render/morphos/SDL_render_overlay_altivec.h
-	$(CC) $(CFLAGS) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $<
-
+dump:
+	$(OBJDUMP) --disassemble-all --reloc $(LIBRARY).db > $(LIBRARY).s

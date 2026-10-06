@@ -43,6 +43,17 @@ void dllCleanup()
 	}
 }
 
+#ifdef BUILD_SDL3_LIBRARY
+void dllLibCleanup(void)
+{
+	if (cleanupflag)
+	{
+		dllCleanup();
+		cleanupflag = FALSE;
+	}
+}
+#endif
+
 void *dllLoadLibrary(const char *filename, const char *portname)
 {
 	D("[DLL] dllLoadLibrary(%s, %s)", filename, portname);
@@ -66,6 +77,10 @@ void *dllInternalLoadLibrary(const char *filename, const char *portname, int rai
 		NewList(&dllOpenedDLLs);
 		dllOpenedDLLs.lh_Type = NT_USER;
 
+#ifdef BUILD_SDL3_LIBRARY
+		/* No exit() in sdl3.library: MOS_Cleanup() calls dllLibCleanup() */
+		cleanupflag = TRUE;
+#else
 		if (atexit((void *)dllCleanup))
 		{
 			dllSetError("can't install exit handler");
@@ -75,6 +90,7 @@ void *dllInternalLoadLibrary(const char *filename, const char *portname, int rai
 		{
 			cleanupflag = TRUE;
 		}
+#endif
 	}
 
 	if (!filename)

@@ -35,12 +35,27 @@
 GLContext *__tglContext;
 struct Library *TinyGLBase;
 
+#ifdef BUILD_SDL3_LIBRARY
+#include "../../core/morphos/SDL_library.h"
+#endif
+
+/* sdl3.library: the program calls gl*() with its own TinyGLBase and
+   __tglContext (libGL), mirror ours there. */
+static void MOS_GL_SyncCaller(void)
+{
+#ifdef BUILD_SDL3_LIBRARY
+	MOS_LIB_SET_TGLBASE(TinyGLBase);
+	MOS_LIB_SET_TGLCONTEXT(__tglContext);
+#endif
+}
+
 bool
 MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 {
 	D("");
 	if (!TinyGLBase) {
 		TinyGLBase = OpenLibrary("tinygl.library", 53);
+		MOS_GL_SyncCaller();
 	}
 
 	if (TinyGLBase) {
@@ -49,6 +64,7 @@ MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path)
 			{
 				CloseLibrary(TinyGLBase);
 				TinyGLBase = NULL;
+				MOS_GL_SyncCaller();
 				SDL_SetError("Failed to open tinygl.library 53.10+");
 				return false;
 			}
@@ -78,6 +94,7 @@ MOS_GL_UnloadLibrary(SDL_VideoDevice *_this)
 	if (TinyGLBase) {
 		CloseLibrary(TinyGLBase);
 		TinyGLBase = NULL;
+		MOS_GL_SyncCaller();
 	}
 }
 
@@ -141,6 +158,7 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 	if (success) {
 		D("GLAInitializeContext Success");
 		data->__tglContext = __tglContext = ctx;
+		MOS_GL_SyncCaller();
 	} else
 		D("GLAInitializeContext Failed");
 
@@ -156,6 +174,20 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 	GLContext *glcont = GLInit();
 	if (glcont) {
 		__tglContext = glcont;
+		MOS_GL_SyncCaller();
+#ifdef BUILD_SDL3_LIBRARY
+		/* The program's gl*() calls follow the TinyGL SDK it was built
+		   with: use its newest context version, as sdl2.library does. */
+		if (SDL3Base && SDL3Base->MyGetMaximumContextVersion) {
+			unsigned int contextversion = SDL3Base->MyGetMaximumContextVersion(TinyGLBase);
+
+			if (contextversion == TGL_CONTEXT_VERSION_53_1) {
+				TGLEnableNewExtensions(glcont, 0);
+			} else if (contextversion >= TGL_CONTEXT_VERSION_53_9) {
+				TGLSetContextVersion(glcont, contextversion);
+			}
+		} else
+#endif
 		TGLSetAutomaticContextVersion(TinyGLBase, glcont);
 		bool success = MOS_GL_InitContext(_this, window);
 		if (success) {
@@ -170,6 +202,7 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 			MOS_GL_FreeBitMap(_this, window);
 			GLClose(glcont);
 			data->__tglContext = __tglContext = NULL;
+			MOS_GL_SyncCaller();
 			SDL_SetError("Couldn't initialize TinyGL context");
 		}
 	} else {
@@ -187,6 +220,7 @@ MOS_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window * window, SDL_GLContext co
 	else
 		__tglContext = NULL;
 
+	MOS_GL_SyncCaller();
 	return true;
 }
 
@@ -259,6 +293,7 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
         }
 		GLClose((GLContext*)context);
 		__tglContext = NULL;
+		MOS_GL_SyncCaller();
 		return true;
 
 	}
