@@ -68,7 +68,7 @@ static CONSTRUCTOR_P(init_SDL3Base, 100)
 
 	if (base)
 	{
-		/* Functions are added without bumping VERSION: an older 53.x would
+		/* REVISION = SDL minor * 100 + micro: an older 3.x would
 		   lack the vectors this program was linked against. */
 		if (!LIB_MINVER(base, VERSION, REVISION))
 		{

@@ -8,12 +8,15 @@
 
 CC      = ppc-morphos-gcc-9 -noixemul
 INCLUDE = -I../../../../include -I../sdk
-CFLAGS  = -mcpu=750 -mtune=7450 -O2 $(INCLUDE) -Wall -Wno-pointer-sign -fno-strict-aliasing
+# Library version = SDL version (../SDL_mosversion.h)
+SDLVERSION_H = ../../../../include/SDL3/SDL_version.h
+SDLVERSION   = $(shell awk '$$2 == "SDL_MAJOR_VERSION" { ma = $$3 } $$2 == "SDL_MINOR_VERSION" { mi = $$3 } $$2 == "SDL_MICRO_VERSION" { mc = $$3 } END { printf "-DSDL_LIB_MAJOR=%d -DSDL_LIB_MINOR=%d -DSDL_LIB_MICRO=%d -DSDL_LIB_REVISION=%d", ma, mi, mc, mi * 100 + mc }' $(SDLVERSION_H))
+CFLAGS  = -mcpu=750 -mtune=7450 -O2 $(INCLUDE) -Wall -Wno-pointer-sign -fno-strict-aliasing $(SDLVERSION)
 AR      = ppc-morphos-ar
 CVI     = /gg/bin/cvinclude.pl
 FD      = ../sdk/fd/sdl3_lib.fd
 CLIB    = ../sdk/clib/sdl3_protos.h
-DEPS    = sdl-startup.c sdl-stubs.c ../SDL_mosversion.h $(CLIB) ../sdk/ppcinline/sdl3.h
+DEPS    = sdl-startup.c sdl-stubs.c ../SDL_mosversion.h $(SDLVERSION_H) $(CLIB) ../sdk/ppcinline/sdl3.h
 
 COMPILING = @echo "compiling $@..."
 ARCHIVING = @echo "archiving $@..."

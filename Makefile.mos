@@ -36,7 +36,11 @@ PREFIX  = /gg/usr/local
 # Flags
 AMIGADATE = $(shell date +"%-d.%-m.%Y")
 
-DEFINES = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL3_LIBRARY -D__AMIGADATE__=\"$(AMIGADATE)\"
+# Library version = SDL version (src/core/morphos/SDL_mosversion.h)
+SDLVERSION_H = include/SDL3/SDL_version.h
+SDLVERSION   = $(shell awk '$$2 == "SDL_MAJOR_VERSION" { ma = $$3 } $$2 == "SDL_MINOR_VERSION" { mi = $$3 } $$2 == "SDL_MICRO_VERSION" { mc = $$3 } END { printf "-DSDL_LIB_MAJOR=%d -DSDL_LIB_MINOR=%d -DSDL_LIB_MICRO=%d -DSDL_LIB_REVISION=%d", ma, mi, mc, mi * 100 + mc }' $(SDLVERSION_H))
+
+DEFINES = -DAROS_ALMOST_COMPATIBLE -DBUILD_SDL3_LIBRARY -D__AMIGADATE__=\"$(AMIGADATE)\" $(SDLVERSION)
 INCLUDE = -I./include -I./include/build_config -I./include/SDL3 -I./src
 CFLAGS  = -noixemul -O2 -Wall -fno-math-errno -Wshadow -fcommon -mresident32 $(INCLUDE) $(DEFINES)
 ALTIVEC = -fvec -maltivec -faltivec -mabi=altivec
@@ -132,7 +136,7 @@ src/render/morphos/SDL_render_overlay_altivec.o: src/render/morphos/SDL_render_o
 
 # The library base runs before r13 is set up: never -mresident32
 src/core/morphos/SDL_library.o: CFLAGS = -noixemul -O2 -Wall -fno-strict-aliasing $(DEFINES)
-src/core/morphos/SDL_library.o: src/core/morphos/SDL_library.h src/core/morphos/SDL_stubs.h src/core/morphos/SDL_mosversion.h
+src/core/morphos/SDL_library.o: src/core/morphos/SDL_library.h src/core/morphos/SDL_stubs.h src/core/morphos/SDL_mosversion.h $(SDLVERSION_H)
 
 src/core/morphos/SDL_stubs.o: src/core/morphos/SDL_stubs.h
 
@@ -191,7 +195,10 @@ sdk: all
 	cp -f src/core/morphos/devenv/lib/libb32/libSDL3.a $(PREFIX)/lib/libb32/libSDL3.a
 	cp -f src/core/morphos/devenv/lib/libb32/libSDL3-nc.a $(PREFIX)/lib/libb32/libSDL3-nc.a
 
-install: all
+# No dependency: run on MorphOS after building on the cross-compiler, it
+# must not try to rebuild (timestamps, .d paths, python3 for checklvo)
+install:
+	@test -f $(LIBRARY) || { echo "$(LIBRARY) not built: make -f Makefile.mos first"; exit 1; }
 	cp $(LIBRARY) LIBS:
 	-flushlib $(LIBRARY)
 
