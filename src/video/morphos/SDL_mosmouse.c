@@ -117,12 +117,16 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 							TAG_DONE);
 
 			data->mouseptr = mouseptr;
+			data->bitmap = bmp;
 						
 		    if (SDL_MUSTLOCK(surface)) {
 				SDL_UnlockSurface(surface);
 			}
 
-			FreeBitMap(bmp);
+			if (!mouseptr) {
+				FreeBitMap(bmp);
+				data->bitmap = NULL;
+			}
 		} else {
 			D("AllocBitMap failed!");
 		}
@@ -218,13 +222,36 @@ static void
 MOS_FreeCursor(SDL_Cursor *cursor)
 {
 	SDL_CursorData *data = cursor->internal;
+	SDL_VideoDevice *video = SDL_GetVideoDevice();
+	SDL_VideoData *vd = video ? (SDL_VideoData *)video->internal : NULL;
+
+	if (vd && vd->CurrentPointer == cursor) {
+		vd->CurrentPointer = NULL;
+	}
 
 	if (data) {
         if (data->mouseptr) {
+			/* Windows that got this pointer with WA_Pointer still use it,
+			   not only the focus one: put them back on the default pointer
+			   before disposing it, or Intuition uses the freed object. */
+			if (vd) {
+				SDL_WindowData *wd;
+
+				ForeachNode(&vd->windowlist, wd) {
+					if (wd->win) {
+						ClearPointer(wd->win);
+						MOS_InvalidatePointerCacheForWindow(wd->win);
+					}
+				}
+			}
 			DisposeObject(data->mouseptr);
 			data->mouseptr = NULL;
 		}
-		
+		if (data->bitmap) {
+			FreeBitMap(data->bitmap);
+			data->bitmap = NULL;
+		}
+
 		SDL_free(data);
 		cursor->internal = NULL;
 	}

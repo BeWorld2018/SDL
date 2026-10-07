@@ -29,6 +29,7 @@
 typedef struct SDL_CursorData 
 {
 	Object *mouseptr;
+	struct BitMap *bitmap; /* POINTERA_BitMap is not copied: keep it until FreeCursor */
 	APTR type;
 	int offx, offy;
 } SDL_CursorData ;
