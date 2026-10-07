@@ -65,13 +65,15 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 						syswin = data->win;
 					}*/
 					
-                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, message, NULL);					
+                    APTR args[1] = { message };
+                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, "%s", args);
                     if (rc == 0)
                         rc = mbd->numbuttons - 1;
                     else
                         rc -= 1;
 
-					*buttonID = mbd->buttons[rc].buttonID;
+					if (rc >= 0 && rc < mbd->numbuttons)
+						*buttonID = mbd->buttons[rc].buttonID;
 
                     SDL_free(btxt);
                 }
