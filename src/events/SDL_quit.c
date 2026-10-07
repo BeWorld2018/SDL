@@ -28,6 +28,16 @@
 
 #include "SDL_events_c.h"
 
+#ifdef __MORPHOS__
+#include <dos/dos.h>
+#include <proto/exec.h>
+
+/* No signals on MorphOS: Ctrl-C is the task break signal. The video driver
+   turns it into SDL_EVENT_QUIT; without video (audio-only programs) nothing
+   did, as in the SDL2 port this is done here. */
+static bool mos_break_quits = false;
+#endif
+
 #if defined(HAVE_SIGNAL_H) || defined(HAVE_SIGACTION)
 #define HAVE_SIGNAL_SUPPORT 1
 #endif
@@ -146,6 +156,9 @@ static void SDL_QuitQuit_Internal(void)
 
 bool SDL_InitQuit(void)
 {
+#ifdef __MORPHOS__
+    mos_break_quits = !SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, false);
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (!SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, false)) {
         return SDL_QuitInit_Internal();
@@ -156,6 +169,9 @@ bool SDL_InitQuit(void)
 
 void SDL_QuitQuit(void)
 {
+#ifdef __MORPHOS__
+    mos_break_quits = false;
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (!disable_signals) {
         SDL_QuitQuit_Internal();
@@ -165,6 +181,13 @@ void SDL_QuitQuit(void)
 
 void SDL_SendPendingSignalEvents(void)
 {
+#ifdef __MORPHOS__
+    /* the video driver handles the break itself when it runs */
+    if (mos_break_quits && !SDL_WasInit(SDL_INIT_VIDEO) &&
+        (SetSignal(0, SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C)) {
+        SDL_SendQuit();
+    }
+#endif
 #ifdef HAVE_SIGNAL_SUPPORT
     if (send_quit_pending) {
         SDL_SendQuit();
