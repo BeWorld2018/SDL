@@ -72,6 +72,8 @@ struct SDL_WindowData
 	int old_w, old_h, old_x, old_y;
 
 	BOOL grabbed;
+	BOOL events_obtained;
+	Uint64 reactivate_until;
 	BYTE first_deltamove;
 	
 	APTR 				menuvisualinfo;
@@ -109,6 +111,7 @@ extern void MOS_RestoreWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_SetWindowBordered(SDL_VideoDevice *_this, SDL_Window * window, bool bordered);
 extern SDL_FullscreenResult MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window * window, SDL_VideoDisplay * display, SDL_FullscreenOp fullscreen);
 extern bool MOS_SetWindowGrab(SDL_VideoDevice *_this, SDL_Window * window, bool grabbed);
+extern void MOS_UpdateEventGrab(SDL_WindowData *data);
 extern void MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern void MOS_SetWindowAlwaysOnTop(SDL_VideoDevice *_this, SDL_Window * window, bool on_top);
 extern void MOS_SetWindowResizable (SDL_VideoDevice *_this, SDL_Window * window, bool resizable);

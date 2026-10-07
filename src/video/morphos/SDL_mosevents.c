@@ -196,8 +196,14 @@ MOS_HandleActivation(SDL_VideoDevice *_this, SDL_WindowData *data, bool activate
 					if (!SDL_GetRelativeMouseMode()) {
 						SDL_SetKeyboardFocus(NULL);
 					}
-					
+
 				}
+
+				if (data->grabbed && data->win && SDL_GetTicks() < data->reactivate_until) {
+					D("activation lost right after re-creation -> re-activating");
+					ActivateWindow(data->win);
+				}
+				data->reactivate_until = 0;
 			}
 		}
 	}
@@ -820,6 +826,13 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
 			MOS_UpdatePointerIfNeeded(data, wdata);
 		} else {
 			MOS_ClearPointerIfApplied();
+		}
+	}
+
+	SDL_WindowData *wd;
+	ForeachNode(&data->windowlist, wd) {
+		if (wd->win && (wd->grabbed || wd->events_obtained)) {
+			MOS_UpdateEventGrab(wd);
 		}
 	}
 

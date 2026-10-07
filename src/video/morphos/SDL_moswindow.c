@@ -217,12 +217,14 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 		MOS_WaitWindowBox((SDL_WindowData *) window->internal, win);
 	}
 
+	MOS_InvalidatePointerCacheForWindow(win);
+
 	if (SDL_GetKeyboardFocus() == window)
 		SDL_SetKeyboardFocus(NULL);
 
 	if (SDL_GetMouseFocus() == window)
 		SDL_SetMouseFocus(NULL);
-		
+
 	if (window) {
 		
 		if ((window->flags & SDL_WINDOW_EXTERNAL) == 0) {
@@ -237,9 +239,9 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 
 			Forbid();
 
-			if (data->grabbed) {
-				data->grabbed = TRUE;
-				DoMethod((Object *)data->win, WM_ReleaseEvents);
+			if (data && data->events_obtained) {
+				DoMethod((Object *)win, WM_ReleaseEvents);
+				data->events_obtained = FALSE;
 			}
 		
 			ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp) {
@@ -363,6 +365,7 @@ MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window *window)
 
     if (data && data->win) {
         D("window '%s' OK", window->title);
+        data->reactivate_until = SDL_GetTicks() + 500;
         MOS_ShowWindow(_this, window);
 		MOS_WindowToFront(data->win);
     } else {
@@ -911,9 +914,7 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
 				MOS_CreateMenu(_this, window);
 			}
 
-            if (wd->grabbed) {
-                DoMethod((Object *)wd->win, WM_ObtainEvents);
-            }
+            wd->events_obtained = FALSE;
 
             return true;
         }
@@ -1395,6 +1396,18 @@ MOS_SetWindowFullscreen(SDL_VideoDevice *_this, SDL_Window *window,
     return SDL_FULLSCREEN_SUCCEEDED;
 }
 
+void
+MOS_UpdateEventGrab(SDL_WindowData *data)
+{
+	const BOOL want = data->grabbed && (data->win->Flags & WFLG_WINDOWACTIVE) &&
+	                  !(data->window->flags & SDL_WINDOW_FULLSCREEN);
+
+	if (want != data->events_obtained) {
+		DoMethod((Object *)data->win, want ? WM_ObtainEvents : WM_ReleaseEvents);
+		data->events_obtained = want;
+	}
+}
+
 bool
 MOS_SetWindowGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed)
 {
@@ -1404,17 +1417,12 @@ MOS_SetWindowGrab(SDL_VideoDevice *_this, SDL_Window *window, bool grabbed)
 		D("grabbed=%d", grabbed);
 
 		data->grabbed = grabbed;
-		if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
-			if (grabbed && (data->win->Flags & WFLG_WINDOWACTIVE) == 0) {
-				ActivateWindow(data->win);
-			}
-
-			DoMethod((Object *)data->win, grabbed ? WM_ObtainEvents : WM_ReleaseEvents);
-		} else {
+		if ((window->flags & SDL_WINDOW_FULLSCREEN) || (grabbed && !(data->win->Flags & WFLG_WINDOWACTIVE))) {
 			ActivateWindow(data->win);
 		}
+		MOS_UpdateEventGrab(data);
 	}
-	
+
 	return true;
 }
 
