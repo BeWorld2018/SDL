@@ -867,10 +867,12 @@ static int SDLCALL video_getSetWindowPosition(void *arg)
         goto null_tests;
     }
 
-    if (SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0) {
+    if (SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 ||
+        SDL_strcmp(SDL_GetCurrentVideoDriver(), "MorphOS") == 0) {
         /* The X11 server allows arbitrary window placement, but compositing
          * window managers such as GNOME and KDE force windows to be within
          * desktop bounds.
+         * MorphOS: Intuition keeps windows inside their screen.
          */
         maxxVariation = 2;
         maxyVariation = 2;
@@ -1164,8 +1166,9 @@ static int SDLCALL video_getSetWindowSize(void *arg)
     }
 
     if (SDL_strcmp(SDL_GetCurrentVideoDriver(), "windows") == 0 ||
-        SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0) {
-        /* Platform clips window size to screen size */
+        SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 ||
+        SDL_strcmp(SDL_GetCurrentVideoDriver(), "MorphOS") == 0) {
+        /* Platform clips window size to screen size (MorphOS: Intuition) */
         maxwVariation = 4;
         maxhVariation = 4;
     } else {
