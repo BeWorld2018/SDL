@@ -20,6 +20,10 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_test.h>
+#ifdef __MORPHOS__
+#include <dos/dos.h>
+#include <proto/exec.h>
+#endif
 
 static SDL_Mutex *mutex = NULL;
 static SDL_ThreadID mainthread;
@@ -90,10 +94,21 @@ Run(void *data)
 
         /* If this sleep isn't done, then threads may starve */
         SDL_Delay(10);
+#ifdef __MORPHOS__
+        /* libnix only turns Ctrl-C into SIGINT in its stdio calls */
+        if (current_thread == mainthread && (SetSignal(0, SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C)) {
+            terminate(SIGINT);
+        }
+#endif
     }
     if (current_thread == mainthread && SDL_GetAtomicInt(&doterminate)) {
         SDL_Log("Thread %" SDL_PRIu64 ": raising SIGTERM", current_thread);
+#ifdef __MORPHOS__
+        /* libnix raise() only knows signals 1-6, SIGTERM (15) is ignored */
+        closemutex(0);
+#else
         (void)raise(SIGTERM);
+#endif
     }
     SDL_Log("Thread %" SDL_PRIu64 ": exiting!", current_thread);
     return 0;
