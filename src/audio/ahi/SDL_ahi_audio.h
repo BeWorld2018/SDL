@@ -46,6 +46,10 @@ struct SDL_PrivateAudioData
     Uint8                *audioBuffer[2];
 
     Uint32                lastCaptureTicks;
+
+    bool                  ahiOpened;    /* OpenDevice() done on ahiRequest[0] */
+    bool                  priSet;       /* oldPri to restore in ThreadDeinit */
+    LONG                  oldPri;
 };
 
 typedef struct SDL_PrivateAudioData MOSAudioData;

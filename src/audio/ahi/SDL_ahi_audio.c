@@ -83,77 +83,35 @@ AHIAUD_Mute(ULONG mute)
 	AHI_Volume = mute ? 0 : 0x10000;
 }
 
-static bool
-MOS_OpenAhiDevice(MOSAudioData * MOS_data)
-{
-    if (MOS_data->deviceOpen) {
-        D("Device already open");
-		return true;
-    }
-
-    MOS_data->deviceOpen = false;
-
-    MOS_data->ahiReplyPort = CreateMsgPort();
-
-    if (MOS_data->ahiReplyPort) {
-
-        /* create a iorequest for the device */
-        MOS_data->ahiRequest[0] = (struct AHIRequest *)CreateIORequest(MOS_data->ahiReplyPort, sizeof( struct AHIRequest) );
-		
-        if (MOS_data->ahiRequest[0]) {
-
-            if (!OpenDevice(AHINAME, 0, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
-
-                D("%s opened", AHINAME);
-				
-				MOS_data->ahiRequest[1] = (struct AHIRequest *)CreateIORequest(MOS_data->ahiReplyPort, sizeof(struct AHIRequest));
-				if (MOS_data->ahiRequest[1]) {
-					
-					MOS_data->ahiRequest[1]->ahir_Std.io_Device = MOS_data->ahiRequest[0]->ahir_Std.io_Device;
-					MOS_data->ahiRequest[1]->ahir_Std.io_Unit   = MOS_data->ahiRequest[0]->ahir_Std.io_Unit;
-					MOS_data->ahiRequest[1]->ahir_Std.io_Flags  = MOS_data->ahiRequest[0]->ahir_Std.io_Flags;
-	
-                    MOS_data->deviceOpen = true;
-                    MOS_data->currentBuffer = 0;
-                    MOS_data->link = NULL;
-					
-                } else {
-                    D("Failed to create 2nd IO request");
-                }
-            } else {
-                D("Failed to open %s", AHINAME);
-            }
-        } else {
-            D("Failed to create IO request");
-        }
-    } else {
-        D("Failed to create reply port");
-    }
-
-    return MOS_data->deviceOpen;
-}
-
+/* Frees whatever MOS_OpenAhiDevice() got, also after a partial failure.
+   Must run on the task that opened it (the audio thread, see
+   MOS_ThreadDeinit()): the reply port signal is that task's. */
 static void
 MOS_CloseAhiDevice(MOSAudioData * MOS_data)
 {
-	 if (MOS_data->deviceOpen == false) {
-        D("Device already close");
-		return;
-    }
-    if (MOS_data->ahiRequest[0]) {
+    int i;
+
+    if (MOS_data->ahiOpened) {
+        // Requests still in flight: pendingWait (not waited yet) and link (last sent)
+        if (MOS_data->pendingWait && MOS_data->pendingWait != MOS_data->link) {
+            AbortIO((struct IORequest *)MOS_data->pendingWait);
+            WaitIO((struct IORequest *)MOS_data->pendingWait);
+        }
         if (MOS_data->link) {
             AbortIO((struct IORequest *)MOS_data->link);
             WaitIO((struct IORequest *)MOS_data->link);
         }
 
         CloseDevice((struct IORequest *)MOS_data->ahiRequest[0]);
+        MOS_data->ahiOpened = false;
+    }
+    MOS_data->pendingWait = NULL;
+    MOS_data->link = NULL;
 
-        DeleteIORequest(MOS_data->ahiRequest[0]);
-        MOS_data->ahiRequest[0] = NULL;
-
-        if (MOS_data->ahiRequest[1]) {
-            DeleteIORequest(MOS_data->ahiRequest[1]);
-            MOS_data->ahiRequest[1] = NULL;
+    for (i = 0; i < 2; i++) {
+        if (MOS_data->ahiRequest[i]) {
+            DeleteIORequest((struct IORequest *)MOS_data->ahiRequest[i]);
+            MOS_data->ahiRequest[i] = NULL;
         }
     }
 
@@ -162,9 +120,60 @@ MOS_CloseAhiDevice(MOSAudioData * MOS_data)
         MOS_data->ahiReplyPort = NULL;
     }
 
+    if (MOS_data->deviceOpen) {
+        D("Device closed");
+    }
     MOS_data->deviceOpen = false;
+}
 
-    D("Device closed");
+static bool
+MOS_OpenAhiDevice(MOSAudioData * MOS_data)
+{
+    if (MOS_data->deviceOpen) {
+        D("Device already open");
+		return true;
+    }
+
+    MOS_data->ahiReplyPort = CreateMsgPort();
+    if (!MOS_data->ahiReplyPort) {
+        D("Failed to create reply port");
+        return false;
+    }
+
+    /* create a iorequest for the device */
+    MOS_data->ahiRequest[0] = (struct AHIRequest *)CreateIORequest(MOS_data->ahiReplyPort, sizeof(struct AHIRequest));
+    if (!MOS_data->ahiRequest[0]) {
+        D("Failed to create IO request");
+        MOS_CloseAhiDevice(MOS_data);
+        return false;
+    }
+
+    if (OpenDevice(AHINAME, 0, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
+        D("Failed to open %s", AHINAME);
+        MOS_CloseAhiDevice(MOS_data);
+        return false;
+    }
+    MOS_data->ahiOpened = true;
+
+    D("%s opened", AHINAME);
+
+    MOS_data->ahiRequest[1] = (struct AHIRequest *)CreateIORequest(MOS_data->ahiReplyPort, sizeof(struct AHIRequest));
+    if (!MOS_data->ahiRequest[1]) {
+        D("Failed to create 2nd IO request");
+        MOS_CloseAhiDevice(MOS_data);
+        return false;
+    }
+
+    MOS_data->ahiRequest[1]->ahir_Std.io_Device = MOS_data->ahiRequest[0]->ahir_Std.io_Device;
+    MOS_data->ahiRequest[1]->ahir_Std.io_Unit   = MOS_data->ahiRequest[0]->ahir_Std.io_Unit;
+    MOS_data->ahiRequest[1]->ahir_Std.io_Flags  = MOS_data->ahiRequest[0]->ahir_Std.io_Flags;
+
+    MOS_data->deviceOpen = true;
+    MOS_data->currentBuffer = 0;
+    MOS_data->link = NULL;
+    MOS_data->pendingWait = NULL;
+
+    return true;
 }
 
 static bool
@@ -218,6 +227,12 @@ MOS_CloseDevice(SDL_AudioDevice *_this)
 
     D("Called for device %p", _this);
 
+    // Also called by SDL after a failed MOS_OpenDevice()
+    if (!MOS_data) {
+        return;
+    }
+
+    // Normally already done by MOS_ThreadDeinit(), on the audio thread
     MOS_CloseAhiDevice(MOS_data);
 
     int i;
@@ -229,6 +244,7 @@ MOS_CloseDevice(SDL_AudioDevice *_this)
     }
 
     SDL_free(MOS_data);
+    _this->hidden = NULL;
 }
 
 static void
@@ -314,22 +330,28 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
 		_this->spec.channels = 2;
 	}
 
+    /* At least AHI_AUDIO_BUFFER_SIZE bytes per AHI request: raise the
+       period itself, so that SDL's buffers (buffer_size, work/mix buffers)
+       have the size of what GetDeviceBuf() hands out */
+    {
+        const int framesize = SDL_AUDIO_FRAMESIZE(_this->spec);
+        const int minframes = (AHI_AUDIO_BUFFER_SIZE + framesize - 1) / framesize;
+        if (_this->sample_frames < minframes) {
+            _this->sample_frames = minframes;
+        }
+    }
+
     SDL_UpdatedAudioDeviceFormat(_this);
 
-	MOS_data->audioBufferSize =
-		SDL_AUDIO_FRAMESIZE(_this->spec) * _this->sample_frames;
-
-	MOS_data->audioBufferSize =
-		SDL_max(MOS_data->audioBufferSize, AHI_AUDIO_BUFFER_SIZE);
+	MOS_data->audioBufferSize = _this->buffer_size;
 
     MOS_data->audioBuffer[0] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
     MOS_data->audioBuffer[1] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
 
     if (MOS_data->audioBuffer[0] == NULL || MOS_data->audioBuffer[1] == NULL) {
-        MOS_CloseDevice(_this);
+        // SDL calls MOS_CloseDevice(), which frees them
         D("No memory for audio buffer");
-        SDL_SetError("No memory for audio buffer");
-        return false;
+        return SDL_SetError("No memory for audio buffer");
     }
 
     SDL_memset(MOS_data->audioBuffer[0], SDL_GetSilenceValueForFormat(_this->spec.format), MOS_data->audioBufferSize);
@@ -381,13 +403,23 @@ MOS_ThreadInit(SDL_AudioDevice *_this)
     if (!MOS_OpenAhiDevice(MOS_data)) {
         D("Failed to open AHI");
     }
-    SetTaskPri(FindTask(NULL), 25);
+    // The thread is a threadpool worker, reused afterwards: restored in MOS_ThreadDeinit()
+    MOS_data->oldPri = SetTaskPri(FindTask(NULL), 25);
+    MOS_data->priSet = true;
 }
 
 static void
 MOS_ThreadDeinit(SDL_AudioDevice *_this)
 {
-    //D("Called for device %p", _this);
+    MOSAudioData *MOS_data = _this->hidden;
+
+    // Same task as MOS_ThreadInit(): owner of the reply port and its requests
+    MOS_CloseAhiDevice(MOS_data);
+
+    if (MOS_data->priSet) {
+        SetTaskPri(FindTask(NULL), MOS_data->oldPri);
+        MOS_data->priSet = false;
+    }
 }
 
 static bool
@@ -396,8 +428,14 @@ MOS_WaitDevice(SDL_AudioDevice *_this)
     MOSAudioData *MOS_data = _this->hidden;
 
     if (MOS_data->pendingWait) {
-        WaitIO((struct IORequest *)MOS_data->pendingWait);
+        struct AHIRequest *req = MOS_data->pendingWait;
+
+        WaitIO((struct IORequest *)req);
         MOS_data->pendingWait = NULL;
+
+        if (req->ahir_Std.io_Error) {
+            D("AHI write error %ld", (LONG)req->ahir_Std.io_Error);
+        }
     }
 
     return true;
@@ -458,9 +496,12 @@ MOS_PlayDevice(SDL_AudioDevice *_this, const Uint8 *buffer, int buflen)
     ahiRequest = MOS_data->ahiRequest[current];
 
     ahiRequest->ahir_Std.io_Message.mn_Node.ln_Pri = 60;
-	int len = SDL_min(buflen, MOS_data->audioBufferSize);
-	
-	SDL_memcpy(MOS_data->audioBuffer[current], buffer, len);
+	int len = SDL_min(buflen, (int)MOS_data->audioBufferSize);
+
+	// buffer is normally audioBuffer[current] (MOS_GetDeviceBuf())
+	if (buffer != MOS_data->audioBuffer[current]) {
+		SDL_memcpy(MOS_data->audioBuffer[current], buffer, len);
+	}
 
 	ahiRequest->ahir_Std.io_Data   = MOS_data->audioBuffer[current];
 	ahiRequest->ahir_Std.io_Length = len;
@@ -497,7 +538,8 @@ MOS_GetDeviceBuf(SDL_AudioDevice *_this, int *buffer_size)
     if (buffer_size) {
         MOSAudioData *MOS_data = _this->hidden;
 
-        *buffer_size = MOS_data->audioBufferSize;
+        // never more than SDL's buffer_size: its mix buffers have that size
+        *buffer_size = SDL_min(*buffer_size, (int)MOS_data->audioBufferSize);
     }
 
     return _this->hidden->audioBuffer[_this->hidden->currentBuffer];
@@ -537,6 +579,7 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
     if (MOS_data->lastCaptureTicks == 0 || (now - MOS_data->lastCaptureTicks) > RESTART_CAPTURE_THRESHOLD) {
         if (MOS_data->link) {
             WaitIO((struct IORequest *)MOS_data->link);
+            MOS_data->link = NULL;
         }
 
         /* Assume that we have to (re)start recording */
@@ -552,14 +595,21 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
         D("Start recording");
 
         DoIO((struct IORequest *)request);
-        MOS_data->link = NULL;
 
         current = MOS_SwapBuffer(current);
     } else {
         /* Wait for the previous request completion */
         if (MOS_data->link) {
             WaitIO((struct IORequest *)MOS_data->link);
+            MOS_data->link = NULL;
         }
+    }
+
+    /* What the completed request really read (in the buffer returned below) */
+    const LONG ioError = request->ahir_Std.io_Error;
+    const ULONG actual = ioError ? 0 : request->ahir_Std.io_Actual;
+    if (ioError) {
+        D("AHI read error %ld", ioError);
     }
 
     MOS_FillCaptureRequest(
@@ -574,7 +624,9 @@ MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
 
     current = MOS_SwapBuffer(current);
     completedBuffer = MOS_data->audioBuffer[current];
-    copyLen = SDL_min(buflen, MOS_data->audioBufferSize);
+    copyLen = SDL_min((size_t)buflen, (size_t)actual);
+    // whole frames only
+    copyLen -= copyLen % SDL_AUDIO_FRAMESIZE(*spec);
     SDL_memcpy(buffer, completedBuffer, copyLen);
     MOS_data->lastCaptureTicks = now;
     MOS_data->currentBuffer = current;
