@@ -42,9 +42,11 @@ struct SDL_Semaphore
     Uint32 sem_value;
     struct MinList waitlist;
     struct SignalSemaphore sem;
+    SDL_AtomicInt waiters;     /* tasks inside SDL_WaitSemaphoreTimeoutNS() that still use sem */
 };
 
 extern void MorphOS_InitQPort(struct MsgPort *port);
+extern void MorphOS_FreeQPort(struct MsgPort *port);
 extern struct timerequest GlobalTimeReq;
 
 static
@@ -69,6 +71,7 @@ SDL_Semaphore *SDL_CreateSemaphore(Uint32 initial_value)
 		NEWLIST(&sem->waitlist);
 		memset(&sem->sem, 0, sizeof(sem->sem));
 		InitSemaphore(&sem->sem);
+		SDL_SetAtomicInt(&sem->waiters, 0);
 	} else {
 		SDL_OutOfMemory();      
     }
@@ -78,21 +81,24 @@ SDL_Semaphore *SDL_CreateSemaphore(Uint32 initial_value)
 void SDL_DestroySemaphore(SDL_Semaphore *sem)
 {
     if (sem) {
+        struct waitnode *wn;
+
         ObtainSemaphore(&sem->sem);
 
+        /* Wake up every waiter (they return true, as with the generic
+           implementation), and let anyone arriving late through */
         sem->sem_value = (Uint32)-1;
 
-        while (!IsListEmpty((struct List *) &sem->waitlist)) {
-            struct waitnode *wn;
-
-            for (wn = (struct waitnode *) sem->waitlist.mlh_Head; wn->msg.mn_Node.ln_Succ; wn = (struct waitnode *) wn->msg.mn_Node.ln_Succ)
-                ReplyMsg(&wn->msg);
-
-            if (!SDL_WaitSemaphoreTimeout(sem, 10))
-                break;
+        while ((wn = (struct waitnode *)REMHEAD(&sem->waitlist)) != NULL) {
+            ReplyMsg(&wn->msg);
         }
 
         ReleaseSemaphore(&sem->sem);
+
+        /* They still touch sem (lock, timer cleanup) before returning */
+        while (SDL_GetAtomicInt(&sem->waiters) > 0) {
+            SDL_Delay(1);
+        }
 
         SDL_free(sem);
     }
@@ -100,7 +106,7 @@ void SDL_DestroySemaphore(SDL_Semaphore *sem)
 
 bool SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore *sem, Sint64 timeoutNS)
 {
-    int retval = false;
+    bool retval = false;
     struct waitnode wn;
 	SDL_zero(wn);
 
@@ -119,6 +125,7 @@ bool SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore *sem, Sint64 timeoutNS)
         wn.msg.mn_Node.ln_Type = NT_MESSAGE;
         wn.msg.mn_ReplyPort = &wn.port;
         ADDTAIL(&sem->waitlist, &wn);
+        SDL_AddAtomicInt(&sem->waiters, 1);
     }
 
     ReleaseSemaphore(&sem->sem);
@@ -131,17 +138,18 @@ bool SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore *sem, Sint64 timeoutNS)
         /* Infinite wait */
         WaitPort(&wn.port);
         GetMsg(&wn.port);
-        return true;
-    }
-
-    /* Sem not available and we have a bounded timeout */
-    if (!GlobalTimeReq.tr_node.io_Device || !GlobalTimeReq.tr_node.io_Unit) {
+        retval = true;
+    } else if (!GlobalTimeReq.tr_node.io_Device || !GlobalTimeReq.tr_node.io_Unit) {
+        /* No timer.device: can't wait for a bounded time */
         ObtainSemaphore(&sem->sem);
-        REMOVE(&wn);
+        if (wn.msg.mn_Node.ln_Type == NT_REPLYMSG) {
+            retval = true;  /* signalled meanwhile */
+        } else {
+            REMOVE(&wn);
+        }
         ReleaseSemaphore(&sem->sem);
-        return false;
-    }
-    {
+    } else {
+        /* Sem not available and we have a bounded timeout */
         struct timerequest req;
         struct Message *msg;
 
@@ -160,15 +168,27 @@ bool SDL_WaitSemaphoreTimeoutNS(SDL_Semaphore *sem, Sint64 timeoutNS)
         retval = true;
 
         if (msg != &wn.msg) {
+            /* Timer first: still waiting, unless signalled meanwhile (then
+               wn.msg is in wn.port, which goes away with this frame) */
             ObtainSemaphore(&sem->sem);
-            REMOVE(&wn);
-            retval = wn.msg.mn_Node.ln_Type == NT_REPLYMSG ?  true : false;
+            if (wn.msg.mn_Node.ln_Type == NT_REPLYMSG) {
+                retval = true;
+            } else {
+                REMOVE(&wn);
+                retval = false;
+            }
             ReleaseSemaphore(&sem->sem);
         }
 
         AbortIO((struct IORequest *) &req);
         WaitIO((struct IORequest *) &req);
     }
+
+    /* Nothing can be replied to wn.port any more */
+    MorphOS_FreeQPort(&wn.port);
+
+    /* Last access to sem: SDL_DestroySemaphore() may free it from now on */
+    SDL_AddAtomicInt(&sem->waiters, -1);
 
     return retval;
 }

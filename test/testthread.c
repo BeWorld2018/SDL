@@ -172,7 +172,12 @@ int main(int argc, char *argv[])
         SDL_Log("Couldn't create thread: %s", SDL_GetError());
         quit(1);
     }
+#ifdef __MORPHOS__
+    /* libnix raise() only knows signals 1-6, SIGTERM (15) is ignored */
+    killed(SIGTERM);
+#else
     (void)raise(SIGTERM);
+#endif
 
     SDL_Quit(); /* Never reached */
     return 0;   /* Never reached */
