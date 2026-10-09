@@ -425,6 +425,7 @@ MOS_InitModes(SDL_VideoDevice *_this)
         display.internal = dd;
 
         SDL_AddVideoDisplay(&display, false);
+        SDL_free(display.name);
     }
 
     data->ScreenNotifyHandle = AddWorkbenchClient(&data->ScreenNotifyPort, -20);
@@ -477,6 +478,7 @@ MOS_InitModes(SDL_VideoDevice *_this)
             display.internal = dd;
 
             SDL_AddVideoDisplay(&display, false);
+            SDL_free(display.name);
         }
 
         FreeMonitorList(monitors);
@@ -595,6 +597,7 @@ MOS_RefreshDisplays(SDL_VideoDevice *_this)
             nd.internal = dd;
 
             SDL_AddVideoDisplay(&nd, true);
+            SDL_free(nd.name);
         }
     }
 
