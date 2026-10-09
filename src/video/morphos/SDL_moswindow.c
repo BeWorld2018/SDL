@@ -179,6 +179,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 						if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
 							MOS_GlobalMenu(data->menu, 1, 1, 0, 1);
 						}
+						SDL_free(val);
 						val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
 						if (val && strlen(val)>0) {
 							MOS_GlobalMenu(data->menu, 1, 3, 0, 0);
@@ -186,12 +187,14 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 							MOS_GlobalMenu(data->menu, 1, 3, 2, (strcmp(val, "software")==0 ? 1 : 0));
 							MOS_GlobalMenu(data->menu, 1, 3, 3, (strcmp(val, "overlay")==0 ? 1 : 0));
 						}
+						SDL_free(val);
 						val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 						if (val && strlen(val)>0) {
 							MOS_GlobalMenu(data->menu, 1, 4, 0, 0);
 							MOS_GlobalMenu(data->menu, 1, 4, 1, (strcmp(val, "1")==0 ? 1 : 0));
 							MOS_GlobalMenu(data->menu, 1, 4, 2, (strcmp(val, "1")==0 ? 0 : 1));
 						}
+						SDL_free(val);
 					} else {
 						D("Failed SetMenuStrip");
 					}	

@@ -111,15 +111,20 @@ char *MOS_getenv(const char *name)
 {
 	char *value = NULL;
 	char dummy[32];
+	LONG got;
 	size_t len;
 
-	if (GetVar((char *)name, dummy, sizeof(dummy), GVF_BINARY_VAR) == -1)
+	got = GetVar((char *)name, dummy, sizeof(dummy), GVF_GLOBAL_ONLY | GVF_BINARY_VAR);
+	if (got == -1)
 	{
 		return NULL;
 	}
-	
-	len = IoErr() + 1;
-	
+
+	len = (size_t)SDL_max(got, IoErr()) + 1;
+	if (len > 65536) {
+		len = 65536;
+	}
+
 	if ((value = SDL_malloc(len)))
 	{
 		if (GetVar((char *)name, value, len, GVF_GLOBAL_ONLY) == -1)

@@ -71,14 +71,17 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	if (val && strlen(val)>0 && strcmp(val, "-1")==0) {
 		SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_LOW);
 	}
+	SDL_free(val);
 	val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
-	if (val && strlen(val)>0) {	
+	if (val && strlen(val)>0) {
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : (strcmp(val, "overlay")==0 ? "overlay" : "software")));
 	}
+	SDL_free(val);
 	val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
 	if (val && strlen(val)>0) {
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, (strcmp(val, "1")==0 ? "1" :"0"));
 	}
+	SDL_free(val);
 	
 	return true;
 }
