@@ -60,6 +60,8 @@ MOS_GetDoubleClickTimeInMillis(SDL_VideoDevice *_this)
     return interval;
 }
 
+static void MOS_FreeCursor(SDL_Cursor *cursor);
+
 static SDL_Cursor*
 MOS_CreateCursorInternal()
 {
@@ -72,6 +74,9 @@ MOS_CreateCursorInternal()
             cursor->internal = data;
         } else {
 			D("error SDL_CursorData");
+			// the callers use cursor->internal
+			SDL_free(cursor);
+			cursor = NULL;
 		}
     } else {
 		D("error cursor");
@@ -129,6 +134,13 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 			}
 		} else {
 			D("AllocBitMap failed!");
+		}
+
+		// No pointer object: fail like the other backends, not an empty cursor
+		if (!data->mouseptr) {
+			MOS_FreeCursor(cursor);
+			SDL_SetError("Couldn't create the pointer object");
+			cursor = NULL;
 		}
 	} else {
 		D("cursor NULL");
@@ -255,6 +267,9 @@ MOS_FreeCursor(SDL_Cursor *cursor)
 		SDL_free(data);
 		cursor->internal = NULL;
 	}
+
+	// The backend owns the SDL_Cursor too: SDL only frees it when internal is NULL
+	SDL_free(cursor);
 }
 
 bool
