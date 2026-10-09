@@ -98,12 +98,14 @@ MOS_RemoveAppIcon(SDL_WindowData *data)
     }	
 }
 
-void MOS_RemoveMenuObject(SDL_WindowData *data) 
+void MOS_RemoveMenuObject(SDL_WindowData *data, struct Window *win)
 {
 
 	if (data->menu) {
 		D("ClearMenuStrip and FreeMenus");
-		ClearMenuStrip(data->win);
+		if (win) {
+			ClearMenuStrip(win);
+		}
 		FreeMenus(data->menu);
 		data->menu = NULL;
 	}
@@ -141,7 +143,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 	SDL_WindowData *data = window->internal;
 	SDL_VideoData *videodata = (SDL_VideoData *) _this->internal;
 
-    MOS_RemoveMenuObject(data);
+    MOS_RemoveMenuObject(data, data->win);
 	
 	if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
 		data->menuvisualinfo = GetVisualInfoA(videodata->PublicScreen, NULL);
@@ -150,7 +152,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 			if (data->menu) {
 				if (!LayoutMenusA(data->menu, data->menuvisualinfo, NULL)) {
 					D("Menu ERROR");
-					MOS_RemoveMenuObject(data);
+					MOS_RemoveMenuObject(data, data->win);
 				} else {
 					D("Menu OK");
 					
@@ -178,7 +180,7 @@ MOS_CreateMenu(SDL_VideoDevice *_this, SDL_Window * window)
 					}	
 				}
 			} else {
-				MOS_RemoveMenuObject(data);
+				MOS_RemoveMenuObject(data, data->win);
 			}
 		} else {
 			D("Failed GetVisualInfoA");
@@ -244,6 +246,16 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 				data->events_obtained = FALSE;
 			}
 		
+			// The message being dispatched (MOS_PumpEvents()) is no longer in the
+			// port: reply it now, its reply port goes away with the window
+			if (_this && _this->internal) {
+				SDL_VideoData *vd = (SDL_VideoData *) _this->internal;
+				if (vd->dispatch_msg && vd->dispatch_msg->IDCMPWindow == win) {
+					ReplyMsg(&vd->dispatch_msg->ExecMessage);
+					vd->dispatch_msg = NULL;
+				}
+			}
+
 			ForeachNodeSafe(&win->UserPort->mp_MsgList, msg, tmp) {
 				if (msg->IDCMPWindow == win) {
 					REMOVE(&msg->ExecMessage.mn_Node);
@@ -257,8 +269,8 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 
 			MOS_RemoveAppWindow(data);
 			MOS_RemoveAppIcon(data);
-			MOS_RemoveMenuObject(data);
-			
+			MOS_RemoveMenuObject(data, win);
+
 			CloseWindow(win);
 			
 			Permit();

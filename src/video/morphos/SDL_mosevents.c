@@ -816,8 +816,12 @@ void MOS_PumpEvents(SDL_VideoDevice *_this)
 
 	if (pending & data->WinSig) {
         while ((m = (struct IntuiMessage *)GetMsg(&data->userPort))) {
+            data->dispatch_msg = m;
             MOS_DispatchEvent(_this, m);
-            ReplyMsg((struct Message *)m);
+            if (data->dispatch_msg) {
+                ReplyMsg((struct Message *)m);
+            }
+            data->dispatch_msg = NULL;
         }
 
 		SDL_Window *focus = SDL_GetMouseFocus();

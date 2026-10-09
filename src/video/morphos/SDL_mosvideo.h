@@ -90,7 +90,11 @@ typedef struct SDL_VideoData
 	struct Task				*mainTask;	/* task owning the signals */
 	LONG					wakeupBit;	/* -1 if not allocated */
 	ULONG					TimerSig, WakeupSig;
-	
+
+	/* IntuiMessage being dispatched by MOS_PumpEvents(), NULL once
+	   MOS_CloseWindowSafely() has replied it (window closed meanwhile) */
+	struct IntuiMessage		*dispatch_msg;
+
 } SDL_VideoData;
 
 #endif /* _SDL_mosvideo_h */
