@@ -192,6 +192,7 @@ sdk: all
 	cp -f src/core/morphos/sdk/proto/sdl3.h $(PREFIX)/include/proto/
 	cp -f src/core/morphos/sdk/ppcinline/sdl3.h $(PREFIX)/include/ppcinline/
 	cp -f src/core/morphos/devenv/lib/libSDL3.a $(PREFIX)/lib/libSDL3.a
+	cp -f src/core/morphos/devenv/lib/libSDL3-nc.a $(PREFIX)/lib/libSDL3-nc.a
 	cp -f src/core/morphos/devenv/lib/libb32/libSDL3.a $(PREFIX)/lib/libb32/libSDL3.a
 	cp -f src/core/morphos/devenv/lib/libb32/libSDL3-nc.a $(PREFIX)/lib/libb32/libSDL3-nc.a
 

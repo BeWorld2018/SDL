@@ -1,6 +1,9 @@
 # -lSDL3 glue libraries for sdl3.library
 #
 #   lib/libSDL3.a             programs
+#   lib/libSDL3-nc.a          programs, no constructor: the program opens
+#                             sdl3.library itself (SDL3Base, SDL_InitTGL...),
+#                             e.g. to run without it
 #   lib/libb32/libSDL3.a      -mresident32 code
 #   lib/libb32/libSDL3-nc.a   -mresident32, no constructor (SDL3Base set by hand)
 #
@@ -21,11 +24,15 @@ DEPS    = sdl-startup.c sdl-stubs.c ../SDL_mosversion.h $(SDLVERSION_H) $(CLIB) 
 COMPILING = @echo "compiling $@..."
 ARCHIVING = @echo "archiving $@..."
 
-all: lib/libSDL3.a lib/libb32/libSDL3.a lib/libb32/libSDL3-nc.a
+all: lib/libSDL3.a lib/libSDL3-nc.a lib/libb32/libSDL3.a lib/libb32/libSDL3-nc.a
 
 sdl-startup.o: $(DEPS)
 	$(COMPILING)
 	@$(CC) $(CFLAGS) -o $@ -c sdl-startup.c
+
+sdl-startup-nc.o: $(DEPS)
+	$(COMPILING)
+	@$(CC) $(CFLAGS) -o $@ -c sdl-startup.c -D__NO_SDL_CONSTRUCTORS
 
 sdl-startup-brel.o: $(DEPS)
 	$(COMPILING)
@@ -41,6 +48,13 @@ lib/libSDL3.a: sdl-startup.o $(FD) $(CLIB)
 	@-rm -f $@
 	@$(CVI) --fd=$(FD) --clib=$(CLIB) --gluelib=$@ > /dev/null
 	@$(AR) crus $@ sdl-startup.o
+
+lib/libSDL3-nc.a: sdl-startup-nc.o $(FD) $(CLIB)
+	$(ARCHIVING)
+	@mkdir -p lib
+	@-rm -f $@
+	@$(CVI) --fd=$(FD) --clib=$(CLIB) --gluelib=$@ > /dev/null
+	@$(AR) crus $@ sdl-startup-nc.o
 
 lib/libb32/libSDL3.a: sdl-startup-brel.o $(FD) $(CLIB)
 	$(ARCHIVING)
