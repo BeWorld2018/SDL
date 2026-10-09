@@ -74,7 +74,14 @@ bool SDL_SYS_EnumerateDirectory(const char *path, SDL_EnumerateDirectoryCallback
 #endif
 
     char *pathwithsep = NULL;
+#ifdef __MORPHOS__
+    const char *basepath = apath ? apath : path;
+    const size_t baselen = SDL_strlen(basepath);
+    const bool needsep = (baselen > 0) && (basepath[baselen - 1] != ':') && (basepath[baselen - 1] != '/');
+    int pathwithseplen = SDL_asprintf(&pathwithsep, "%s%s", basepath, needsep ? "/" : "");
+#else
     int pathwithseplen = SDL_asprintf(&pathwithsep, "%s%s", apath ? apath : path, (apath ? *apath : *path) ? "/" : "");
+#endif
     const size_t extralen = apath ? (SDL_strlen(apath) - SDL_strlen(path)) : 0;
     SDL_free(apath);
     if ((pathwithseplen == -1) || (!pathwithsep)) {

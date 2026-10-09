@@ -339,6 +339,26 @@ SDL_Storage *GENERIC_OpenFileStorage(const char *path)
     char *basepath = NULL;
     char *prepend = NULL;
 
+#ifdef __MORPHOS__
+    if (!path) {
+        path = "";
+    }
+    if (!SDL_strchr(path, ':')) {
+        prepend = SDL_GetCurrentDirectory();
+        if (!prepend) {
+            return NULL;
+        }
+    }
+    {
+        const size_t len = SDL_strlen(path);
+        const bool needsep = (len > 0) && (path[len - 1] != ':') && (path[len - 1] != '/');
+        const int rc = SDL_asprintf(&basepath, "%s%s%s", prepend ? prepend : "", path, needsep ? "/" : "");
+        SDL_free(prepend);
+        if (rc < 0) {
+            return NULL;
+        }
+    }
+#else
 #ifdef SDL_PLATFORM_ANDROID
     // Use a base path of "." so the filesystem operations fall back to internal storage and the asset system
     if (!path || !*path) {
@@ -386,6 +406,7 @@ SDL_Storage *GENERIC_OpenFileStorage(const char *path)
     if (rc < 0) {
         return NULL;
     }
+#endif // __MORPHOS__
 
     result = SDL_OpenStorage(&GENERIC_file_iface, basepath);
     if (result == NULL) {
