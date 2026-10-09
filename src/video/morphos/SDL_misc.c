@@ -30,8 +30,12 @@
 char *
 MOS_ConvertText(const char *src, LONG srcmib, LONG dstmib)
 {
-	size_t dstlen, tags[] = { CST_GetDestBytes, (size_t)&dstlen, TAG_DONE };
+	size_t dstlen = 0, tags[] = { CST_GetDestBytes, (size_t)&dstlen, TAG_DONE };
 	char *dst = NULL;
+
+	if (!src) {
+		return SDL_strdup("");
+	}
 
 	ConvertTagList((APTR)src, -1, NULL, -1, srcmib, dstmib, (struct TagItem *)&tags);
 

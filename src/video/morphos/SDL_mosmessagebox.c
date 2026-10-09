@@ -41,19 +41,41 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
             char *message = MOS_ConvertText(mbd->message, MIBENUM_UTF_8, MIBENUM_SYSTEM);
             if (message) {
    
-                char *btxt = SDL_malloc(1024);
+                // Gadget string "*Yes|No": each button converted to the system
+                // charset, the exact size computed ('|' and '*' included)
+                char **btn = SDL_calloc(mbd->numbuttons + 1, sizeof(char *));
+                char *btxt = NULL;
+
+                if (btn) {
+                    size_t len = 1 + 2;  // NUL, "OK" when there is no button
+
+                    for (int i = 0; i < mbd->numbuttons; i++) {
+                        btn[i] = MOS_ConvertText(mbd->buttons[i].text, MIBENUM_UTF_8, MIBENUM_SYSTEM);
+                        len += (btn[i] ? SDL_strlen(btn[i]) : 0) + 2;
+                    }
+                    btxt = SDL_malloc(len);
+                }
 
                 if (btxt) {
                 	int rc = -1;
                     char *buf = btxt;
-                    for (size_t i = 0; i < mbd->numbuttons; i++) {
+                    for (int i = 0; i < mbd->numbuttons; i++) {
                         if (i > 0)
                             *buf++ = '|';
 
                         if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
                             *buf++ = '*';
 
-                        buf += ConvertTagList((APTR)mbd->buttons[i].text, -1, buf, -1, MIBENUM_UTF_8, MIBENUM_SYSTEM, NULL);
+                        if (btn[i]) {
+                            // a '|' in the text would add a gadget and shift the result
+                            for (const char *c = btn[i]; *c; c++) {
+                                *buf++ = (*c == '|') ? '/' : *c;
+                            }
+                        }
+                    }
+                    if (mbd->numbuttons <= 0) {
+                        *buf++ = 'O';
+                        *buf++ = 'K';
                     }
 
                     *buf = '\0';
@@ -76,6 +98,13 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 						*buttonID = mbd->buttons[rc].buttonID;
 
                     SDL_free(btxt);
+                }
+
+                if (btn) {
+                    for (int i = 0; i < mbd->numbuttons; i++) {
+                        SDL_free(btn[i]);
+                    }
+                    SDL_free(btn);
                 }
 
                 SDL_free(message);
