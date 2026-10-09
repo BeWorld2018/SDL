@@ -649,14 +649,12 @@ MOS_CheckWBEvents(SDL_VideoDevice *_this)
 				{
 					char filename[1024];
 					struct WBArg *argptr = msg->am_ArgList;
-				    for (int i = 0; i < msg->am_NumArgs; i++) {
-						if (argptr->wa_Lock) {
-							NameFromLock(argptr->wa_Lock, filename, 1024);
-							AddPart((STRPTR)filename, (STRPTR)argptr->wa_Name, 1024);
+				    for (int i = 0; i < msg->am_NumArgs; i++, argptr++) {
+						if (argptr->wa_Lock && NameFromLock(argptr->wa_Lock, filename, sizeof(filename))
+						    && AddPart((STRPTR)filename, (argptr->wa_Name ? (STRPTR)argptr->wa_Name : (STRPTR)""), sizeof(filename))) {
 							D("SDL_SendDropfile : '%s'", filename);
 							SDL_SendDropPosition(window, (float)msg->am_MouseX, (float)msg->am_MouseY);
 							SDL_SendDropFile(window, NULL, filename);
-							argptr++;
 						}
 					}
 					SDL_SendDropComplete(window);

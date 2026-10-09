@@ -88,7 +88,24 @@ MOS_RemoveAppWindow(SDL_WindowData *data)
     }
 }
 
-static void 
+static void
+MOS_PurgeAppMessages(SDL_VideoDevice *_this, SDL_Window *window)
+{
+	SDL_VideoData *vd = (SDL_VideoData *) _this->internal;
+	struct AppMessage *msg, *tmp;
+
+	Forbid();
+	ForeachNodeSafe(&vd->appMsgPort.mp_MsgList, msg, tmp) {
+		if (msg->am_UserData == (ULONG)window) {
+			D("Replying queued AppMessage type %ld", (LONG)msg->am_Type);
+			REMOVE(&msg->am_Message.mn_Node);
+			ReplyMsg(&msg->am_Message);
+		}
+	}
+	Permit();
+}
+
+static void
 MOS_RemoveAppIcon(SDL_WindowData *data)
 {
 	if (data->appIcon) {
@@ -348,6 +365,10 @@ MOS_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		}
 		// Also when the system window is already gone (failed re-creation)
 		MOS_RemoveAppIcon(data);
+
+		// AppMessages still queued for this window (drops, AppIcon clicks)
+		// carry the SDL_Window as am_UserData: reply them before it is freed
+		MOS_PurgeAppMessages(_this, window);
 
 		SDL_free(data->window_title);
 		SDL_free(data);
