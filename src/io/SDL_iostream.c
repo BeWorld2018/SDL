@@ -485,17 +485,27 @@ static size_t SDLCALL morphos_file_read(void *userdata, void *ptr, size_t size, 
 	
     IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
     if (!iodata->read) {
+        *status = SDL_IO_STATUS_WRITEONLY;
         SDL_SetError("Write-only file");
         return 0;
     }
 
-    size_t count = Read(iodata->bptr, ptr, size);
-    if (count < size) {
-        SDL_SetError("Error reading from datastream, read %u of %u", count, size);
+    // Read() takes and returns a LONG: -1 is an error, a short count is the end of the file
+    if (size > 0x7FFFFFFF) {
+        size = 0x7FFFFFFF;
     }
-	//D("Read %lu bytes", count);
-	 
-    return count;
+    const LONG count = Read(iodata->bptr, ptr, (LONG)size);
+    if (count < 0) {
+        *status = SDL_IO_STATUS_ERROR;
+        SDL_SetError("Error reading from datastream (error %ld)", IoErr());
+        return 0;
+    }
+    if ((size_t)count < size) {
+        *status = SDL_IO_STATUS_EOF;
+    }
+	//D("Read %ld bytes", count);
+
+    return (size_t)count;
 }
 
 static size_t SDLCALL morphos_file_write(void *userdata, const void *ptr, size_t size, SDL_IOStatus *status)
@@ -504,6 +514,7 @@ static size_t SDLCALL morphos_file_write(void *userdata, const void *ptr, size_t
 	
     IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
     if (!iodata->write) {
+        *status = SDL_IO_STATUS_READONLY;
         SDL_SetError("Read-only file");
         return 0;
     }
@@ -512,14 +523,20 @@ static size_t SDLCALL morphos_file_write(void *userdata, const void *ptr, size_t
         Seek(iodata->bptr, 0, OFFSET_END);
     }
 
-    size_t count = Write(iodata->bptr, (APTR)ptr, size);
-    if (count < size) {
-        SDL_SetError("Error writing to datastream, wrote %u of %u", count, size);
+    // Write() takes and returns a LONG: -1 or a short count is an error (disk full...)
+    if (size > 0x7FFFFFFF) {
+        size = 0x7FFFFFFF;
     }
-	
-	//D("Wrote %lu bytes\n", count);
-	
-    return count;
+    const LONG count = Write(iodata->bptr, (APTR)ptr, (LONG)size);
+    if (count < 0 || (size_t)count < size) {
+        *status = SDL_IO_STATUS_ERROR;
+        SDL_SetError("Error writing to datastream (error %ld)", IoErr());
+        return (count < 0) ? 0 : (size_t)count;
+    }
+
+	//D("Wrote %ld bytes\n", count);
+
+    return (size_t)count;
 }
 
 static bool SDLCALL morphos_file_flush(void *userdata, SDL_IOStatus *status)
@@ -527,6 +544,7 @@ static bool SDLCALL morphos_file_flush(void *userdata, SDL_IOStatus *status)
     IOStreamMorphOSData *iodata = (IOStreamMorphOSData *) userdata;
 	//D("BPTR %p", (void *)iodata->bptr);
     if (!Flush(iodata->bptr)) {
+        *status = SDL_IO_STATUS_ERROR;
         return SDL_SetError("Error flushing datastream (error %ld)", IoErr());
     }
     return true;
@@ -1227,16 +1245,13 @@ SDL_IOStream *SDL_IOFromFile(const char *file, const char *mode)
     }
 
 #elif defined (SDL_PLATFORM_MORPHOS) && defined(USE_DOS_H)
-	char *mpath = MOS_ConvertPath(file);
-	//D("mpath=%s", mpath);
-	if (mpath)
+    // The path goes to dos.library as given, as in the SDL2 port: AmigaDOS
+    // paths ("/" is the parent directory) are what MorphOS programs use.
     {
-		//D("file=%s", file);
 		BPTR bptr = morphos_file_open(file, mode);
 		if (bptr != 0) {
 			iostr = SDL_IOFromBPTR(bptr, mode, true);
 		}
-		SDL_free(mpath);
     }
 
 #elif defined(HAVE_STDIO_H)

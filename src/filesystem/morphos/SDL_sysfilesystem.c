@@ -58,13 +58,21 @@ char *SDL_SYS_GetPrefPath(const char *org, const char *app)
     size_t len = SDL_strlen(envPath) + 1;
     char* buffer = NULL;
 
+    // SDL_GetPrefPath() turns a NULL org into "": no "ENVARC:/app/", where
+    // a leading "/" is the parent dir in AmigaDOS
+    if (org && !*org) {
+        org = NULL;
+    }
+    if (!app || !*app) {
+        SDL_InvalidParamError("app");
+        return NULL;
+    }
+
     if (org) {
         len += SDL_strlen(org) + 1;
     }
 
-    if (app) {
-        len += SDL_strlen(app) + 1;
-    }
+    len += SDL_strlen(app) + 1;
 
     buffer = (char *) SDL_malloc(len);
     if (!buffer) {
@@ -73,15 +81,13 @@ char *SDL_SYS_GetPrefPath(const char *org, const char *app)
     }
 
     SDL_memset(buffer, 0, len);
-    SDL_snprintf(buffer, len, envPath);
+    SDL_snprintf(buffer, len, "%s", envPath);
 
     if (org) {
         SDL_snprintf(buffer + SDL_strlen(buffer), len - SDL_strlen(buffer), "%s/", org);
     }
 
-    if (app) {
-        SDL_snprintf(buffer + SDL_strlen(buffer), len - SDL_strlen(buffer), "%s/", app);
-    }
+    SDL_snprintf(buffer + SDL_strlen(buffer), len - SDL_strlen(buffer), "%s/", app);
 
 	//D("SDL_CreateDirectory: %s", buffer);
     if (SDL_CreateDirectory(buffer)) {

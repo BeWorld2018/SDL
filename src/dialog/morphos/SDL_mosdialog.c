@@ -244,7 +244,7 @@ static void MOS_HandleMultiselection(struct FileRequester *req, MOS_DialogArgs *
     }
 
     for (i = 0; i < req->fr_NumArgs; i++) {
-        const char *filename = req->fr_ArgList[i].wa_Name;
+        const char *filename = (const char *)req->fr_ArgList[i].wa_Name;
         const size_t totalLen = pathLen + SDL_strlen(filename) + 1;
 
         paths[i] = (char *)SDL_calloc(totalLen, 1);
@@ -484,6 +484,13 @@ void SDL_SYS_ShowFileDialogWithProperties(SDL_FileDialogType type, SDL_DialogFil
     const char *accept = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_ACCEPT_STRING, NULL);
     const char *cancel = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_CANCEL_STRING, NULL);
     struct Window *syswin = NULL;
+
+    // asl.library is optional in sdl3.library (opened if present)
+    if (!AslBase) {
+        SDL_SetError("asl.library 39 is not available");
+        callback(userdata, NULL, -1);
+        return;
+    }
 
     if (window) {
         SDL_PropertiesID windowProps = SDL_GetWindowProperties(window);
