@@ -60,6 +60,8 @@
 #define MAX_HATS        8
 #define MAX_STICKS      8
 #define MAX_RUMBLE		4
+
+#define MOS_RUMBLE_DURATION_MS 2500
 #define AXIS_EPS 64  /* à ajuster: 16 plus sensible, 64 réduit bien le jitter */
 
 #ifndef SENSORS_HIDInput_Rumble_Type
@@ -256,9 +258,18 @@ static void MORPHOS_JoystickDetect(void)
     int removed_count = 0;
 
     for (int i = 0; i < now_count; i++) {
-        SDL_JoystickID kept = 0;
-
         for (int j = 0; j < joystick_count; j++) {
+            if (!old_matched[j] && now[i].sensor == g_joy[j].sensor && MORPHOS_SameDevice(&now[i], &g_joy[j])) {
+                now[i].instance_id = g_joy[j].instance_id;
+                old_matched[j] = true;
+                break;
+            }
+        }
+    }
+
+    for (int i = 0; i < now_count; i++) {
+        SDL_JoystickID kept = now[i].instance_id;
+        for (int j = 0; kept == 0 && j < joystick_count; j++) {
             if (!old_matched[j] && MORPHOS_SameDevice(&now[i], &g_joy[j])) {
                 kept = g_joy[j].instance_id;
                 old_matched[j] = true;
@@ -485,11 +496,13 @@ static bool MORPHOS_JoystickOpen(SDL_Joystick *joystick, int device_index)
 							// Force "Xbox360 Controller" (WIRED) to use SDL_JOYSTICK_POWER_WIRED
 							const char *devname = g_joy[device_index].name;
 							if (devname && SDL_strcmp(devname, "Xbox360 Controller") == 0) {
-								SDL_SendJoystickPowerInfo(joystick, SDL_POWERSTATE_UNKNOWN, 100);
-								hwdata->battery = sensor;
-							} else {							
 								hwdata->battery = NULL;
 								SDL_SendJoystickPowerInfo(joystick, SDL_POWERSTATE_NO_BATTERY, -1);
+							} else {
+								/* level read in MORPHOS_JoystickUpdate() */
+								hwdata->battery = sensor;
+								hwdata->last_battery_level = -1;
+								SDL_SendJoystickPowerInfo(joystick, SDL_POWERSTATE_UNKNOWN, -1);
 							}
 							break;
 						case SensorType_HIDInput_Knob:
@@ -538,7 +551,7 @@ static bool MORPHOS_JoystickRumble(SDL_Joystick *joystick, Uint16 low, Uint16 hi
     if (!hw) return SDL_Unsupported();
 
     const bool stop = (low == 0 && high == 0);
-    const ULONG dur = stop ? 0 : 1200;
+    const ULONG dur = stop ? 0 : MOS_RUMBLE_DURATION_MS;
 
     DOUBLE l = (DOUBLE)low / 65535.0;
     DOUBLE r = (DOUBLE)high / 65535.0;
@@ -565,7 +578,7 @@ static bool MORPHOS_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_r
     }
 
     const bool stop = (left_rumble == 0 && right_rumble == 0);
-    const ULONG dur = stop ? 0 : 1200;
+    const ULONG dur = stop ? 0 : MOS_RUMBLE_DURATION_MS;
 
     DOUBLE l = (DOUBLE)left_rumble / 65535.0;
     DOUBLE r = (DOUBLE)right_rumble / 65535.0;
@@ -732,7 +745,7 @@ static void MORPHOS_JoystickUpdate(SDL_Joystick *joystick)
 
 					if (level != hwdata->last_battery_level) {
 						hwdata->last_battery_level = level;
-						SDL_SendJoystickPowerInfo(joystick, SDL_POWERSTATE_UNKNOWN, level);
+						SDL_SendJoystickPowerInfo(joystick, SDL_POWERSTATE_ON_BATTERY, level);
 					}
 				}
 			}
