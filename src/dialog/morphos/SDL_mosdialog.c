@@ -485,7 +485,6 @@ void SDL_SYS_ShowFileDialogWithProperties(SDL_FileDialogType type, SDL_DialogFil
     const char *cancel = SDL_GetStringProperty(props, SDL_PROP_FILE_DIALOG_CANCEL_STRING, NULL);
     struct Window *syswin = NULL;
 
-    // asl.library is optional in sdl3.library (opened if present)
     if (!AslBase) {
         SDL_SetError("asl.library 39 is not available");
         callback(userdata, NULL, -1);
