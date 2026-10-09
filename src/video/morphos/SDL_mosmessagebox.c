@@ -94,8 +94,8 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
                     else
                         rc -= 1;
 
-					if (rc >= 0 && rc < mbd->numbuttons)
-						*buttonID = mbd->buttons[rc].buttonID;
+					// -1: no SDL button (none given, the "OK" gadget is ours)
+					*buttonID = (rc >= 0 && rc < mbd->numbuttons) ? mbd->buttons[rc].buttonID : -1;
 
                     SDL_free(btxt);
                 }
