@@ -75,8 +75,7 @@ SOURCES = \
 	$(wildcard src/joystick/morphos/*.c) \
 	$(wildcard src/joystick/virtual/*.c) \
 	$(wildcard src/libm/*.c) \
-	$(wildcard src/loadso/morphos/*.c) \
-	$(wildcard src/loadso/morphos/libdll/*.c) \
+	src/loadso/dlopen/SDL_sysloadso.c \
 	$(wildcard src/locale/*.c) \
 	$(wildcard src/locale/morphos/*.c) \
 	src/main/generic/SDL_sysmain_callbacks.c \

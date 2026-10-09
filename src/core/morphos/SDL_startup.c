@@ -54,8 +54,7 @@ asm
 extern void MorphOS_LibStartup(void);
 extern void MorphOS_LibCleanup(void);
 extern void SDL_Quit(void);
-/* src/loadso/morphos/libdll/dll.c: DLLs still loaded by this opener */
-extern void dllLibCleanup(void);
+extern void MOS_LoadSO_Cleanup(void);
 
 /**********************************************************************
 	Startup/Cleanup
@@ -90,7 +89,7 @@ VOID SAVEDS MOS_Cleanup(struct SDL_Library *LibBase)
 
 	SDL_Quit();
 
-	dllLibCleanup();
+	MOS_LoadSO_Cleanup();
 	MorphOS_LibCleanup();
 
 	// Run destructors

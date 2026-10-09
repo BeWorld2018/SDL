@@ -6362,27 +6362,6 @@
 	})
 #endif
 
-#ifndef SDL_LoadFunction
-#define SDL_LoadFunction(__p0, __p1) \
-	({ \
-		SDL_SharedObject * __t__p0 = __p0;\
-		const char * __t__p1 = __p1;\
-		long __base = (long)(SDL3_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((SDL_FunctionPointer (*)(SDL_SharedObject *, const char *))*(void**)(__base - 3700))(__t__p0, __t__p1));\
-	})
-#endif
-
-#ifndef SDL_LoadObject
-#define SDL_LoadObject(__p0) \
-	({ \
-		const char * __t__p0 = __p0;\
-		long __base = (long)(SDL3_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((SDL_SharedObject *(*)(const char *))*(void**)(__base - 3706))(__t__p0));\
-	})
-#endif
-
 #ifndef SDL_LoadWAV
 #define SDL_LoadWAV(__p0, __p1, __p2, __p3) \
 	({ \
@@ -9867,16 +9846,6 @@
 		long __base = (long)(SDL3_BASE_NAME);\
 		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
 		(((void (*)(SDL_AudioStream *const *, int ))*(void**)(__base - 5608))(__t__p0, __t__p1));\
-	})
-#endif
-
-#ifndef SDL_UnloadObject
-#define SDL_UnloadObject(__p0) \
-	({ \
-		SDL_SharedObject * __t__p0 = __p0;\
-		long __base = (long)(SDL3_BASE_NAME);\
-		__asm volatile("mr 12,%0": :"r"(__base):"r12");\
-		(((void (*)(SDL_SharedObject *))*(void**)(__base - 5614))(__t__p0));\
 	})
 #endif
 

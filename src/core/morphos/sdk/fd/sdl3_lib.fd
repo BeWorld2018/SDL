@@ -628,8 +628,10 @@ SDL_LoadBMP(a)(sysv,r12base)
 SDL_LoadBMP_IO(a,b)(sysv,r12base)
 SDL_LoadFile(a,b)(sysv,r12base)
 SDL_LoadFile_IO(a,b,c)(sysv,r12base)
-SDL_LoadFunction(a,b)(sysv,r12base)
-SDL_LoadObject(a)(sysv,r12base)
+##private
+private_SDL_LoadFunction()()
+private_SDL_LoadObject()()
+##public
 SDL_LoadWAV(a,b,c,d)(sysv,r12base)
 SDL_LoadWAV_IO(a,b,c,d,e)(sysv,r12base)
 SDL_LockAudioStream(a)(sysv,r12base)
@@ -959,7 +961,9 @@ SDL_TryWaitSemaphore(a)(sysv,r12base)
 SDL_UCS4ToUTF8(a,b)(sysv,r12base)
 SDL_UnbindAudioStream(a)(sysv,r12base)
 SDL_UnbindAudioStreams(a,b)(sysv,r12base)
-SDL_UnloadObject(a)(sysv,r12base)
+##private
+private_SDL_UnloadObject()()
+##public
 SDL_UnlockAudioStream(a)(sysv,r12base)
 SDL_UnlockJoysticks()(sysv,r12base)
 SDL_UnlockMutex(a)(sysv,r12base)
