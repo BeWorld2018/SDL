@@ -48,6 +48,7 @@ typedef struct MOS_ThreadStart
 {
     SDL_Thread *thread;
     BPTR        dir;        /* creator's current dir, for relative paths */
+    BPTR        homedir;    /* creator's PROGDIR: (the pool workers have none) */
     char        name[64];
 } MOS_ThreadStart;
 
@@ -70,12 +71,18 @@ static void RunThread(APTR data, struct MsgPort *port)
     STRPTR oldname = task->tc_Node.ln_Name;
     const LONG oldpri = task->tc_Node.ln_Pri;
     BPTR olddir = 0;
+    BPTR oldhome = 0;
 
     if (start->name[0]) {
         task->tc_Node.ln_Name = (STRPTR)start->name;
     }
     if (start->dir) {
         olddir = CurrentDir(start->dir);
+    }
+    /* PROGDIR: is the process' pr_HomeDir: without it, "PROGDIR:..." paths
+       (SDL_GetBasePath(), file dialogs, async IO) ask to insert PROGDIR: */
+    if (start->homedir) {
+        oldhome = SetProgramDir(start->homedir);
     }
 
     if (stacksize > MOS_THREAD_STACK_MIN) {
@@ -98,6 +105,9 @@ static void RunThread(APTR data, struct MsgPort *port)
         SDL_RunThread(thread);
     }
 
+    if (start->homedir) {
+        UnLock(SetProgramDir(oldhome));
+    }
     if (start->dir) {
         UnLock(CurrentDir(olddir));
     }
@@ -133,12 +143,18 @@ bool SDL_SYS_CreateThread(SDL_Thread *thread, SDL_FunctionPointer pfnBeginThread
     me = FindTask(NULL);
     if (me->tc_Node.ln_Type == NT_PROCESS) {
         start->dir = DupLock(((struct Process *)me)->pr_CurrentDir);
+        if (((struct Process *)me)->pr_HomeDir) {
+            start->homedir = DupLock(((struct Process *)me)->pr_HomeDir);
+        }
     }
 
     thread->handle = QueueWorkItem(threadpool, (APTR)RunThread, start);
     if (thread->handle == WORKITEM_INVALID) {
         if (start->dir) {
             UnLock(start->dir);
+        }
+        if (start->homedir) {
+            UnLock(start->homedir);
         }
         SDL_free(start);
         return SDL_SetError("Not enough resources to create thread");
