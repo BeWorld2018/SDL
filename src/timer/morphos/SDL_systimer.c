@@ -42,12 +42,29 @@ Uint64 SDL_GetPerformanceFrequency(void)
     return ReadCPUClock(&val);
 }
 
+/* Temporary reply port (on the stack) for the calling task. SIGB_SINGLE is
+   exec's own semaphore signal (ObtainSemaphore() waits on it): a pending or
+   late SIGF_SINGLE wakes it up too early. An allocated bit is used when one
+   is free; MorphOS_FreeQPort() gives it back, or clears SIGF_SINGLE. Only
+   once nothing can be replied to the port any more. */
 void MorphOS_InitQPort(struct MsgPort *port)
 {
-    port->mp_SigBit = SIGB_SINGLE;
+    const BYTE bit = AllocSignal(-1);
+
+    port->mp_SigBit = (bit != -1) ? (UBYTE)bit : SIGB_SINGLE;
     port->mp_Flags = PA_SIGNAL;
     port->mp_SigTask = FindTask(NULL);
     NEWLIST(&port->mp_MsgList);
+}
+
+void MorphOS_FreeQPort(struct MsgPort *port)
+{
+    if (port->mp_SigBit != SIGB_SINGLE) {
+        FreeSignal(port->mp_SigBit);
+    } else {
+        SetSignal(0, SIGF_SINGLE);
+    }
+    port->mp_SigTask = NULL;
 }
 
 static void MorphOS_NormalizeTimeval(struct timeval *tv)
@@ -96,6 +113,8 @@ void SDL_SYS_DelayNS(Uint64 ns)
     MorphOS_NormalizeTimeval(&req.tr_time);
 
     DoIO((struct IORequest *)&req);
+
+    MorphOS_FreeQPort(&port);
 }
 
 #endif /* SDL_TIMER_MORPHOS */
