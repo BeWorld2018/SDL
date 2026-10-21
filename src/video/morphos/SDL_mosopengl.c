@@ -25,6 +25,7 @@
 #include "../SDL_sysvideo.h"
 #include "SDL_mosvideo.h"
 #include "SDL_moswindow.h"
+#include "SDL_mosopengl.h"
 
 #include <proto/exec.h>
 #include <proto/graphics.h>
@@ -109,32 +110,80 @@ MOS_GL_FreeBitMap(SDL_VideoDevice *_this, SDL_Window *window)
     }
 }
 
-bool MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
+/* Without a system window (screen closed under it), the bitmap gets the
+   window size, in the format of the public screen. */
+static bool
+MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
 {
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
 	MOS_GL_FreeBitMap(_this, window);
 
-	struct BitMap * friend_bitmap = data->win->RPort->BitMap;
-	ULONG depth = GetBitMapAttr(friend_bitmap, BMA_DEPTH);
+	struct BitMap * friend_bitmap = NULL;
+	int w = window->w;
+	int h = window->h;
 
-	int w = 0;
-	int h = 0;
-	MOS_GetWindowSize(data->win, &w, &h);
+	if (data->win) {
+		friend_bitmap = data->win->RPort->BitMap;
+		MOS_GetWindowSize(data->win, &w, &h);
+	} else if (data->videodata->PublicScreen) {
+		friend_bitmap = data->videodata->PublicScreen->RastPort.BitMap;
+	}
+	ULONG depth = friend_bitmap ? GetBitMapAttr(friend_bitmap, BMA_DEPTH) : 32;
 
 	D("AllocBitMap w=%d h=%d depth=%d", w, h, (int)depth);
-	return (data->bitmap = AllocBitMap(w, h, depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
+	return (data->bitmap = AllocBitMap(SDL_max(w, 1), SDL_max(h, 1), depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
-bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
+/* Exclusive fullscreen on our custom screen: TinyGL renders straight into it
+   and flips its own buffers (triple buffering), there is no bitmap to copy.
+   NULL when the window renders into a bitmap. */
+static struct Screen *
+MOS_GL_GetTargetScreen(SDL_VideoDevice *_this, SDL_Window *window)
 {
-	D("");
+	SDL_VideoData *video = _this->internal;
+	SDL_WindowData *data = (SDL_WindowData *) window->internal;
+	struct Window *win = data->win;
+	struct Screen *screen = video->CustomScreen;
+
+	if (!win || !screen || win->WScreen != screen || !(window->flags & SDL_WINDOW_FULLSCREEN) || data->gl_screen_failed) {
+		return NULL;
+	}
+	// The whole screen is drawn: the window has to cover it
+	if (win->Width != screen->Width || win->Height != screen->Height) {
+		return NULL;
+	}
+	return screen;
+}
+
+/* Detaches the window's context from its bitmap or screen. The GLContext
+   (textures, state) is kept for MOS_GL_InitContext(). */
+static void
+MOS_GL_DetachContext(SDL_VideoDevice *_this, SDL_Window *window)
+{
 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
 
-	if (data->__tglContext != NULL) {
+	if (data->bitmap != NULL || data->gl_screen != NULL) {
 		GLADestroyContext(data->__tglContext);
-		data->__tglContext = NULL;
+		data->gl_screen = NULL;
+		MOS_GL_FreeBitMap(_this, window);
 	}
+}
+
+/* Attaches the context to the window's screen or to a new bitmap. */
+static bool
+MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window, GLContext *context)
+{
+	D("context 0x%08lx", context);
+	SDL_WindowData *data = (SDL_WindowData *) window->internal;
+	SDL_VideoData *video = _this->internal;
+
+	if (data->__tglContext != NULL) {
+		MOS_GL_DetachContext(_this, window);
+	}
+
+	// Kept even if the attach fails, so that MOS_GL_DestroyContext() still finds it
+	data->__tglContext = context;
 
 	struct TagItem tgltags[] =
 	{
@@ -143,26 +192,49 @@ bool MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window)
 		{TAG_DONE}
 	};
 
-	if (MOS_GL_AllocBitmap(_this, window))
-	{
-		tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
-		tgltags[0].ti_Data = (IPTR)data->bitmap;
-	} else {
+	struct Screen *screen = MOS_GL_GetTargetScreen(_this, window);
+	if (screen) {
+		tgltags[0].ti_Tag = TGL_CONTEXT_SCREEN;
+		tgltags[0].ti_Data = (IPTR)screen;
+		if (GLAInitializeContext(context, tgltags)) {
+			D("GLAInitializeContext on screen %p Success", screen);
+			data->gl_screen = screen;
+			GLASetSync(context, video->vsyncEnabled ? 1 : 0);
+			return true;
+		}
+		D("GLAInitializeContext on screen %p Failed, using a bitmap", screen);
+		data->gl_screen_failed = true;
+	}
+
+	if (!MOS_GL_AllocBitmap(_this, window)) {
 		D("Failed to AllocBitmap !");
 		return false;
 	}
 
-	// Initialize new context
-	GLContext *ctx = data->__tglContext ? data->__tglContext : __tglContext;
-	int success = GLAInitializeContext(ctx, tgltags);
-	if (success) {
-		D("GLAInitializeContext Success");
-		data->__tglContext = __tglContext = ctx;
-		MOS_GL_SyncCaller();
-	} else
+	tgltags[0].ti_Tag = TGL_CONTEXT_BITMAP;
+	tgltags[0].ti_Data = (IPTR)data->bitmap;
+	if (!GLAInitializeContext(context, tgltags)) {
 		D("GLAInitializeContext Failed");
+		MOS_GL_FreeBitMap(_this, window);
+		return false;
+	}
 
-	return success ? true : false;
+	D("GLAInitializeContext Success");
+	return true;
+}
+
+void
+MOS_GL_DetachScreenContexts(SDL_VideoDevice *_this, struct Screen *screen)
+{
+	for (SDL_Window *sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
+		SDL_WindowData *data = sdlwin->internal;
+
+		// Back to a bitmap, MOS_GL_SwapWindow() moves it to the next target
+		if (data && data->__tglContext && data->gl_screen == screen) {
+			D("Context 0x%08lx leaves screen %p", data->__tglContext, screen);
+			MOS_GL_InitContext(_this, sdlwin, data->__tglContext);
+		}
+	}
 }
 
 SDL_GLContext
@@ -189,7 +261,7 @@ MOS_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window * window)
 		} else
 #endif
 		TGLSetAutomaticContextVersion(TinyGLBase, glcont);
-		bool success = MOS_GL_InitContext(_this, window);
+		bool success = MOS_GL_InitContext(_this, window, glcont);
 		if (success) {
 			if ((window->flags & SDL_WINDOW_FULLSCREEN) == 0) {
 				GLClearColor(__tglContext, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -233,6 +305,14 @@ MOS_GL_SetSwapInterval(SDL_VideoDevice *_this, int interval)
 	SDL_VideoData *data = _this->internal;
 	data->vsyncEnabled = (interval == 1 ? TRUE : FALSE);
 	D("vsyncEnabled=%d", (data->vsyncEnabled ? 1 :0));
+
+	// Screen contexts flip by themselves
+	for (SDL_Window *sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
+		SDL_WindowData *wd = sdlwin->internal;
+		if (wd && wd->gl_screen) {
+			GLASetSync(wd->__tglContext, data->vsyncEnabled ? 1 : 0);
+		}
+	}
 	return true;
 }
 
@@ -252,15 +332,27 @@ MOS_GL_SwapWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		return false;
 
 	SDL_VideoData *video = _this->internal;
-	if (video->vsyncEnabled) {
-		WaitTOF();
-	}
 
-	GLASwapBuffers(data->__tglContext);
+	if (data->gl_screen != NULL) {
+		// TinyGL flips the screen buffers, GLASetSync() follows the swap interval
+		GLASwapBuffers(data->__tglContext);
+	} else if (data->bitmap != NULL) {
+		// The card starts first, then the beam is waited for, as in sdl2.library
+		GLASwapBuffers(data->__tglContext);
 
-	if (data->bitmap != NULL) {
+		if (video->vsyncEnabled) {
+			WaitTOF();
+		}
+
 		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop,
 				window->w, window->h, 0xc0);
+	}
+
+	// Custom screen opened or closed under the context (fullscreen switch,
+	// hide/show), or detached: the next frame goes to the right target
+	if (MOS_GL_GetTargetScreen(_this, window) != data->gl_screen ||
+	    (data->gl_screen == NULL && data->bitmap == NULL)) {
+		return MOS_GL_InitContext(_this, window, data->__tglContext);
 	}
 
 	return true;
@@ -281,9 +373,8 @@ MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context)
 
 			if (data->__tglContext == (GLContext*)context) {
                 D("Found TinyGL context 0x%08lx, clearing window binding", context);
-                GLADestroyContext((GLContext*)context);
+                MOS_GL_DetachContext(_this, sdlwin);
 				data->__tglContext = NULL;
-				MOS_GL_FreeBitMap(_this, sdlwin);
 				deletions++;
 			}
 		}
@@ -311,7 +402,7 @@ MOS_GL_ResizeContext(SDL_VideoDevice *_this, SDL_Window *window)
 		return false;
 	}
 
-	if (!MOS_GL_InitContext(_this, window)) {
+	if (!MOS_GL_InitContext(_this, window, data->__tglContext)) {
 		return false;
 	}
 

@@ -92,6 +92,12 @@ struct SDL_WindowData
 	// Inner size last asked to Intuition (MOS_SetWindowBox), waited for by MOS_SyncWindow
 	bool box_pending;
 	int box_pending_w, box_pending_h;
+
+	// Screen TinyGL renders into (exclusive fullscreen, TGL_CONTEXT_SCREEN),
+	// NULL when it renders into bitmap. Neither of them: context detached
+	struct Screen *gl_screen;
+	// TGL_CONTEXT_SCREEN failed once: this window keeps the bitmap
+	bool gl_screen_failed;
 };
 
 /* SDL functions */

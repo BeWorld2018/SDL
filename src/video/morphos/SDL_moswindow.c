@@ -239,7 +239,9 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 		MOS_WaitWindowBox((SDL_WindowData *) window->internal, win);
 	}
 
-	MOS_InvalidatePointerCacheForWindow(win);
+	// System pointer back before the window (and maybe its screen) goes:
+	// the SDL cursor may be hidden, and the events still obtained (grab)
+	MOS_ResetWindowPointer(win);
 
 	if (SDL_GetKeyboardFocus() == window)
 		SDL_SetKeyboardFocus(NULL);

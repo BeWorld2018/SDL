@@ -683,12 +683,21 @@ static struct {
 void MOS_ClearPointerIfApplied(void)
 {
     if (g_ptrcache.win) {
-        g_ptrcache.win->Flags &= ~WFLG_RMBTRAP;
-        ClearPointer(g_ptrcache.win);
-        g_ptrcache.win = NULL;
-    } else {
-		g_ptrcache.win = NULL;
-	}
+        MOS_ResetWindowPointer(g_ptrcache.win);
+    }
+    g_ptrcache.win = NULL;
+}
+
+void MOS_ResetWindowPointer(struct Window *win)
+{
+    if (!win) {
+        return;
+    }
+
+    win->Flags &= ~WFLG_RMBTRAP;
+    ClearPointer(win);
+    SetWindowPointer(win, WA_PointerType, POINTERTYPE_NORMAL, TAG_DONE);
+    MOS_InvalidatePointerCacheForWindow(win);
 }
 
 void MOS_InvalidatePointerCacheForWindow(struct Window *win)
@@ -777,6 +786,7 @@ MOS_UpdatePointerIfNeeded(SDL_VideoData *vd, SDL_WindowData *wdata)
             SetWindowPointer(w, WA_PointerType, POINTERTYPE_INVISIBLE, TAG_DONE);
         } else {
             ClearPointer(w);
+            SetWindowPointer(w, WA_PointerType, POINTERTYPE_NORMAL, TAG_DONE);
         }
     }
 

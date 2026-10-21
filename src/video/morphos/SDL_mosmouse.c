@@ -251,8 +251,7 @@ MOS_FreeCursor(SDL_Cursor *cursor)
 
 				ForeachNode(&vd->windowlist, wd) {
 					if (wd->win) {
-						ClearPointer(wd->win);
-						MOS_InvalidatePointerCacheForWindow(wd->win);
+						MOS_ResetWindowPointer(wd->win);
 					}
 				}
 			}

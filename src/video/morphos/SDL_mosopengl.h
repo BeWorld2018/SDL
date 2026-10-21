@@ -26,6 +26,8 @@
 #ifndef _SDL_mosopengl_h
 #define _SDL_mosopengl_h
 
+struct Screen;
+
 /* SDL functions */
 extern bool MOS_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path);
 extern SDL_FunctionPointer MOS_GL_GetProcAddress(SDL_VideoDevice *_this, const char *proc);
@@ -38,5 +40,6 @@ extern bool MOS_GL_SwapWindow(SDL_VideoDevice *_this, SDL_Window * window);
 extern bool MOS_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context);
 /* Non-SDL functions */
 extern bool MOS_GL_ResizeContext(SDL_VideoDevice *_this, SDL_Window *window);
+extern void MOS_GL_DetachScreenContexts(SDL_VideoDevice *_this, struct Screen *screen);
 
 #endif /* _SDL_mosopengl_h */

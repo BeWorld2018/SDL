@@ -32,4 +32,5 @@ extern void MOS_ClearPointerIfApplied(void);
 
 extern void MOS_FocusAndWarpIfNeeded(SDL_VideoDevice *_this, SDL_WindowData *data);
 extern void MOS_InvalidatePointerCacheForWindow(struct Window *win);
+extern void MOS_ResetWindowPointer(struct Window *win);
 #endif /* _SDL_mosevents_h */

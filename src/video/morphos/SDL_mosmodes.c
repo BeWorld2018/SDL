@@ -23,6 +23,7 @@
 #include "SDL_mosmodes.h"
 #include "SDL_mosvideo.h"
 #include "SDL_moswindow.h"
+#include "SDL_mosopengl.h"
 #include "SDL_misc.h"
 
 #include <cybergraphx/cybergraphics.h>
@@ -78,6 +79,9 @@ void MOS_CloseScreen(SDL_VideoDevice *_this)
     struct Screen *closing = vd->CustomScreen;
     if (closing && closing != vd->PublicScreen) {
         D("Trying to closing custom screen %p", closing);
+
+        // TinyGL contexts drawing straight into it must leave first
+        MOS_GL_DetachScreenContexts(_this, closing);
 
         if (!CloseScreen(closing)) {
             D("Screen has open window(s), cannot close");
@@ -688,6 +692,8 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         SA_ShowTitle,     (IPTR)FALSE,
         SA_Title,         (IPTR)FilePart(vd->FullAppName),
         SA_AdaptSize,     (IPTR)TRUE,
+        // Needed by TinyGL to render into the screen (TGL_CONTEXT_SCREEN)
+        SA_3DSupport,     (IPTR)TRUE,
         SA_ErrorCode,     (IPTR)&openError,
         TAG_DONE);
 
