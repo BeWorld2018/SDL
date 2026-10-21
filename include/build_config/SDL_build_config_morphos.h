@@ -220,8 +220,8 @@
 #define SDL_SENSOR_DUMMY 1
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_MORPHOS 1
-/* #undef SDL_LOADSO_DLOPEN */
+/* #undef SDL_LOADSO_MORPHOS */  /* old libdll (module = separate process), removed */
+#define SDL_LOADSO_DLOPEN 1  /* dynload.library */
 /* #undef SDL_LOADSO_DUMMY */
 
 /* Enable various threading systems */

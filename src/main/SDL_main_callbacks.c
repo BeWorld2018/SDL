@@ -94,8 +94,15 @@ bool SDL_HasMainCallbacks(void)
     return false;
 }
 
+#ifdef __MORPHOS__
+static void SDL_CheckDefaultArgcArgv(int *argc, char ***argv);
+#endif
+
 SDL_AppResult SDL_InitMainCallbacks(int argc, char *argv[], SDL_AppInit_func appinit, SDL_AppIterate_func appiter, SDL_AppEvent_func appevent, SDL_AppQuit_func appquit)
 {
+#ifdef __MORPHOS__
+    SDL_CheckDefaultArgcArgv(&argc, &argv);  // also for the main callbacks (Ambient start)
+#endif
     SDL_main_iteration_callback = appiter;
     SDL_main_event_callback = appevent;
     SDL_main_quit_callback = appquit;
@@ -149,7 +156,13 @@ void SDL_QuitMainCallbacks(SDL_AppResult result)
 
 static void SDL_CheckDefaultArgcArgv(int *argc, char ***argv)
 {
+#ifdef __MORPHOS__
+    // Started from Ambient/Workbench: libnix passes argc == 0 and argv is the
+    // WBStartup message, not a NULL-terminated array.
+    if (!*argv || *argc <= 0) {
+#else
     if (!*argv) {
+#endif
         static char dummyargv0[] = { 'S', 'D', 'L', '_', 'a', 'p', 'p', '\0' };
         static char *argvdummy[2] = { dummyargv0, NULL };
         *argc = 1;
