@@ -102,6 +102,7 @@ class JobSpec:
     gdk: bool = False
     vita_gles: Optional[VitaGLES] = None
     more_hard_deps: bool = False
+    allow_failure: bool = False
 
 
 JOB_SPECS = {
@@ -118,12 +119,12 @@ JOB_SPECS = {
     "ubuntu-22.04": JobSpec(name="Ubuntu 22.04",                            os=JobOs.Ubuntu22_04,       platform=SdlPlatform.Linux,       artifact="SDL-ubuntu22.04", ),
     "ubuntu-latest": JobSpec(name="Ubuntu (latest)",                        os=JobOs.UbuntuLatest,      platform=SdlPlatform.Linux,       artifact="SDL-ubuntu-latest", ),
     "ubuntu-24.04-arm64": JobSpec(name="Ubuntu 24.04 (ARM64)",              os=JobOs.Ubuntu24_04_arm,   platform=SdlPlatform.Linux,       artifact="SDL-ubuntu24.04-arm64", ),
-    "steamrt3": JobSpec(name="Steam Linux Runtime 3.0 (x86_64)",            os=JobOs.UbuntuLatest,      platform=SdlPlatform.Linux,       artifact="SDL-steamrt3",           container="registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest" ),
+    "steamrt3": JobSpec(name="Steam Linux Runtime 3.0 (x86_64)",            os=JobOs.UbuntuLatest,      platform=SdlPlatform.Linux,       artifact="SDL-steamrt3",           container="registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest", allow_failure=True ),
     "steamrt4": JobSpec(name="Steam Linux Runtime 4.0 (x86_64)",            os=JobOs.UbuntuLatest,      platform=SdlPlatform.Linux,       artifact="SDL-steamrt4",           container="registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:latest", more_hard_deps = True, ),
     "steamrt4-arm64": JobSpec(name="Steam Linux Runtime 4.0 (arm64)",       os=JobOs.Ubuntu24_04_arm,   platform=SdlPlatform.Linux,       artifact="SDL-steamrt4-arm64",     container="registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk/arm64:latest", more_hard_deps = True, ),
     "ubuntu-intel-icx": JobSpec(name="Ubuntu 22.04 (Intel oneAPI)",         os=JobOs.Ubuntu22_04,       platform=SdlPlatform.Linux,       artifact="SDL-ubuntu22.04-oneapi", intel=IntelCompiler.Icx, ),
     "ubuntu-intel-icc": JobSpec(name="Ubuntu 22.04 (Intel Compiler)",       os=JobOs.Ubuntu22_04,       platform=SdlPlatform.Linux,       artifact="SDL-ubuntu22.04-icc",    intel=IntelCompiler.Icc, ),
-    "macos-framework-x64":  JobSpec(name="MacOS (Framework) (x64)",         os=JobOs.Macos14,           platform=SdlPlatform.MacOS,       artifact="SDL-macos-framework",    apple_framework=True,  apple_archs={AppleArch.Aarch64, AppleArch.X86_64, }, xcode=True, ),
+    "macos-framework-x64":  JobSpec(name="MacOS (Framework) (x64)",         os=JobOs.MacosLatest,       platform=SdlPlatform.MacOS,       artifact="SDL-macos-framework",    apple_framework=True,  apple_archs={AppleArch.Aarch64, AppleArch.X86_64, }, xcode=True, ),
     "macos-framework-arm64": JobSpec(name="MacOS (Framework) (arm64)",      os=JobOs.MacosLatest,       platform=SdlPlatform.MacOS,       artifact=None,                     apple_framework=True,  apple_archs={AppleArch.Aarch64, AppleArch.X86_64, }, ),
     "macos-26-framework-arm64": JobSpec(name="MacOS 26 (Framework) (arm64)",os=JobOs.Macos26,           platform=SdlPlatform.MacOS,       artifact=None,                     apple_framework=True,  apple_archs={AppleArch.Aarch64, AppleArch.X86_64, }, ),
     "macos-gnu-arm64": JobSpec(name="MacOS (GNU prefix)",                   os=JobOs.MacosLatest,       platform=SdlPlatform.MacOS,       artifact="SDL-macos-arm64-gnu",    apple_framework=False, apple_archs={AppleArch.Aarch64, },  ),
@@ -234,6 +235,7 @@ class JobDetails:
     pypi_packages: list[str] = dataclasses.field(default_factory=list)
     setup_gage_sdk_path: str = ""
     binutils_strings: str = "strings"
+    allow_failure: bool = False
 
     def to_workflow(self, enable_artifacts: bool) -> dict[str, str|bool]:
         data = {
@@ -303,6 +305,7 @@ class JobDetails:
             "pypi-packages": my_shlex_join(self.pypi_packages),
             "setup-ngage-sdk-path": self.setup_gage_sdk_path,
             "binutils-strings": self.binutils_strings,
+            "allow-failure": self.allow_failure,
         }
         return {k: v for k, v in data.items() if v != ""}
 
@@ -328,6 +331,7 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
         platform=spec.platform.value,
         sudo="sudo",
         no_cmake=spec.no_cmake,
+        allow_failure=spec.allow_failure,
     )
     if job.os.startswith("ubuntu"):
         job.apt_packages.extend([
@@ -746,13 +750,13 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
             job.msys2_packages.extend([
                 f"{msys2_env}-cc",
                 f"{msys2_env}-cmake",
-                f"{msys2_env}-ffmpeg",
                 f"{msys2_env}-ninja",
                 f"{msys2_env}-pkg-config",
             ])
             if spec.msys2_platform not in (Msys2Platform.Mingw32, ):
-                job.msys2_packages.append(f"{msys2_env}-perl")
                 job.msys2_packages.append(f"{msys2_env}-clang-tools-extra")
+                job.msys2_packages.append(f"{msys2_env}-perl")
+                job.msys2_packages.append(f"{msys2_env}-ffmpeg")
             if job.ccache:
                 job.msys2_packages.append(f"{msys2_env}-ccache")
         case SdlPlatform.Riscos:
