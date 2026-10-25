@@ -89,7 +89,6 @@ typedef struct
 	
 	// Currently known window position and dimensions
 	LONG curr_x, curr_y, curr_w, curr_h;
-	int old_w, old_h, old_x, old_y;
 
 	// Window box before MOS_MaximizeWindow(), for MOS_RestoreWindow()
 	LONG restore_x, restore_y, restore_w, restore_h;

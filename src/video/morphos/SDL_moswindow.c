@@ -122,21 +122,26 @@ MOS_StripWindowMessages(struct Window *win)
 }
 
 static void
-MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win)
+MOS_DropFocus(SDL_Window *sdlwin)
 {
-	D("[%s]\n", __FUNCTION__);
-
 	if (SDL_GetKeyboardFocus() == sdlwin)
 		SDL_SetKeyboardFocus(NULL);
 
 	if (SDL_GetMouseFocus() == sdlwin)
 		SDL_SetMouseFocus(NULL);
+}
+
+static void
+MOS_CloseWindowSafely(SDL_Window *sdlwin, struct Window *win, SDL_bool keep_focus)
+{
+	D("[%s]\n", __FUNCTION__);
+
+	if (!keep_focus)
+		MOS_DropFocus(sdlwin);
 
     if ((sdlwin->flags & SDL_WINDOW_FOREIGN) == 0) {
-		// MOS_DestroyWindow() already cleared sdlwin->driverdata
 		SDL_WindowData *data = sdlwin->driverdata ? (SDL_WindowData *) sdlwin->driverdata : (SDL_WindowData *) win->UserData;
 
-		// No more drops for this window; it is added again when it reopens
 		if (data && data->appmsg) {
 			if (RemoveAppWindow(data->appmsg)) {
 				data->appmsg = NULL;
@@ -179,7 +184,7 @@ MOS_CloseWindows(_THIS)
 
         if (win) {
             wd->win = NULL;
-            MOS_CloseWindowSafely(wd->window, win);
+            MOS_CloseWindowSafely(wd->window, win, SDL_TRUE);
         }
     }
 }
@@ -240,12 +245,6 @@ MOS_SetupWindowData(_THIS, SDL_Window *window, struct Window *win)
         wd->menuactive = FALSE;
 		if (win)
 			win->UserData = (APTR)wd;
-		else {
-			wd->old_w = 0;
-			wd->old_h = 0;
-			wd->old_x = 0;
-			wd->old_y = 0;
-		}
 	} else {
 		return SDL_OutOfMemory();
 	}
@@ -436,6 +435,7 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 		scr = vd->WScreen;
 		if (scr == NULL) {
 			D("[%s] no screen: %s\n", __FUNCTION__, SDL_GetError());
+			MOS_DropFocus(window);
 			return;
 		}
 
@@ -548,6 +548,17 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
             data->menuactive = FALSE;
             data->win->UserData = (APTR)data;
 
+			if (!fullscreen) {
+				int inner_w = data->win->Width - data->win->BorderLeft - data->win->BorderRight;
+				int inner_h = data->win->Height - data->win->BorderTop - data->win->BorderBottom;
+
+				if (inner_w != window->w || inner_h != window->h) {
+					D("[%s] adjusted to %ldx%ld instead of %ldx%ld\n", __FUNCTION__,
+					  (long)inner_w, (long)inner_h, (long)window->w, (long)window->h);
+					SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED, inner_w, inner_h);
+				}
+			}
+
 			// Opened active (WFLG_ACTIVATE). When the window is recreated (fullscreen
 			// switch...) the IDCMP_ACTIVEWINDOW can be lost, and without keyboard
 			// focus SDL drops the joystick and game controller events.
@@ -640,6 +651,9 @@ MOS_ShowWindow_Internal(_THIS, SDL_Window * window)
 			}
 			
 			MOS_UpdateWindowGrab(data);
+		} else {
+			D("[%s] OpenWindowTags failed\n", __FUNCTION__);
+			MOS_DropFocus(window);
 		}
 
 	} else if (data->win) {
@@ -662,7 +676,7 @@ MOS_HideWindow(_THIS, SDL_Window *window)
 	
 	if (data->win) {
 		data->winflags &= ~SDL_MOS_WINDOW_SHOWN;
-		MOS_CloseWindowSafely(window, data->win);
+		MOS_CloseWindowSafely(window, data->win, SDL_FALSE);
 		data->win = NULL;
 	}
 	
@@ -798,31 +812,14 @@ MOS_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * _display,
 		} else {
 			data->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN_DESKTOP;
 		}
-		int ww, hh;
-		SDL_GetWindowSize(window, &ww, &hh);
-		
-		data->old_x = data->curr_x;
-		data->old_y = data->curr_y;
-		data->old_w = ww;
-		data->old_h = hh;
-		D("[%s] Save actual position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h);
-		
 	} else {
-		
 		data->winflags &= ~SDL_MOS_WINDOW_FULLSCREEN;
-
-		if ((data->old_w && data->old_h) && (data->old_w != data->curr_w && data->old_h != data->curr_h)) {
-			D("[%s] Change position %d,%d and size %d,%d\n", __FUNCTION__, data->old_x, data->old_y, data->old_w, data->old_h);
-			window->x = data->old_x;
-			window->y = data->old_y;
-			window->w = data->old_w;
-			window->h = data->old_h;
-			data->old_w = 0;
-			data->old_h = 0;
-			data->old_x = 0;
-			data->old_y = 0;		
-		}
-
+		D("[%s] windowed at %d,%d, size %d,%d\n", __FUNCTION__, window->windowed.x, window->windowed.y,
+		  window->windowed.w, window->windowed.h);
+		window->x = window->windowed.x;
+		window->y = window->windowed.y;
+		window->w = window->windowed.w;
+		window->h = window->windowed.h;
 	}
 	vd->FullScreen = fullscreen;
 
@@ -935,7 +932,7 @@ MOS_DestroyWindow(_THIS, SDL_Window * window)
 		REMOVE(&data->node);
 
 		if (data->win) {
-			MOS_CloseWindowSafely(window, data->win);
+			MOS_CloseWindowSafely(window, data->win, SDL_FALSE);
 			data->win = NULL;
 		}
 		if (data->region)

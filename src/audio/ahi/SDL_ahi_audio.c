@@ -81,23 +81,40 @@ static void AHI_WaitDevice(_THIS)
 static void AHI_PlayDevice(_THIS)
 {
 	MOSAudioData *hidden = this->hidden;
-	struct AHIRequest *req;
-	ULONG current, current2;
-	
+	struct AHIRequest *req, *link = NULL;
+	ULONG current;
+
 	current = hidden->current_buffer;
-	current2 = current ^ 1;
 	req = &hidden->req[current];
+
+	if (hidden->playing) {
+		link = &hidden->req[hidden->previous_buffer];
+
+		/* The request this one should follow already finished: AHI played
+		   silence in between. Keep one more buffer in flight from now on.
+		   A machine fast enough never gets here and keeps 2 requests. */
+		if (CheckIO((struct IORequest *)link)) {
+			link = NULL;
+			if (hidden->requests < AHI_MAX_REQUESTS) {
+				hidden->requests++;
+				D("[%s] AHI chain broke, now %ld requests\n", __FUNCTION__, (LONG)hidden->requests);
+			}
+		}
+	}
 
 	req->ahir_Std.io_Data    = (APTR)hidden->buffers[current];
 	req->ahir_Std.io_Length  = hidden->audioBufferSize;
 	req->ahir_Std.io_Offset  = 0;
 	req->ahir_Frequency      = this->spec.freq;
-	req->ahir_Volume         = AHI_Volume; 
+	req->ahir_Volume         = AHI_Volume;
 	req->ahir_Type           = hidden->sample_format;
 	req->ahir_Position       = 0x8000;
-	req->ahir_Link           = (hidden->playing ? &hidden->req[current2] : NULL);
+	req->ahir_Link           = link;
 
-	hidden->current_buffer = current2;
+	/* A slot added to the rotation is free, so the next callback runs at
+	   once and the extra buffer is queued right away */
+	hidden->previous_buffer = current;
+	hidden->current_buffer = (current + 1) % hidden->requests;
 	hidden->playing = 1;
 
 	SendIO((struct IORequest *)req);
@@ -112,17 +129,15 @@ static Uint8 * AHI_GetDeviceBuf(_THIS)
 static void AHI_CloseDevice(_THIS)
 {
 	MOSAudioData *hidden = this->hidden;
+	int i;
 
-    if (hidden->buffers[0]) {
-        SDL_free(hidden->buffers[0]);
-        hidden->buffers[0] = NULL;
-    }
+	for (i = 0; i < AHI_MAX_REQUESTS; i++) {
+		if (hidden->buffers[i]) {
+			SDL_free(hidden->buffers[i]);
+			hidden->buffers[i] = NULL;
+		}
+	}
 
-    if (hidden->buffers[1]) {
-        SDL_free(hidden->buffers[1]);
-        hidden->buffers[1] = NULL;
-    }
-	
 	this->hidden = NULL;
 
 	/* No request is in flight any more, see AHI_ThreadDeinit() */
@@ -134,6 +149,7 @@ static void AHI_CloseDevice(_THIS)
 static void AHI_ThreadInit(_THIS)
 {
 	MOSAudioData *hidden = this->hidden;
+	int i;
 
 	hidden->ahiport.mp_Node.ln_Pri = 60;
 	hidden->ahiport.mp_Flags = PA_SIGNAL;
@@ -142,7 +158,8 @@ static void AHI_ThreadInit(_THIS)
 
 	NEWLIST(&hidden->ahiport.mp_MsgList);
 
-	bcopy(&hidden->req[0], &hidden->req[1], sizeof(hidden->req[1]));
+	for (i = 1; i < AHI_MAX_REQUESTS; i++)
+		bcopy(&hidden->req[0], &hidden->req[i], sizeof(hidden->req[i]));
 }
 
 /* Run by the audio thread when it stops. The reply port signals this task,
@@ -151,23 +168,22 @@ static void AHI_ThreadInit(_THIS)
 static void AHI_ThreadDeinit(_THIS)
 {
 	MOSAudioData *hidden = this->hidden;
-	SDL_bool pending[2];
+	SDL_bool pending[AHI_MAX_REQUESTS];
 	int i;
 
-	if (this->iscapture) {
-		pending[0] = hidden->requestSent;
-		pending[1] = SDL_FALSE;
-	} else {
-		pending[0] = hidden->req[0].ahir_Std.io_Data ? SDL_TRUE : SDL_FALSE;
-		pending[1] = hidden->req[1].ahir_Std.io_Data ? SDL_TRUE : SDL_FALSE;
+	for (i = 0; i < AHI_MAX_REQUESTS; i++) {
+		if (this->iscapture)
+			pending[i] = i == 0 ? hidden->requestSent : SDL_FALSE;
+		else
+			pending[i] = hidden->req[i].ahir_Std.io_Data ? SDL_TRUE : SDL_FALSE;
 	}
 
-	/* Abort both first: the queued request is linked to the playing one */
-	for (i = 0; i < 2; i++) {
+	/* Abort them all first: the queued requests are linked to the playing one */
+	for (i = 0; i < AHI_MAX_REQUESTS; i++) {
 		if (pending[i])
 			AbortIO((struct IORequest *)&hidden->req[i]);
 	}
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < AHI_MAX_REQUESTS; i++) {
 		if (pending[i]) {
 			WaitIO((struct IORequest *)&hidden->req[i]);
 			hidden->req[i].ahir_Std.io_Data = NULL;
@@ -184,6 +200,7 @@ static int AHI_OpenDevice(_THIS, const char *devname)
 	MOSAudioData *hidden;
 	SDL_AudioFormat test_format;
 	int sample_format = -1;
+	int i;
 
 	switch (this->spec.format) {
 		case AUDIO_F32LSB:
@@ -255,18 +272,19 @@ static int AHI_OpenDevice(_THIS, const char *devname)
 	hidden->req[0].ahir_Version = 6;
 
 	hidden->audioBufferSize = this->spec.size;
-	hidden->buffers[0] = (Uint8 *) SDL_malloc(hidden->audioBufferSize);
-	hidden->buffers[1] = (Uint8 *) SDL_malloc(hidden->audioBufferSize);
-	if (hidden->buffers[0] == NULL || hidden->buffers[1] == NULL) {
-        SDL_SetError("No memory for audio buffer");
-        return -1;
-    }
-	
-    SDL_memset(hidden->buffers[0], this->spec.silence, hidden->audioBufferSize);
-    SDL_memset(hidden->buffers[1], this->spec.silence, hidden->audioBufferSize);
-	
+	for (i = 0; i < AHI_MAX_REQUESTS; i++) {
+		hidden->buffers[i] = (Uint8 *) SDL_malloc(hidden->audioBufferSize);
+		if (hidden->buffers[i] == NULL) {
+			SDL_SetError("No memory for audio buffer");
+			return -1;
+		}
+		SDL_memset(hidden->buffers[i], this->spec.silence, hidden->audioBufferSize);
+	}
+
 	//hidden->convert = convert;
 	hidden->current_buffer = 0;
+	hidden->previous_buffer = 0;
+	hidden->requests = 2;
 	hidden->sample_format = sample_format;
 	hidden->playing = 0;
 	hidden->requestSent = SDL_FALSE;

@@ -756,7 +756,9 @@ static void OVL_SwapOverlay(OVL_RenderData *data, Uint64 lock, Uint64 write, Uin
 #endif
 
     data->pending_texture = NULL;
-    if (data->vsync) {
+    /* A double buffered overlay already flips on the vertical blank (the next
+       LockVLayer() waits for it): a WaitTOF() too would wait a second time */
+    if (data->vsync && !data->double_buffer) {
         WaitTOF();
     }
     if (data->double_buffer) {
@@ -778,7 +780,8 @@ static void OVL_SwapOverlay(OVL_RenderData *data, Uint64 lock, Uint64 write, Uin
                 D("[%s] %ldx%ld %s, us per upload: lock %ld, write %ld, unlock %ld, %s %ld (%ld uploads)\n", __FUNCTION__,
                   (long)data->src_w, (long)data->src_h, OVL_FormatName(data->srcfmt),
                   (long)(data->upload_ticks[0] * 1000000 / div), (long)(data->upload_ticks[1] * 1000000 / div),
-                  (long)(data->upload_ticks[2] * 1000000 / div), data->vsync ? "WaitTOF+swap" : "swap",
+                  (long)(data->upload_ticks[2] * 1000000 / div),
+                  data->double_buffer ? "swap" : data->vsync ? "WaitTOF" : "show",
                   (long)(data->upload_ticks[3] * 1000000 / div), (long)data->upload_frames);
             }
             SDL_zeroa(data->upload_ticks);

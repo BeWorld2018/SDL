@@ -30,14 +30,20 @@
 /* Hidden "this" pointer for the audio functions */
 #define _THIS   SDL_AudioDevice *this
 
+/* Playback keeps 2 requests in flight and adds one, up to this many, each
+   time the chain of linked requests breaks (the next buffer came too late) */
+#define AHI_MAX_REQUESTS 4
+
 struct SDL_PrivateAudioData
 {
 	struct MsgPort    ahiport;
-	struct AHIRequest req[2];
+	struct AHIRequest req[AHI_MAX_REQUESTS];
 
-	Uint8  *buffers[2];
+	Uint8  *buffers[AHI_MAX_REQUESTS];
 	Uint32 audioBufferSize;
 	UBYTE current_buffer;
+	UBYTE previous_buffer;
+	UBYTE requests;
 	UBYTE sample_format;
 	UBYTE playing;
 	Uint32	lastCaptureTicks;
