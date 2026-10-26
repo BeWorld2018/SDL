@@ -302,7 +302,8 @@ MOS_GL_SwapWindow(_THIS, SDL_Window * window)
 
 	// WaitTOF() sleeps until the vertical blank, WaitBOVP() polls the beam position
 	if (video->vsyncEnabled) {
-		WaitTOF();
+		//WaitTOF();
+		WaitBOVP(&data->win->WScreen->ViewPort);
 	}
 
 	if (data->bitmap != NULL) {
