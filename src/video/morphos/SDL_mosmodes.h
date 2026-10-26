@@ -41,6 +41,7 @@ struct SDL_DisplayModeData
     ULONG					modeid;
     LONG					x;
     LONG					y;
+    bool					hw3d;	// hardware 3D for this mode's pixel format
 };
 
 /* SDL functions */

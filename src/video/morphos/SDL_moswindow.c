@@ -243,12 +243,6 @@ MOS_CloseWindowSafely(SDL_VideoDevice *_this, SDL_Window *window, struct Window 
 	// the SDL cursor may be hidden, and the events still obtained (grab)
 	MOS_ResetWindowPointer(win);
 
-	if (SDL_GetKeyboardFocus() == window)
-		SDL_SetKeyboardFocus(NULL);
-
-	if (SDL_GetMouseFocus() == window)
-		SDL_SetMouseFocus(NULL);
-
 	if (window) {
 		
 		if ((window->flags & SDL_WINDOW_EXTERNAL) == 0) {
@@ -408,6 +402,13 @@ MOS_RecreateWindow(SDL_VideoDevice *_this, SDL_Window *window)
 		MOS_WindowToFront(data->win);
     } else {
         D("Failed to re-create window '%s'", window->title);
+
+        // Kept by MOS_CloseWindowSafely() for the new system window
+        if (SDL_GetKeyboardFocus() == window)
+            SDL_SetKeyboardFocus(NULL);
+
+        if (SDL_GetMouseFocus() == window)
+            SDL_SetMouseFocus(NULL);
     }
 }
 
@@ -931,11 +932,25 @@ bool MOS_CreateSystemWindow(SDL_VideoDevice *_this, SDL_Window *window)
             WA_FrontWindow, (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) ? TRUE : FALSE,
             WA_IDCMP, IDCMPFlags,
             WA_ExtraTitlebarGadgets, extragadget,
+            // a window that doesn't fit on the screen is moved and shrunk, not refused
+            WA_AutoAdjust, TRUE,
             TAG_DONE);
 
         if (wd->win) {
             SDL_PropertiesID props = SDL_GetWindowProperties(window);
             SDL_SetPointerProperty(props, "SDL.window.morphos.window", wd->win);
+
+            // SDL and the application must know the size the window got (WA_AutoAdjust),
+            // or they draw past its bottom
+            if (!fullscreen) {
+                int width = 0, height = 0;
+                MOS_GetWindowSize(wd->win, &width, &height);
+
+                if (width != box.w || height != box.h) {
+                    D("adjusted to %d x %d instead of %d x %d", width, height, box.w, box.h);
+                    SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, width, height);
+                }
+            }
 
             if ((window->flags & SDL_WINDOW_RESIZABLE) && !fullscreen) {
                 MOS_SetWindowLimits(window, wd->win);

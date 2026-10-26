@@ -135,9 +135,9 @@ MOS_GL_AllocBitmap(SDL_VideoDevice *_this, SDL_Window * window)
 	return (data->bitmap = AllocBitMap(SDL_max(w, 1), SDL_max(h, 1), depth, BMF_MINPLANES|BMF_DISPLAYABLE|BMF_3DTARGET, friend_bitmap)) != NULL;
 }
 
-/* Exclusive fullscreen on our custom screen: TinyGL renders straight into it
-   and flips its own buffers (triple buffering), there is no bitmap to copy.
-   NULL when the window renders into a bitmap. */
+/* Exclusive fullscreen on our custom screen, opened with hardware 3D: TinyGL
+   renders straight into it and flips its own buffers (triple buffering),
+   there is no bitmap to copy. NULL when the window renders into a bitmap. */
 static struct Screen *
 MOS_GL_GetTargetScreen(SDL_VideoDevice *_this, SDL_Window *window)
 {
@@ -146,7 +146,7 @@ MOS_GL_GetTargetScreen(SDL_VideoDevice *_this, SDL_Window *window)
 	struct Window *win = data->win;
 	struct Screen *screen = video->CustomScreen;
 
-	if (!win || !screen || win->WScreen != screen || !(window->flags & SDL_WINDOW_FULLSCREEN) || data->gl_screen_failed) {
+	if (!win || !screen || !video->CustomScreen3D || win->WScreen != screen || !(window->flags & SDL_WINDOW_FULLSCREEN) || data->gl_screen_failed) {
 		return NULL;
 	}
 	// The whole screen is drawn: the window has to cover it
@@ -341,7 +341,7 @@ MOS_GL_SwapWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		GLASwapBuffers(data->__tglContext);
 
 		if (video->vsyncEnabled) {
-			WaitTOF();
+			WaitBOVP(&data->win->WScreen->ViewPort);
 		}
 
 		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop,

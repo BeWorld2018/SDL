@@ -89,6 +89,7 @@ void MOS_CloseScreen(SDL_VideoDevice *_this)
         }
 
         vd->CustomScreen = NULL;
+        vd->CustomScreen3D = false;
 
         for (int i = 0; i < _this->num_displays; i++) {
             SDL_VideoDisplay *d = _this->displays[i];
@@ -188,6 +189,7 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
     data->modeid = id;
     data->x = diminfo.Nominal.MinX;
     data->y = diminfo.Nominal.MinY;
+    data->hw3d = false;
     mode->w = diminfo.Nominal.MaxX - diminfo.Nominal.MinX + 1;
     mode->h = diminfo.Nominal.MaxY - diminfo.Nominal.MinY + 1;
 	mode->pixel_density = 1.0f;
@@ -223,6 +225,22 @@ static bool MOS_GetDisplayMode(ULONG id, SDL_DisplayMode * mode)
     return true;
 }
 
+/* Whether the card has hardware 3D for the pixel format of this mode: only
+   then the screen gets SA_3DSupport and TinyGL renders straight into it */
+static bool
+MOS_ModeHasHardware3D(APTR monitor, Object *mode)
+{
+	ULONG pixfmt = 0;
+	ULONG support = MSQUERY3D_UNKNOWN;
+
+	if (!GetAttr(MA_Mode_PixelFormat, mode, &pixfmt)) {
+		return false;
+	}
+	DoMethod((Object *)monitor, MM_Query3DSupport, pixfmt, (IPTR)&support);
+
+	return support == MSQUERY3D_HWDRIVER;
+}
+
 bool
 MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 {
@@ -243,6 +261,7 @@ MOS_GetDisplayModes(SDL_VideoDevice *_this, SDL_VideoDisplay * display)
 			if (MOS_GetDisplayMode(modeid, &displaymode)) {
 				if (displaymode.format != SDL_PIXELFORMAT_UNKNOWN
 					&& displaymode.format != SDL_PIXELFORMAT_INDEX8) { // TODO
+					((SDL_DisplayModeData *)displaymode.internal)->hw3d = MOS_ModeHasHardware3D(displaydata->monitor, mode);
 					if (!SDL_AddFullscreenDisplayMode(display, &displaymode)) {
 						SDL_free(displaymode.internal);
 					}
@@ -680,6 +699,9 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 
     ULONG openError = 0;
     const int bpp = req_bpp;
+    // SA_3DSupport is needed by TinyGL to render into the screen (TGL_CONTEXT_SCREEN).
+    // Only asked with hardware 3D: the SDK doesn't say what it does without.
+    const bool use3d = req_md->hw3d;
 
     dd->screen = OpenScreenTags(NULL,
         SA_Width,         (IPTR)mode->w,
@@ -692,14 +714,13 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
         SA_ShowTitle,     (IPTR)FALSE,
         SA_Title,         (IPTR)FilePart(vd->FullAppName),
         SA_AdaptSize,     (IPTR)TRUE,
-        // Needed by TinyGL to render into the screen (TGL_CONTEXT_SCREEN)
-        SA_3DSupport,     (IPTR)TRUE,
+        use3d ? SA_3DSupport : TAG_IGNORE, (IPTR)TRUE,
         SA_ErrorCode,     (IPTR)&openError,
         TAG_DONE);
 
-    D("Opened screen '%s' id %lu: %d*%d*%d (address %p) on monitor object=%p",
+    D("Opened screen '%s' id %lu: %d*%d*%d 3D=%d (address %p) on monitor object=%p",
       FilePart(vd->FullAppName),
-      (ULONG)req_md->modeid, mode->w, mode->h, bpp,
+      (ULONG)req_md->modeid, mode->w, mode->h, bpp, use3d ? 1 : 0,
       dd->screen, dd->monitor);
 
     if (!dd->screen) {
@@ -718,6 +739,7 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
     }
 
     vd->CustomScreen = dd->screen;
+    vd->CustomScreen3D = use3d;
 
     SetRPAttrs(&dd->screen->RastPort, RPTAG_PenMode, FALSE, RPTAG_FgColor, 0xFF000000, TAG_DONE);
     RectFill(&dd->screen->RastPort, 0, 0, dd->screen->Width - 1, dd->screen->Height - 1);

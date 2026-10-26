@@ -52,6 +52,7 @@ typedef struct SDL_VideoData
 
 	struct Screen *PublicScreen;
 	struct Screen *CustomScreen;
+	bool CustomScreen3D;	// opened with SA_3DSupport (hardware 3D)
 
 	struct MinList windowlist;
 
