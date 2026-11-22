@@ -1419,11 +1419,21 @@ static SDL_Surface *GPU_RenderReadPixels(SDL_Renderer *renderer, const SDL_Rect 
     SDL_EndGPUCopyPass(pass);
 
     SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(data->state.command_buffer);
+    data->state.command_buffer = SDL_AcquireGPUCommandBuffer(data->device);
+    if (!fence) {
+        SDL_ReleaseGPUTransferBuffer(data->device, tbuf);
+        SDL_DestroySurface(surface);
+        return NULL;
+    }
     SDL_WaitForGPUFences(data->device, true, &fence, 1);
     SDL_ReleaseGPUFence(data->device, fence);
-    data->state.command_buffer = SDL_AcquireGPUCommandBuffer(data->device);
 
     void *mapped_tbuf = SDL_MapGPUTransferBuffer(data->device, tbuf, false);
+    if (!mapped_tbuf) {
+        SDL_ReleaseGPUTransferBuffer(data->device, tbuf);
+        SDL_DestroySurface(surface);
+        return NULL;
+    }
 
     if ((size_t)surface->pitch == row_size) {
         SDL_memcpy(surface->pixels, mapped_tbuf, image_size);
@@ -1613,10 +1623,10 @@ static bool ChoosePresentMode(SDL_GPUDevice *device, SDL_Window *window, const i
 
     switch (vsync) {
     case 0:
-        mode = SDL_GPU_PRESENTMODE_MAILBOX;
+        mode = SDL_GPU_PRESENTMODE_IMMEDIATE;
 
         if (!SDL_WindowSupportsGPUPresentMode(device, window, mode)) {
-            mode = SDL_GPU_PRESENTMODE_IMMEDIATE;
+            mode = SDL_GPU_PRESENTMODE_MAILBOX;
 
             if (!SDL_WindowSupportsGPUPresentMode(device, window, mode)) {
                 mode = SDL_GPU_PRESENTMODE_VSYNC;

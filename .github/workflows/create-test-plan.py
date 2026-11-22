@@ -735,7 +735,6 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
             job.binutils_strings = "/opt/devkitpro/devkitARM/bin/arm-none-eabi-strings"
             job.static_lib = StaticLibType.A
         case SdlPlatform.Msys2:
-            job.ccache = True
             job.shell = "msys2 {0}"
             assert spec.msys2_platform
             job.msys2_msystem = spec.msys2_platform.value
@@ -754,6 +753,7 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
                 f"{msys2_env}-pkg-config",
             ])
             if spec.msys2_platform not in (Msys2Platform.Mingw32, ):
+                job.ccache = True
                 job.msys2_packages.append(f"{msys2_env}-clang-tools-extra")
                 job.msys2_packages.append(f"{msys2_env}-perl")
                 job.msys2_packages.append(f"{msys2_env}-ffmpeg")
@@ -785,23 +785,23 @@ def spec_to_job(spec: JobSpec, key: str, trackmem_symbol_names: bool) -> JobDeta
             match spec.platform:
                 case SdlPlatform.FreeBSD:
                     job.cpactions_os = "freebsd"
-                    job.cpactions_version = "14.4"
+                    job.cpactions_version = "15.1"
                     job.cpactions_arch = "x86-64"
                     job.cpactions_setup_cmd = "sudo pkg update"
-                    job.cpactions_install_cmd = "sudo pkg install -y cmake ninja pkgconf libXcursor libXext libXinerama libXi libXfixes libXrandr libXScrnSaver libXxf86vm wayland wayland-protocols libxkbcommon mesa-libs libglvnd evdev-proto libinotify alsa-lib jackit pipewire pulseaudio sndio dbus zh-fcitx ibus libudev-devd"
+                    job.cpactions_install_cmd = "sudo pkg install -y cmake-core ninja pkgconf libXcursor libXext libXinerama libXi libXfixes libXrandr libXScrnSaver libXxf86vm wayland wayland-protocols libxkbcommon mesa-libs libglvnd evdev-proto libinotify alsa-lib jackit pipewire pulseaudio sndio dbus zh-fcitx ibus libudev-devd"
                     job.cmake_arguments.extend((
                         "-DSDL_CHECK_REQUIRED_INCLUDES=/usr/local/include",
                         "-DSDL_CHECK_REQUIRED_LINK_OPTIONS=-L/usr/local/lib",
                     ))
                 case SdlPlatform.NetBSD:
                     job.cpactions_os = "netbsd"
-                    job.cpactions_version = "10.1"
+                    job.cpactions_version = "11.0"
                     job.cpactions_arch = "x86-64"
                     job.cpactions_setup_cmd = "export PATH=\"/usr/pkg/sbin:/usr/pkg/bin:/sbin:$PATH\"; export PKG_CONFIG_PATH=\"/usr/pkg/lib/pkgconfig\";export PKG_PATH=\"https://cdn.netBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r|cut -f \"1 2\" -d.)/All/\";echo \"PKG_PATH=$PKG_PATH\";echo \"uname -a -> \"$(uname -a)\"\";sudo -E sysctl -w security.pax.aslr.enabled=0;sudo -E sysctl -w security.pax.aslr.global=0;sudo -E pkgin clean;sudo -E pkgin update"
                     job.cpactions_install_cmd = "sudo -E pkgin -y install cmake dbus pkgconf ninja-build pulseaudio libxkbcommon wayland wayland-protocols libinotify libusb1"
                 case SdlPlatform.OpenBSD:
                     job.cpactions_os = "openbsd"
-                    job.cpactions_version = "7.7"
+                    job.cpactions_version = "8.0"
                     job.cpactions_arch = "x86-64"
                     job.cpactions_setup_cmd = "sudo pkg_add -u"
                     job.cpactions_install_cmd = "sudo pkg_add cmake ninja pkgconf wayland wayland-protocols libxkbcommon libinotify pulseaudio dbus ibus"

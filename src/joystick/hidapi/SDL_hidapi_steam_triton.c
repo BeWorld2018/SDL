@@ -24,6 +24,7 @@
 
 #include "../SDL_sysjoystick.h"
 #include "SDL_hidapijoystick_c.h"
+#include "SDL_hidapi_rumble.h"
 
 #ifdef SDL_JOYSTICK_HIDAPI_STEAM_TRITON
 
@@ -109,7 +110,7 @@ typedef struct
     Uint32 last_sensor_tick32;
     Uint64 sensor_timestamp_ns;
     Uint64 last_button_state;
-    Uint64 last_lizard_update;
+    Uint64 last_maintenance_update;
     Uint16 low_frequency_rumble;
     Uint16 high_frequency_rumble;
     Uint64 last_rumble_time;
@@ -128,8 +129,10 @@ static bool IsProteusDongle(Uint16 product_id)
             product_id == USB_PRODUCT_VALVE_STEAM_NEREID_DONGLE);
 }
 
-static bool DisableSteamTritonLizardMode(SDL_hid_device *dev)
+static bool MaintainTritonState(SDL_HIDAPI_Device *device)
 {
+    SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
+
     int rc;
     Uint8 buffer[HID_FEATURE_REPORT_BYTES] = { 1 };
     FeatureReportMsg *msg = (FeatureReportMsg *)(buffer + 1);
@@ -139,7 +142,13 @@ static bool DisableSteamTritonLizardMode(SDL_hid_device *dev)
     msg->payload.setSettingsValues.settings[0].settingNum = SETTING_LIZARD_MODE;
     msg->payload.setSettingsValues.settings[0].settingValue = LIZARD_MODE_OFF;
 
-    rc = SDL_hid_send_feature_report(dev, buffer, sizeof(buffer));
+    if (ctx->report_sensors) {
+        msg->header.length += 1 * sizeof(ControllerSetting);
+        msg->payload.setSettingsValues.settings[1].settingNum = SETTING_IMU_MODE;
+        msg->payload.setSettingsValues.settings[1].settingValue = (SETTING_GYRO_MODE_SEND_RAW_ACCEL | SETTING_GYRO_MODE_SEND_RAW_GYRO);
+    }
+
+    rc = SDL_hid_send_feature_report(device->dev, buffer, sizeof(buffer));
     if (rc != sizeof(buffer)) {
         return false;
     }
@@ -497,9 +506,9 @@ static bool HIDAPI_DriverSteamTriton_UpdateDevice(SDL_HIDAPI_Device *device)
 
     if (ctx->connected && joystick) {
         Uint64 now = SDL_GetTicks();
-        if (!ctx->last_lizard_update || (now - ctx->last_lizard_update) >= 3000) {
-            DisableSteamTritonLizardMode(device->dev);
-            ctx->last_lizard_update = now;
+        if (!ctx->last_maintenance_update || (now - ctx->last_maintenance_update) >= 3000) {
+            MaintainTritonState(device);
+            ctx->last_maintenance_update = now;
         }
 
         if (ctx->low_frequency_rumble || ctx->high_frequency_rumble) {
@@ -594,7 +603,6 @@ static bool HIDAPI_DriverSteamTriton_OpenJoystick(SDL_HIDAPI_Device *device, SDL
 static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
     SDL_DriverSteamTriton_Context *ctx = (SDL_DriverSteamTriton_Context *)device->context;
-    int rc;
 
     ctx->low_frequency_rumble = low_frequency_rumble;
     ctx->high_frequency_rumble = high_frequency_rumble;
@@ -611,13 +619,8 @@ static bool HIDAPI_DriverSteamTriton_RumbleJoystick(SDL_HIDAPI_Device *device, S
     msg->payload.hapticRumble.right.speed = high_frequency_rumble;
     msg->payload.hapticRumble.right.gain = 0;
 
-    rc = SDL_hid_write(device->dev, buffer, sizeof(buffer));
-    if (rc < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_INPUT, 
-            "Steam Controller HID Write FAILED! rc: %d. SDL_Error: %s", 
-            rc, SDL_GetError());
-
-        return false;
+    if (SDL_HIDAPI_SendRumble(device, buffer, sizeof(buffer)) != sizeof(buffer)) {
+        return SDL_SetError("Couldn't send rumble packet");
     }
     return true;
 }

@@ -847,6 +847,7 @@ void SDL_AudioDeviceDisconnected(SDL_AudioDevice *device)
 
 static void SDL_AudioThreadDeinit_Default(SDL_AudioDevice *device) { /* no-op. */ }
 static bool SDL_AudioWaitDevice_Default(SDL_AudioDevice *device) { return true; /* no-op. */ }
+static void SDL_AudioUnblockWaitDevice_Default(SDL_AudioDevice *device) { /* no-op. */ }
 static bool SDL_AudioPlayDevice_Default(SDL_AudioDevice *device, const Uint8 *buffer, int buffer_size) { return true; /* no-op. */ }
 static bool SDL_AudioWaitRecordingDevice_Default(SDL_AudioDevice *device) { return true; /* no-op. */ }
 static void SDL_AudioFlushRecording_Default(SDL_AudioDevice *device) { /* no-op. */ }
@@ -889,15 +890,22 @@ static bool SDL_AudioOpenDevice_Default(SDL_AudioDevice *device)
     return SDL_Unsupported();
 }
 
+static bool SDL_AudioPostOpenDevice_Default(SDL_AudioDevice *device)
+{
+    return true;  // just call this success by default. This exists as a special case used by a few backends.
+}
+
 // Fill in stub functions for unused driver entry points. This lets us blindly call them without having to check for validity first.
 static void CompleteAudioEntryPoints(void)
 {
     #define FILL_STUB(x) if (!current_audio.impl.x) { current_audio.impl.x = SDL_Audio##x##_Default; }
     FILL_STUB(DetectDevices);
     FILL_STUB(OpenDevice);
+    FILL_STUB(PostOpenDevice);
     FILL_STUB(ThreadInit);
     FILL_STUB(ThreadDeinit);
     FILL_STUB(WaitDevice);
+    FILL_STUB(UnblockWaitDevice);
     FILL_STUB(PlayDevice);
     FILL_STUB(GetDeviceBuf);
     FILL_STUB(WaitRecordingDevice);
@@ -1686,6 +1694,7 @@ static void ClosePhysicalAudioDevice(SDL_AudioDevice *device)
     SerializePhysicalDeviceClose(device);
 
     SDL_SetAtomicInt(&device->shutdown, 1);
+    current_audio.impl.UnblockWaitDevice(device);
 
     // YOU MUST PROTECT KEY POINTS WITH SerializePhysicalDeviceClose() WHILE THE THREAD JOINS
     SDL_UnlockMutex(device->lock);
@@ -1806,8 +1815,10 @@ char *SDL_GetAudioThreadName(SDL_AudioDevice *device, char *buf, size_t buflen)
 
 
 // this expects the device lock to be held.
-static bool OpenPhysicalAudioDevice(SDL_AudioDevice *device, const SDL_AudioSpec *inspec)
+static bool OpenPhysicalAudioDevice(SDL_AudioDevice *device, const SDL_AudioSpec *inspec, bool *need_postopen)
 {
+    *need_postopen = false;
+
     SerializePhysicalDeviceClose(device);  // make sure another thread that's closing didn't release the lock to let the device thread join...
 
     if (device->currently_opened) {
@@ -1821,6 +1832,7 @@ static bool OpenPhysicalAudioDevice(SDL_AudioDevice *device, const SDL_AudioSpec
 
     // These start with the backend's implementation, but we might swap them out with zombie versions later.
     device->WaitDevice = current_audio.impl.WaitDevice;
+    device->UnblockWaitDevice = current_audio.impl.UnblockWaitDevice;
     device->PlayDevice = current_audio.impl.PlayDevice;
     device->GetDeviceBuf = current_audio.impl.GetDeviceBuf;
     device->WaitRecordingDevice = current_audio.impl.WaitRecordingDevice;
@@ -1851,6 +1863,8 @@ static bool OpenPhysicalAudioDevice(SDL_AudioDevice *device, const SDL_AudioSpec
         ClosePhysicalAudioDevice(device);  // clean up anything the backend left half-initialized.
         return false;
     }
+
+    *need_postopen = true;  // definitely ran OpenDevice, so we'll need PostOpenDevice.
 
     SDL_UpdatedAudioDeviceFormat(device);  // in case the backend changed things and forgot to call this.
 
@@ -1905,6 +1919,7 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(SDL_AudioDeviceID devid, const SDL_AudioSp
     }
 
     SDL_AudioDeviceID result = 0;
+    bool need_postopen = false;
 
     if (device) {
         SDL_LogicalAudioDevice *logdev = NULL;
@@ -1913,7 +1928,7 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(SDL_AudioDeviceID devid, const SDL_AudioSp
             SDL_SetError("Device was already lost and can't accept new opens");
         } else if ((logdev = (SDL_LogicalAudioDevice *) SDL_calloc(1, sizeof (SDL_LogicalAudioDevice))) == NULL) {
             // SDL_calloc already called SDL_OutOfMemory
-        } else if (!OpenPhysicalAudioDevice(device, spec)) {  // if this is the first thing using this physical device, open at the OS level if necessary...
+        } else if (!OpenPhysicalAudioDevice(device, spec, &need_postopen)) {  // if this is the first thing using this physical device, open at the OS level if necessary...
             SDL_free(logdev);
         } else {
             RefPhysicalAudioDevice(device);  // unref'd on successful SDL_CloseAudioDevice
@@ -1930,6 +1945,15 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(SDL_AudioDeviceID devid, const SDL_AudioSp
             UpdateAudioStreamFormatsPhysical(device);
         }
         ReleaseAudioDevice(device);
+
+        if (result && need_postopen) {
+            if (!current_audio.impl.PostOpenDevice(device)) {
+                const char *devtypestr = device->recording ? "recording" : "playback";
+                SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "AUDIO: post-open of %s device '%s' failed: %s", devtypestr, device->name, SDL_GetError());
+                SDL_CloseAudioDevice(result);
+                result = 0;
+            }
+        }
 
         if (result) {
             SDL_LockRWLockForWriting(current_audio.subsystem_rwlock);
@@ -2447,8 +2471,19 @@ void SDL_DefaultAudioDeviceChanged(SDL_AudioDevice *new_default_device)
 
         if (needs_migration) {
             // New default physical device not been opened yet? Open at the OS level...
-            if (!OpenPhysicalAudioDevice(new_default_device, &spec)) {
+            bool need_postopen = false;
+            if (!OpenPhysicalAudioDevice(new_default_device, &spec, &need_postopen)) {
                 needs_migration = false;  // uhoh, just leave everything on the old default, nothing to be done.
+            } else if (need_postopen) {
+                // drop the lock to do PostOpenDevice. This feels risky, but we don't want to migrate things if this fails.
+                ReleaseAudioDevice(new_default_device);
+                if (!current_audio.impl.PostOpenDevice(new_default_device)) {
+                    const char *devtypestr = new_default_device->recording ? "recording" : "playback";
+                    SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO, "AUDIO: post-open of new default %s device '%s' failed: %s", devtypestr, new_default_device->name, SDL_GetError());
+                    ClosePhysicalAudioDevice(new_default_device);  // clean up anything the backend left half-initialized.
+                    needs_migration = false;  // uhoh, just leave everything on the old default, nothing to be done.
+                }
+                ObtainPhysicalAudioDeviceObj(new_default_device);
             }
         }
 

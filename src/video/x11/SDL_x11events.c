@@ -562,7 +562,7 @@ void X11_ReconcileKeyboardState(SDL_VideoDevice *_this)
         const bool x11KeyPressed = (keys[keycode / 8] & (1 << (keycode % 8))) != 0;
         const bool sdlKeyPressed = keystate[scancode];
 
-        if (x11KeyPressed && !sdlKeyPressed) {
+        if (x11KeyPressed) {
             // Only update modifier state for keys that are pressed in another application
             switch (SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, false)) {
             case SDLK_LCTRL:
@@ -576,14 +576,18 @@ void X11_ReconcileKeyboardState(SDL_VideoDevice *_this)
             case SDLK_MODE:
             case SDLK_LEVEL5_SHIFT:
                 X11_HandleModifierKeys(videodata, scancode, true);
-                SDL_SendKeyboardKeyIgnoreModifiers(0, SDL_GLOBAL_KEYBOARD_ID, keycode, scancode, true);
+                if (!sdlKeyPressed) {
+                    SDL_SendKeyboardKeyIgnoreModifiers(0, SDL_GLOBAL_KEYBOARD_ID, keycode, scancode, true);
+                }
                 break;
             default:
                 break;
             }
-        } else if (!x11KeyPressed && sdlKeyPressed) {
+        } else {
             X11_HandleModifierKeys(videodata, scancode, false);
-            SDL_SendKeyboardKeyIgnoreModifiers(0, SDL_GLOBAL_KEYBOARD_ID, keycode, scancode, false);
+            if (sdlKeyPressed) {
+                SDL_SendKeyboardKeyIgnoreModifiers(0, SDL_GLOBAL_KEYBOARD_ID, keycode, scancode, false);
+            }
         }
     }
 
@@ -1280,6 +1284,27 @@ void X11_EmitConfigureNotifyEvents(SDL_WindowData *data, XConfigureEvent *xevent
             data->pending_operation &= ~X11_PENDING_OP_RESIZE;
         }
         SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_RESIZED, xevent->width, xevent->height);
+
+        // Update the pointer coordinates if the focused window moved under the cursor.
+        if (data->window == SDL_GetMouseFocus()) {
+            float m_x, m_y;
+            SDL_GetGlobalMouseState(&m_x, &m_y);
+            x = (int)SDL_floor(m_x);
+            y = (int)SDL_floor(m_y);
+
+            // Is the new position still in the window?
+            if (x >= xevent->x && y >= xevent->y && m_x < (xevent->x + data->window->w) && y < (xevent->y + data->window->h)) {
+                // Global to relative
+                m_x -= (float)xevent->x;
+                m_y -= (float)xevent->y;
+
+                // Dedup, as a configure event doesn't imply a move.
+                SDL_Mouse *m = SDL_GetMouse();
+                if (m->last_x != m_x || m->last_y != m_y) {
+                    SDL_SendMouseWarp(0, data->window, SDL_GLOBAL_MOUSE_ID, m_x, m_y);
+                }
+            }
+        }
     }
 
     SDL_copyp(&data->last_xconfigure, xevent);

@@ -9951,7 +9951,8 @@ static bool VULKAN_ClaimWindow(
         }
 
         Uint32 createSwapchainResult = VULKAN_INTERNAL_CreateSwapchain(renderer, windowData);
-        if (createSwapchainResult == 1) {
+        if (createSwapchainResult == 1 ||
+            createSwapchainResult == VULKAN_INTERNAL_TRY_AGAIN) {
             SDL_SetPointerProperty(SDL_GetWindowProperties(window), WINDOW_PROPERTY_DATA, windowData);
 
             SDL_LockMutex(renderer->windowLock);
@@ -9968,9 +9969,10 @@ static bool VULKAN_ClaimWindow(
 
             SDL_AddWindowEventWatch(SDL_WINDOW_EVENT_WATCH_NORMAL, VULKAN_INTERNAL_OnWindowResize, window);
 
-            return true;
-        } else if (createSwapchainResult == VULKAN_INTERNAL_TRY_AGAIN) {
-            windowData->needsSwapchainRecreate = true;
+            if (createSwapchainResult == VULKAN_INTERNAL_TRY_AGAIN) {
+                // We successfully claimed the window, but we'll need to recreate the swap chain
+                windowData->needsSwapchainRecreate = true;
+            }
             return true;
         } else {
             // Failed to create swapchain, destroy surface and free data
@@ -11065,6 +11067,13 @@ static bool VULKAN_INTERNAL_DefragmentMemory(
                     VULKAN_BUFFER_USAGE_MODE_COPY_DESTINATION,
                     newBuffer);
 
+                // Need to transition the old buffer in case it is read by a separate command buffer.
+                VULKAN_INTERNAL_BufferTransitionToDefaultUsage(
+                    renderer,
+                    commandBuffer,
+                    VULKAN_BUFFER_USAGE_MODE_COPY_SOURCE,
+                    currentRegion->vulkanBuffer);
+
                 VULKAN_INTERNAL_TrackBuffer(commandBuffer, currentRegion->vulkanBuffer);
                 VULKAN_INTERNAL_TrackBuffer(commandBuffer, newBuffer);
             }
@@ -11155,6 +11164,13 @@ static bool VULKAN_INTERNAL_DefragmentMemory(
                 commandBuffer,
                 VULKAN_TEXTURE_USAGE_MODE_COPY_DESTINATION,
                 newTexture);
+
+            // Need to transition the old texture in case it is read by a separate command buffer.
+            VULKAN_INTERNAL_TextureTransitionToDefaultUsage(
+                renderer,
+                commandBuffer,
+                VULKAN_TEXTURE_USAGE_MODE_COPY_SOURCE,
+                currentRegion->vulkanTexture);
 
             // re-point original container to new texture
             newTexture->container = currentRegion->vulkanTexture->container;
