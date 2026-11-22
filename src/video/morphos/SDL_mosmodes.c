@@ -669,9 +669,14 @@ MOS_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_Displa
 
     const bool is_desktop_mode = same_size && same_bpp && (same_modeid || (desk->refresh_rate == 0.0f) || (mode->refresh_rate == 0.0f));
 
-    if (is_desktop_mode) {
-        D("SetDisplayMode: requested mode matches desktop (%dx%d bpp=%d modeid=%lu) -> desktop fullscreen, no CustomScreen",
+    if (mode != desk && is_desktop_mode) {
+        D("SetDisplayMode: requested mode the desktop's size (%dx%d bpp=%d modeid=%lu) -> CustomScreen all the same",
           mode->w, mode->h, req_bpp, (ULONG)(req_md ? req_md->modeid : 0));
+    }
+
+    if (mode == desk) {
+        D("SetDisplayMode: the desktop mode (%dx%d bpp=%d) -> desktop, no CustomScreen",
+          mode->w, mode->h, req_bpp);
 
         if (vd->CustomScreen) {
             D("SetDisplayMode(desktop): closing existing CustomScreen and reopening windows");
