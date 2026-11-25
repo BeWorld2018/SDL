@@ -1492,7 +1492,10 @@ MOS_SetWindowAlwaysOnTop(SDL_VideoDevice *_this, SDL_Window * window, bool on_to
 bool
 MOS_SetWindowHitTest(SDL_Window *window, bool enabled)
 {
-    return true;
+    if (!enabled) {
+        return true;
+    }
+    return SDL_Unsupported();
 }
 
 void

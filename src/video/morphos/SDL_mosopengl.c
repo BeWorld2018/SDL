@@ -170,6 +170,30 @@ MOS_GL_DetachContext(SDL_VideoDevice *_this, SDL_Window *window)
 	}
 }
 
+/* The swap interval asked by SDL_GL_SetSwapInterval(): 0 none, 1 every
+   vertical blank, 2 every second one... TinyGL only knows on and off. */
+static int mos_gl_swap_interval;
+
+static int
+MOS_GL_SyncValue(void)
+{
+	return mos_gl_swap_interval > 0 ? 1 : 0;
+}
+
+/* SDL's own wait, for the interval: the blanks before the last one by
+   WaitTOF(), the last by WaitBOVP() */
+static void
+MOS_GL_WaitBeam(struct Window *win)
+{
+	int n = mos_gl_swap_interval;
+
+	if (n <= 0)
+		return;
+	while (--n > 0)
+		WaitTOF();
+	WaitBOVP(&win->WScreen->ViewPort);
+}
+
 /* Attaches the context to the window's screen or to a new bitmap. */
 static bool
 MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window, GLContext *context)
@@ -199,7 +223,7 @@ MOS_GL_InitContext(SDL_VideoDevice *_this, SDL_Window * window, GLContext *conte
 		if (GLAInitializeContext(context, tgltags)) {
 			D("GLAInitializeContext on screen %p Success", screen);
 			data->gl_screen = screen;
-			GLASetSync(context, video->vsyncEnabled ? 1 : 0);
+			GLASetSync(context, MOS_GL_SyncValue());
 			return true;
 		}
 		D("GLAInitializeContext on screen %p Failed, using a bitmap", screen);
@@ -303,14 +327,17 @@ MOS_GL_SetSwapInterval(SDL_VideoDevice *_this, int interval)
         return SDL_SetError("Late swap tearing currently unsupported");
     }
 	SDL_VideoData *data = _this->internal;
-	data->vsyncEnabled = (interval == 1 ? TRUE : FALSE);
-	D("vsyncEnabled=%d", (data->vsyncEnabled ? 1 :0));
+	// Any interval, not only 1: 2 waited for two vertical blanks instead of
+	// turning vsync off
+	mos_gl_swap_interval = interval;
+	data->vsyncEnabled = (interval > 0 ? TRUE : FALSE);
+	D("swap interval %d", interval);
 
 	// Screen contexts flip by themselves
 	for (SDL_Window *sdlwin = _this->windows; sdlwin; sdlwin = sdlwin->next) {
 		SDL_WindowData *wd = sdlwin->internal;
 		if (wd && wd->gl_screen) {
-			GLASetSync(wd->__tglContext, data->vsyncEnabled ? 1 : 0);
+			GLASetSync(wd->__tglContext, MOS_GL_SyncValue());
 		}
 	}
 	return true;
@@ -319,8 +346,7 @@ MOS_GL_SetSwapInterval(SDL_VideoDevice *_this, int interval)
 bool
 MOS_GL_GetSwapInterval(SDL_VideoDevice *_this, int *interval)
 {
-	SDL_VideoData *data = _this->internal;
-	*interval = data->vsyncEnabled ? 1 : 0;
+	*interval = mos_gl_swap_interval;
 	return true;
 }
 
@@ -341,7 +367,7 @@ MOS_GL_SwapWindow(SDL_VideoDevice *_this, SDL_Window * window)
 		GLASwapBuffers(data->__tglContext);
 
 		if (video->vsyncEnabled) {
-			WaitBOVP(&data->win->WScreen->ViewPort);
+			MOS_GL_WaitBeam(data->win);
 		}
 
 		BltBitMapRastPort(data->bitmap, 0, 0, data->win->RPort, data->win->BorderLeft, data->win->BorderTop,

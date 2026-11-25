@@ -392,6 +392,13 @@ MOS_GetGlobalMouseState(float * x, float * y)
     return buttons;
 }
 
+static bool
+MOS_CaptureMouse(SDL_Window *window)
+{
+	(void)window;
+	return true;
+}
+
 bool
 MOS_InitMouse(SDL_VideoDevice *_this)
 {
@@ -407,6 +414,7 @@ MOS_InitMouse(SDL_VideoDevice *_this)
 	mouse->WarpMouseGlobal = MOS_WarpMouseGlobal;
 	mouse->SetRelativeMouseMode = MOS_SetRelativeMouseMode;
 	mouse->GetGlobalMouseState = MOS_GetGlobalMouseState;
+	mouse->CaptureMouse = MOS_CaptureMouse;
 
 	SDL_SetDefaultCursor(MOS_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT));
 	

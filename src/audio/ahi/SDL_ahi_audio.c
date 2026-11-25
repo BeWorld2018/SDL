@@ -27,6 +27,32 @@
 #include "SDL_timer.h"
 #include "../SDL_audio_c.h"
 
+#include <exec/errors.h>
+#include <devices/ahi.h>
+
+#ifndef MAKE_ID
+#define MAKE_ID(a, b, c, d) ((ULONG)(a) << 24 | (ULONG)(b) << 16 | (ULONG)(c) << 8 | (ULONG)(d))
+#endif
+#ifndef ID_AHIU
+#define ID_AHIU MAKE_ID('A', 'H', 'I', 'U')
+#endif
+
+#define MOS_AHI_PREFS       "ENV:Sys/ahi.prefs"
+#define MOS_PREFS_POLL_MS   1000    /* read again at least that often */
+#define MOS_REOPEN_TRIES    20      /* every 0.5 s: 10 s for the new mode to come */
+#define MOS_DRAIN_MS        2000    /* for the program's other units to close */
+#define MOS_FAST_IO         3       /* requests back at once in a row: paced */
+
+/* AHI reads ahi.prefs when a unit is opened while nothing has it open: a
+   program that plays and records has unit 0 open twice, and one reopened
+   while the other is still open keeps the old output (the gone headset: its
+   requests came back at once, the audio thread spun and froze the machine,
+   22.11.2026). After a change, all close before any opens again.
+   Per program: sdl3.library's data is per opener. */
+static SDL_AtomicInt g_ahiOpen;       /* units of this program open */
+static SDL_AtomicInt g_switchGen;     /* +1 at each output change */
+static SDL_AtomicInt g_drainedGen;    /* the change for which all were closed */
+
 static bool MOS_QueryAHICaps(MOS_AHICaps *caps)
 {
     ULONG freq = 44100;
@@ -104,6 +130,11 @@ MOS_CloseAhiDevice(MOSAudioData * MOS_data)
 
         CloseDevice((struct IORequest *)MOS_data->ahiRequest[0]);
         MOS_data->ahiOpened = false;
+
+        // the last one of the program closed: AHI reads ahi.prefs again
+        if (SDL_AddAtomicInt(&g_ahiOpen, -1) == 1) {
+            SDL_SetAtomicInt(&g_drainedGen, SDL_GetAtomicInt(&g_switchGen));
+        }
     }
     MOS_data->pendingWait = NULL;
     MOS_data->link = NULL;
@@ -124,6 +155,13 @@ MOS_CloseAhiDevice(MOSAudioData * MOS_data)
         D("Device closed");
     }
     MOS_data->deviceOpen = false;
+}
+
+/* 32-bit sample types are AHI 6's: ahir_Version must ask for it */
+static bool
+MOS_NeedsAHI6(Uint32 type)
+{
+    return type == AHIST_M32S || type == AHIST_S32S || type == AHIST_L7_1;
 }
 
 static bool
@@ -148,12 +186,14 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
         return false;
     }
 
-    if (OpenDevice(AHINAME, 0, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
+    MOS_data->ahiRequest[0]->ahir_Version = MOS_NeedsAHI6(MOS_data->ahiType) ? 6 : 4;
+    if (OpenDevice(AHINAME, MOS_AHI_UNIT, (struct IORequest *)MOS_data->ahiRequest[0], 0)) {
         D("Failed to open %s", AHINAME);
         MOS_CloseAhiDevice(MOS_data);
         return false;
     }
     MOS_data->ahiOpened = true;
+    SDL_AddAtomicInt(&g_ahiOpen, 1);
 
     D("%s opened", AHINAME);
 
@@ -172,8 +212,188 @@ MOS_OpenAhiDevice(MOSAudioData * MOS_data)
     MOS_data->currentBuffer = 0;
     MOS_data->link = NULL;
     MOS_data->pendingWait = NULL;
+    MOS_data->recBuffer = 0;
+    MOS_data->readyBuffer = 1;
+    MOS_data->readyLength = 0;
+    MOS_data->lastIoTicks = 0;
+    MOS_data->fastIo = 0;
 
     return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sound output changed while playing (ENV:Sys/ahi.prefs), as MPlayer */
+/* ------------------------------------------------------------------ */
+
+static ULONG
+MOS_Read32(const UBYTE *p)
+{
+    return (ULONG)p[0] << 24 | (ULONG)p[1] << 16 | (ULONG)p[2] << 8 | p[3];
+}
+
+/* The AHIU chunk of MOS_AHI_UNIT in ahi.prefs (IFF FORM PREF, < 2 KB) */
+static void
+MOS_ReadUnitSetting(MOS_AHIUnitSetting *s)
+{
+    UBYTE buf[2048];
+    BPTR fh;
+    LONG n, pos = 12;
+
+    s->valid = false;
+    s->mode = s->freq = 0;
+    if (!(fh = Open((CONST_STRPTR)MOS_AHI_PREFS, MODE_OLDFILE))) {
+        return;
+    }
+    n = Read(fh, buf, sizeof(buf));
+    Close(fh);
+    if (n < 12 || SDL_memcmp(buf, "FORM", 4) != 0 || SDL_memcmp(buf + 8, "PREF", 4) != 0) {
+        return;
+    }
+    while (pos + 8 <= n) {
+        const ULONG id = MOS_Read32(buf + pos);
+        const ULONG size = MOS_Read32(buf + pos + 4);
+        const UBYTE *u = buf + pos + 8;
+
+        if (pos + 8 + (LONG)size > n) {
+            break;
+        }
+        /* ahiup_Unit, ahiup_Obsolete, ahiup_Channels (UWORD), ahiup_AudioMode, ahiup_Frequency */
+        if (id == ID_AHIU && size >= 12 && u[0] == MOS_AHI_UNIT) {
+            s->valid = true;
+            s->mode = MOS_Read32(u + 4);
+            s->freq = MOS_Read32(u + 8);
+            return;
+        }
+        pos += 8 + ((size + 1) & ~1);
+    }
+}
+
+/* On the audio thread: the notification signals it */
+static void
+MOS_StartPrefsWatch(MOSAudioData *MOS_data)
+{
+    MOS_ReadUnitSetting(&MOS_data->unitSetting);
+    MOS_data->prefsReadTicks = SDL_GetTicks();
+    MOS_data->switchGen = SDL_GetAtomicInt(&g_switchGen);
+
+    MOS_data->prefsSignal = AllocSignal(-1);
+    if (MOS_data->prefsSignal != -1) {
+        SDL_zero(MOS_data->prefsNotify);
+        MOS_data->prefsNotify.nr_Name = (UBYTE *)MOS_AHI_PREFS;
+        MOS_data->prefsNotify.nr_Flags = NRF_SEND_SIGNAL;
+        MOS_data->prefsNotify.nr_stuff.nr_Signal.nr_Task = FindTask(NULL);
+        MOS_data->prefsNotify.nr_stuff.nr_Signal.nr_SignalNum = MOS_data->prefsSignal;
+        if (StartNotify(&MOS_data->prefsNotify)) {
+            MOS_data->notifying = true;
+            MOS_data->prefsMask = 1UL << MOS_data->prefsSignal;
+        }
+    }
+    D("Watching %s: %s, unit %d mode 0x%08lx %lu Hz", MOS_AHI_PREFS,
+      MOS_data->notifying ? "notification" : "polling", MOS_AHI_UNIT,
+      MOS_data->unitSetting.mode, MOS_data->unitSetting.freq);
+}
+
+static void
+MOS_StopPrefsWatch(MOSAudioData *MOS_data)
+{
+    if (MOS_data->notifying) {
+        EndNotify(&MOS_data->prefsNotify);
+        MOS_data->notifying = false;
+    }
+    if (MOS_data->prefsSignal != -1) {
+        FreeSignal(MOS_data->prefsSignal);
+        MOS_data->prefsSignal = -1;
+    }
+    MOS_data->prefsMask = 0;
+}
+
+/* ahi.prefs written (the notification), or read again every second (the
+   notification may never come): true when the mode or the frequency of our
+   unit changed. The file also changes for the other units. */
+static bool
+MOS_OutputChanged(MOSAudioData *MOS_data)
+{
+    MOS_AHIUnitSetting now;
+    const bool signalled = MOS_data->prefsMask && (SetSignal(0, 0) & MOS_data->prefsMask);
+
+    if (!signalled && SDL_GetTicks() - MOS_data->prefsReadTicks < MOS_PREFS_POLL_MS) {
+        return false;
+    }
+    if (signalled) {
+        SDL_Delay(200);     /* written in several parts, or twice in a row */
+        SetSignal(0, MOS_data->prefsMask);
+    }
+    MOS_ReadUnitSetting(&now);
+    MOS_data->prefsReadTicks = SDL_GetTicks();
+
+    if (!now.valid || (MOS_data->unitSetting.valid &&
+                       now.mode == MOS_data->unitSetting.mode &&
+                       now.freq == MOS_data->unitSetting.freq)) {
+        return false;
+    }
+    D("Sound output changed: mode 0x%08lx %lu Hz -> 0x%08lx %lu Hz",
+      MOS_data->unitSetting.mode, MOS_data->unitSetting.freq, now.mode, now.freq);
+    MOS_data->unitSetting = now;
+    return true;
+}
+
+/* An output change seen by this unit (ahi.prefs), or by another unit of the
+   program (g_switchGen): this one must be opened again */
+static bool
+MOS_SwitchPending(SDL_AudioDevice *_this)
+{
+    MOSAudioData *MOS_data = _this->hidden;
+
+    if (MOS_OutputChanged(MOS_data)) {
+        // (fails when another unit saw it first: same change)
+        SDL_CompareAndSwapAtomicInt(&g_switchGen, MOS_data->switchGen, MOS_data->switchGen + 1);
+    }
+    return SDL_GetAtomicInt(&g_switchGen) != MOS_data->switchGen;
+}
+
+/* AHI reads the new setting when the unit is opened while nothing else of
+   the program has it open: closed, then wait for the others to close too.
+   The requests in flight are lost (one or two buffers). False: the new mode
+   didn't come. */
+static bool
+MOS_ReopenAhiDevice(SDL_AudioDevice *_this)
+{
+    MOSAudioData *MOS_data = _this->hidden;
+    const Uint64 start = SDL_GetTicks();
+    int tries;
+
+    MOS_data->switchGen = SDL_GetAtomicInt(&g_switchGen);
+    MOS_CloseAhiDevice(MOS_data);
+
+    while ((int)(SDL_GetAtomicInt(&g_drainedGen) - MOS_data->switchGen) < 0) {
+        if (SDL_GetAtomicInt(&_this->shutdown)) {
+            return false;
+        }
+        if (SDL_GetTicks() - start >= MOS_DRAIN_MS) {
+            D("Unit %d still open elsewhere in the program: old output kept?", MOS_AHI_UNIT);
+            break;
+        }
+        SDL_Delay(10);
+    }
+
+    // The change seen by another unit: this one's notification is the same
+    MOS_ReadUnitSetting(&MOS_data->unitSetting);
+    MOS_data->prefsReadTicks = SDL_GetTicks();
+    if (MOS_data->prefsMask) {
+        SetSignal(0, MOS_data->prefsMask);
+    }
+
+    for (tries = 0;; tries++) {
+        if (MOS_OpenAhiDevice(MOS_data)) {
+            D("Unit %d opened again", MOS_AHI_UNIT);
+            return true;
+        }
+        if (tries >= MOS_REOPEN_TRIES || SDL_GetAtomicInt(&_this->shutdown)) {
+            D("Unit %d couldn't be opened again", MOS_AHI_UNIT);
+            return false;
+        }
+        SDL_Delay(500);     /* not there (yet) */
+    }
 }
 
 static bool
@@ -195,6 +415,30 @@ MOS_AudioAvailable(void)
 
     //D("AHI is %savailable", isAvailable ? "" : "not ");
     return isAvailable;
+}
+
+/* After WaitIO(): requests coming back at once, several in a row, hold no
+   sound (a unit whose output is gone, a driver that completes them at
+   once): wait what one lasts, else the audio thread (priority 25) resends
+   them as fast as the CPU goes and the machine freezes. One quick return
+   alone is normal (the thread was late, the request had ended). */
+static void
+MOS_PaceRequests(MOSAudioData *MOS_data)
+{
+    const Uint64 now = SDL_GetTicks();
+    const Uint64 elapsed = now - MOS_data->lastIoTicks;
+
+    if (MOS_data->lastIoTicks && elapsed < MOS_data->bufferMs / 4) {
+        if (++MOS_data->fastIo >= MOS_FAST_IO) {
+            if (MOS_data->fastIo == MOS_FAST_IO) {
+                D("AHI requests come back at once: paced (%lu ms)", (unsigned long)MOS_data->bufferMs);
+            }
+            SDL_Delay(MOS_data->bufferMs);
+        }
+    } else {
+        MOS_data->fastIo = 0;
+    }
+    MOS_data->lastIoTicks = SDL_GetTicks();
 }
 
 static int
@@ -303,6 +547,7 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
 
     SDL_memset(_this->hidden, 0, sizeof(MOSAudioData));
     MOS_data = _this->hidden;
+    MOS_data->prefsSignal = -1;
 
     switch (_this->spec.format & 0xFF) {
         case 8:
@@ -314,6 +559,11 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
         default:
             _this->spec.format = SDL_AUDIO_S16BE;
             break;
+    }
+
+    /* AHI records mono or stereo only (no 7.1 type for CMD_READ) */
+    if (_this->recording && _this->spec.channels > 2) {
+        _this->spec.channels = 2;
     }
 
     /* AHI supports 1, 2 or 8 channels sound: 3-7 channels may be converted to 7.1 format */
@@ -344,6 +594,10 @@ MOS_OpenDevice(SDL_AudioDevice *_this)
     SDL_UpdatedAudioDeviceFormat(_this);
 
 	MOS_data->audioBufferSize = _this->buffer_size;
+    MOS_data->bufferMs = (Uint32)((Uint64)_this->sample_frames * 1000 / SDL_max(_this->spec.freq, 1));
+    if (MOS_data->bufferMs == 0) {
+        MOS_data->bufferMs = 1;
+    }
 
     MOS_data->audioBuffer[0] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
     MOS_data->audioBuffer[1] = (Uint8 *) SDL_malloc(MOS_data->audioBufferSize);
@@ -403,6 +657,7 @@ MOS_ThreadInit(SDL_AudioDevice *_this)
     if (!MOS_OpenAhiDevice(MOS_data)) {
         D("Failed to open AHI");
     }
+    MOS_StartPrefsWatch(MOS_data);
     // The thread is a threadpool worker, reused afterwards: restored in MOS_ThreadDeinit()
     MOS_data->oldPri = SetTaskPri(FindTask(NULL), 25);
     MOS_data->priSet = true;
@@ -413,8 +668,10 @@ MOS_ThreadDeinit(SDL_AudioDevice *_this)
 {
     MOSAudioData *MOS_data = _this->hidden;
 
-    // Same task as MOS_ThreadInit(): owner of the reply port and its requests
+    // Same task as MOS_ThreadInit(): owner of the reply port and its requests,
+    // and of the notification signal
     MOS_CloseAhiDevice(MOS_data);
+    MOS_StopPrefsWatch(MOS_data);
 
     if (MOS_data->priSet) {
         SetTaskPri(FindTask(NULL), MOS_data->oldPri);
@@ -429,13 +686,26 @@ MOS_WaitDevice(SDL_AudioDevice *_this)
 
     if (MOS_data->pendingWait) {
         struct AHIRequest *req = MOS_data->pendingWait;
+        LONG err;
 
         WaitIO((struct IORequest *)req);
         MOS_data->pendingWait = NULL;
 
-        if (req->ahir_Std.io_Error) {
-            D("AHI write error %ld", (LONG)req->ahir_Std.io_Error);
+        err = req->ahir_Std.io_Error;
+        if (err) {
+            D("AHI write error %ld", err);
+            // Refused at once (mode already in use...): not played, the time
+            // it should have taken, not as fast as the CPU goes
+            if (err != IOERR_ABORTED) {
+                SDL_Delay(MOS_data->bufferMs);
+            }
         }
+        MOS_PaceRequests(MOS_data);
+    }
+
+    // Not called with the device lock held: may wait for the new mode
+    if (MOS_SwitchPending(_this) && !MOS_ReopenAhiDevice(_this)) {
+        return false;
     }
 
     return true;
@@ -545,100 +815,106 @@ MOS_GetDeviceBuf(SDL_AudioDevice *_this, int *buffer_size)
     return _this->hidden->audioBuffer[_this->hidden->currentBuffer];
 }
 
-static bool
-MOS_WaitRecordingDevice(SDL_AudioDevice *device)
+/* Read into audioBuffer[recBuffer]. restart: io_Offset 0 starts recording,
+   else the offset AHI left in the request goes on where the last one ended
+   (no gap). Always ahiRequest[0]: link is the request in flight. */
+static void
+MOS_SendCaptureRequest(SDL_AudioDevice *_this, bool restart)
 {
-    //D("Called for device %p", device);
-    return true;
+    MOSAudioData      *MOS_data = _this->hidden;
+    struct AHIRequest *request  = MOS_data->ahiRequest[0];
+
+    MOS_FillCaptureRequest(
+        request,
+        MOS_data->audioBuffer[MOS_data->recBuffer],
+        MOS_data->audioBufferSize,
+        _this->spec.freq,
+        MOS_data->ahiType);
+    if (restart) {
+        request->ahir_Std.io_Offset = 0;
+    }
+    SendIO((struct IORequest *)request);
+    MOS_data->link = request;
 }
 
-#define RESTART_CAPTURE_THRESHOLD 100
+/* SDL calls RecordDevice() with the device lock held: the wait for AHI is
+   here, RecordDevice() only hands over what was read. */
+static bool
+MOS_WaitRecordingDevice(SDL_AudioDevice *_this)
+{
+    MOSAudioData      *MOS_data = _this->hidden;
+    struct AHIRequest *request;
+    LONG err;
+
+    // Another sound output (or the headset's microphone): unit opened again
+    if (MOS_SwitchPending(_this) && !MOS_ReopenAhiDevice(_this)) {
+        return false;
+    }
+    if (!MOS_data->deviceOpen) {
+        D("Device is not open");
+        return false;
+    }
+
+    if (!MOS_data->link) {
+        D("Start recording");
+        MOS_SendCaptureRequest(_this, true);
+    }
+
+    request = MOS_data->ahiRequest[0];
+    WaitIO((struct IORequest *)request);
+    MOS_data->link = NULL;
+
+    err = request->ahir_Std.io_Error;
+    MOS_data->readyBuffer = MOS_data->recBuffer;
+    MOS_data->readyLength = err ? 0 : request->ahir_Std.io_Actual;
+    if (err) {
+        D("AHI read error %ld", err);
+        // Refused at once (no input, headset gone...): wait the time it
+        // should have taken, then start again
+        if (err != IOERR_ABORTED) {
+            SDL_Delay(MOS_data->bufferMs);
+        }
+    }
+    MOS_PaceRequests(MOS_data);
+
+    // The next one at once, into the other buffer
+    MOS_data->recBuffer = MOS_SwapBuffer(MOS_data->recBuffer);
+    MOS_SendCaptureRequest(_this, err != 0);
+
+    return true;
+}
 
 static int
 MOS_RecordDevice(SDL_AudioDevice *_this, void * buffer, int buflen)
 {
-    struct AHIRequest  *request;
-    SDL_AudioSpec      *spec    = &_this->spec;
-    MOSAudioData       *MOS_data = _this->hidden;
-    Uint32 now;
+    MOSAudioData *MOS_data = _this->hidden;
     size_t copyLen;
-    void *completedBuffer;
-    int current;
-
-    //D("Called for device %p, buffer %p, buflen %d, spec %p", _this, buffer, buflen, spec);
 
     if (!MOS_data->deviceOpen) {
-        D("Device is not open");
         return 0;
     }
 
-    now = SDL_GetTicks();
-    current = MOS_data->currentBuffer;
-    request = MOS_data->ahiRequest[0];
-
-    if (MOS_data->lastCaptureTicks == 0 || (now - MOS_data->lastCaptureTicks) > RESTART_CAPTURE_THRESHOLD) {
-        if (MOS_data->link) {
-            WaitIO((struct IORequest *)MOS_data->link);
-            MOS_data->link = NULL;
-        }
-
-        /* Assume that we have to (re)start recording */
-        MOS_FillCaptureRequest(
-            request,
-            MOS_data->audioBuffer[current],
-            MOS_data->audioBufferSize,
-            spec->freq,
-            MOS_data->ahiType);
-
-        request->ahir_Std.io_Offset = 0;
-
-        D("Start recording");
-
-        DoIO((struct IORequest *)request);
-
-        current = MOS_SwapBuffer(current);
-    } else {
-        /* Wait for the previous request completion */
-        if (MOS_data->link) {
-            WaitIO((struct IORequest *)MOS_data->link);
-            MOS_data->link = NULL;
-        }
-    }
-
-    /* What the completed request really read (in the buffer returned below) */
-    const LONG ioError = request->ahir_Std.io_Error;
-    const ULONG actual = ioError ? 0 : request->ahir_Std.io_Actual;
-    if (ioError) {
-        D("AHI read error %ld", ioError);
-    }
-
-    MOS_FillCaptureRequest(
-        request,
-        MOS_data->audioBuffer[current],
-        MOS_data->audioBufferSize,
-        spec->freq,
-        MOS_data->ahiType);
-
-    SendIO((struct IORequest *)request);
-    MOS_data->link = request;
-
-    current = MOS_SwapBuffer(current);
-    completedBuffer = MOS_data->audioBuffer[current];
-    copyLen = SDL_min((size_t)buflen, (size_t)actual);
+    copyLen = SDL_min((size_t)buflen, (size_t)MOS_data->readyLength);
     // whole frames only
-    copyLen -= copyLen % SDL_AUDIO_FRAMESIZE(*spec);
-    SDL_memcpy(buffer, completedBuffer, copyLen);
-    MOS_data->lastCaptureTicks = now;
-    MOS_data->currentBuffer = current;
+    copyLen -= copyLen % SDL_AUDIO_FRAMESIZE(_this->spec);
+    if (copyLen) {
+        SDL_memcpy(buffer, MOS_data->audioBuffer[MOS_data->readyBuffer], copyLen);
+    }
+    MOS_data->readyLength = 0;
 
-    //D("%d bytes copied", copyLen);
-
-    return copyLen;
+    return (int)copyLen;
 }
 
+/* Nothing wants the data (also called with the device lock held): what was
+   read is dropped, AHI goes on recording so nothing stale piles up */
 static void
-MOS_FlushRecording(SDL_AudioDevice *this)
+MOS_FlushRecording(SDL_AudioDevice *_this)
 {
+    MOSAudioData *MOS_data = _this->hidden;
+
+    if (MOS_data) {
+        MOS_data->readyLength = 0;
+    }
 }
 
 static void

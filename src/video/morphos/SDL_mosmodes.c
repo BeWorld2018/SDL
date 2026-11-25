@@ -766,3 +766,29 @@ MOS_GetDisplayBounds(SDL_VideoDevice *device, SDL_VideoDisplay *display, SDL_Rec
     return true;
 }
 
+bool
+MOS_GetDisplayUsableBounds(SDL_VideoDevice *device, SDL_VideoDisplay *display, SDL_Rect *rect)
+{
+    SDL_DisplayData *dd = (SDL_DisplayData *)display->internal;
+    const char *name = (dd && dd->pubscreen_name[0]) ? dd->pubscreen_name : NULL;
+    struct Screen *s;
+
+    MOS_GetDisplayBounds(device, display, rect);
+
+    if (!name && display->id != SDL_GetPrimaryDisplay()) {
+        return true;
+    }
+    s = LockPubScreen((CONST_STRPTR)name);
+    if (s) {
+        if (s->Flags & SHOWTITLE) {
+            const int bar = s->BarHeight + 1;
+            if (bar < rect->h) {
+                rect->y += bar;
+                rect->h -= bar;
+            }
+        }
+        UnlockPubScreen(NULL, s);
+    }
+    return true;
+}
+

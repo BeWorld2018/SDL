@@ -2981,6 +2981,8 @@ static bool SDL_GetGamepadMappingFilePath(char *path, size_t size)
 
 #ifdef SDL_PLATFORM_ANDROID
     return SDL_snprintf(path, size, "%s/gamepad_map.txt", SDL_GetAndroidInternalStoragePath()) < size;
+#elif defined(__MORPHOS__)
+    return SDL_strlcpy(path, "ENV:gamecontrollerdb.txt", size) < size;
 #else
     return false;
 #endif

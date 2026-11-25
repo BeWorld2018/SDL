@@ -52,7 +52,6 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	MOS_InitMouse(_this);
 
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
-	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "ENV:gamecontrollerdb.txt");
 	SDL_SetHint(SDL_HINT_POLL_SENTINEL, "0");
 	
 	if (!SDL_GetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION)) {
@@ -74,7 +73,9 @@ MOS_VideoInit(SDL_VideoDevice *_this)
 	SDL_free(val);
 	val = MOS_getenv("SDL3_HINT_RENDER_DRIVER");
 	if (val && strlen(val)>0) {
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl" : (strcmp(val, "overlay")==0 ? "overlay" : "software")));
+		// software after the one chosen: a program still gets a renderer
+		// when OpenGL or the overlay can't be had (no 3D, no overlay)
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, (strcmp(val, "opengl")==0 ? "opengl,software" : (strcmp(val, "overlay")==0 ? "overlay,software" : "software")));
 	}
 	SDL_free(val);
 	val = MOS_getenv("SDL3_HINT_RENDER_VSYNC");
@@ -352,6 +353,7 @@ static SDL_VideoDevice *MOS_CreateDevice(void)
     device->VideoQuit = MOS_VideoQuit;
 
     device->GetDisplayBounds = MOS_GetDisplayBounds;
+    device->GetDisplayUsableBounds = MOS_GetDisplayUsableBounds;
     device->GetDisplayModes = MOS_GetDisplayModes;
     device->SetDisplayMode = MOS_SetDisplayMode;
     device->GetDisplayForWindow = MOS_GetDisplayForWindow;

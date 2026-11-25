@@ -27,14 +27,30 @@
 
 #include <proto/charsets.h>
 #include <proto/exec.h>
+#include <proto/intuition.h>
 #include <proto/muimaster.h>
+#include <intuition/intuition.h>
+
+static struct Window *
+MOS_MessageBoxWindow(const SDL_MessageBoxData *mbd)
+{
+	SDL_Window *window = mbd->window ? mbd->window : SDL_GetKeyboardFocus();
+
+	if (window && window->internal) {
+		SDL_WindowData *data = window->internal;
+		return data->win;
+	}
+	return NULL;
+}
 
 bool
 MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 {
 	D("");
 
-	if (MUIMasterBase) {
+	struct Window *syswin = MOS_MessageBoxWindow(mbd);
+
+	if (syswin || MUIMasterBase) {
 		char *title = MOS_ConvertText(mbd->title, MIBENUM_UTF_8, MIBENUM_SYSTEM);
         if (title) {
 
@@ -63,7 +79,7 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
                         if (i > 0)
                             *buf++ = '|';
 
-                        if (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT)
+                        if (!syswin && (mbd->buttons[i].flags & SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT))
                             *buf++ = '*';
 
                         if (btn[i]) {
@@ -79,16 +95,20 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
                     }
 
                     *buf = '\0';
-					
-					/*struct Window * syswin = NULL;
-					if (mbd->window) {
-						// TODO: TEST... crash actualy
-						SDL_WindowData *data = mbd->window->internal;
-						syswin = data->win;
-					}*/
-					
+
                     APTR args[1] = { message };
-                    rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, "%s", args);
+                    if (syswin) {
+                        struct EasyStruct es;
+
+                        es.es_StructSize   = sizeof(es);
+                        es.es_Flags        = 0;
+                        es.es_Title        = (STRPTR)(title == NULL ? "SDL3" : title);
+                        es.es_TextFormat   = (STRPTR)"%s";
+                        es.es_GadgetFormat = (STRPTR)btxt;
+                        rc = EasyRequestArgs(syswin, &es, NULL, args);
+                    } else {
+                        rc = MUI_RequestA(NULL, NULL, 0, title == NULL ? "SDL3" : title, btxt, "%s", args);
+                    }
                     if (rc == 0)
                         rc = mbd->numbuttons - 1;
                     else
@@ -115,6 +135,6 @@ MOS_ShowMessageBox(const SDL_MessageBoxData *mbd, int *buttonID)
 
 		return true;
 	}
-	
-	return false;
+
+	return SDL_SetError("No window and no muimaster.library for the message box");
 }

@@ -311,10 +311,66 @@ static void MOS_HandleSingleFile(struct FileRequester *req, MOS_DialogArgs *args
     }
 }
 
+static char *MOS_BuildPattern(const SDL_DialogFileFilter *filters, int nfilters)
+{
+    size_t len = sizeof("#?.()");
+    bool first = true;
+    char *out, *p;
+    int i;
+
+    if (nfilters <= 0 || (filters[0].pattern && SDL_strcmp(filters[0].pattern, "*") == 0)) {
+        return NULL;
+    }
+    for (i = 0; i < nfilters; i++) {
+        if (filters[i].pattern) {
+            len += SDL_strlen(filters[i].pattern) + 1;
+        }
+    }
+
+    out = (char *)SDL_malloc(len);
+    if (!out) {
+        return NULL;
+    }
+    p = out;
+    SDL_memcpy(p, "#?.(", 4);
+    p += 4;
+
+    for (i = 0; i < nfilters; i++) {
+        const char *s = filters[i].pattern;
+
+        if (s && SDL_strcmp(s, "*") == 0) {
+            continue;
+        }
+        while (s && *s) {
+            const char *end = SDL_strchr(s, ';');
+            const size_t n = end ? (size_t)(end - s) : SDL_strlen(s);
+
+            if (n > 0) {
+                if (!first) {
+                    *p++ = '|';
+                }
+                SDL_memcpy(p, s, n);
+                p += n;
+                first = false;
+            }
+            s = end ? end + 1 : NULL;
+        }
+    }
+    *p++ = ')';
+    *p = '\0';
+
+    if (first) {
+        SDL_free(out);
+        return NULL;
+    }
+    return out;
+}
+
 static void MOS_ShowDialog(MOS_DialogArgs *args)
 {
     SDL_DialogFileCallback callback = args->callback;
     struct FileRequester *req;
+    char *pattern = args->dir_only ? NULL : MOS_BuildPattern(args->filters, args->nfilters);
 
     D("title '%s', accept '%s', cancel '%s', default_dir '%s', default_file '%s'",
       args->title ? args->title : "(null)",
@@ -330,14 +386,18 @@ static void MOS_ShowDialog(MOS_DialogArgs *args)
         ASLFR_NegativeText, args->cancel,
         ASLFR_InitialFile, args->default_file,
         ASLFR_InitialDrawer, args->default_dir,
-        /* ASLFR_InitialPattern, TODO: filters */
+        ASLFR_InitialPattern, pattern ? pattern : "#?",
+        ASLFR_DoPatterns, (!args->dir_only && args->nfilters > 0) ? TRUE : FALSE,
         ASLFR_DoMultiSelect, args->allow_many,
         ASLFR_DoSaveMode, args->save,
         ASLFR_DrawersOnly, args->dir_only,
         ASLFR_PrivateIDCMP, TRUE,
         TAG_DONE);
 
+    D("pattern '%s'", pattern ? pattern : "(all)");
+
     if (!req) {
+        SDL_free(pattern);
         callback(args->userdata, NULL, -1);
         return;
     }
@@ -359,6 +419,7 @@ static void MOS_ShowDialog(MOS_DialogArgs *args)
     }
 
     FreeAslRequest(req);
+    SDL_free(pattern);
 }
 
 static int MOS_DialogThread(void *ptr)

@@ -642,11 +642,29 @@ GL_ShaderContext *GL_CreateShaderContext(void)
         return NULL;
     }
 
+#ifdef __MORPHOS__
+    {
+        const char *hint = SDL_GetHint("GL_ARB_texture_non_power_of_two");
+        const GLubyte *(APIENTRY *getstring)(GLenum) =
+            (const GLubyte *(APIENTRY *)(GLenum))SDL_GL_GetProcAddress("glGetString");
+        const char *version = getstring ? (const char *)getstring(GL_VERSION) : NULL;
+        bool npot = (!hint || *hint != '0') &&
+                    ((version && SDL_atoi(version) >= 2) ||
+                     SDL_GL_ExtensionSupported("GL_ARB_texture_non_power_of_two"));
+
+        if (!npot &&
+            (SDL_GL_ExtensionSupported("GL_ARB_texture_rectangle") ||
+             SDL_GL_ExtensionSupported("GL_EXT_texture_rectangle"))) {
+            ctx->GL_ARB_texture_rectangle_supported = true;
+        }
+    }
+#else
     if (!SDL_GL_ExtensionSupported("GL_ARB_texture_non_power_of_two") &&
         (SDL_GL_ExtensionSupported("GL_ARB_texture_rectangle") ||
          SDL_GL_ExtensionSupported("GL_EXT_texture_rectangle"))) {
         ctx->GL_ARB_texture_rectangle_supported = true;
     }
+#endif
 
     // Check for shader support
     shaders_supported = false;
