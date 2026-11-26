@@ -55,8 +55,7 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 	cursor->Pointer.offx = hot_x;
 	cursor->Pointer.offy = hot_y;
 
-	// The surface is ARGB8888 (SDL_CreateColorCursor converts it)
-	bmp = AllocBitMap(surface->w, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
+	bmp = AllocBitMap(((surface->w + 15) / 16) * 16, surface->h, 32, BMF_MINPLANES | BMF_CLEAR | BMF_SPECIALFMT | SHIFT_PIXFMT(PIXFMT_ARGB32), NULL);
 
 	if (bmp != NULL && SDL_LockSurface(surface) == 0) {
 		struct RastPort rp;
@@ -70,6 +69,9 @@ MOS_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
 						POINTERA_BitMap, bmp,
 						POINTERA_XOffset, -hot_x,
 						POINTERA_YOffset, -hot_y,
+						POINTERA_WordWidth, bmp->BytesPerRow / 2,
+						POINTERA_XResolution, POINTERXRESN_SCREENRES,
+						POINTERA_YResolution, POINTERYRESN_SCREENRESASPECT,
 						TAG_DONE);
 	}
 
@@ -123,10 +125,37 @@ MOS_CreateSystemCursor(SDL_SystemCursor id)
 static void
 MOS_FreeCursor(SDL_Cursor *cursor)
 {
+	SDL_VideoDevice *video = SDL_GetVideoDevice();
+	SDL_VideoData *vd = video ? (SDL_VideoData *)video->driverdata : NULL;
+
 	D("[%s] 0x%08lx\n", __FUNCTION__, cursor);
+
+	// Never used again once freed (SDL frees the default cursor at quit
+	// while the windows are still open)
+	if (vd && vd->CurrentPointer == cursor)
+		vd->CurrentPointer = NULL;
 
 	if (!IS_SYSTEM_CURSOR(cursor)) {
 		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
+
+		// Windows that got this pointer with WA_Pointer may still use it:
+		// back to the system pointer before it is disposed, or Intuition
+		// shows a freed object (as in sdl3.library). A window over which
+		// SDL shows another cursor gets that one back.
+		if (vd && ac->Pointer.mouseptr) {
+			SDL_WindowData *wd;
+
+			ForeachNode(&vd->windowlist, wd) {
+				if (wd->win) {
+					size_t pointertags[] = { WA_PointerType, POINTERTYPE_NORMAL, TAG_DONE };
+
+					ClearPointer(wd->win);
+					SetAttrsA(wd->win, (struct TagItem *)&pointertags);
+					if (wd->pointer_inside != 0 && vd->CurrentPointer)
+						MOS_ApplyPointer(vd, wd->win);
+				}
+			}
+		}
 
 		if (ac->Pointer.mouseptr)
 			DisposeObject(ac->Pointer.mouseptr);
@@ -148,6 +177,7 @@ MOS_ApplyPointer(SDL_VideoData *vd, struct Window *win)
 
 	if (IS_SYSTEM_CURSOR(cursor)) {
 		size_t pointertags[] = { WA_PointerType, cursor ? (size_t)cursor->driverdata : POINTERTYPE_INVISIBLE, TAG_DONE };
+		ClearPointer(win);
 		SetAttrsA(win, (struct TagItem *)&pointertags);
 	} else {
 		SDL_MOSCursor *ac = (SDL_MOSCursor *)cursor;
